@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Task } from '@/types';
+import { Activity, PieChart, Info } from 'lucide-react';
 
 const StatusChart = ({ tasks }: { tasks: Task[] }) => {
   const total = tasks.length;
@@ -9,21 +10,30 @@ const StatusChart = ({ tasks }: { tasks: Task[] }) => {
   const inProgress = tasks.filter(t => t.status === 'In Progress').length;
   const todo = tasks.filter(t => t.status === 'To Do').length;
 
+  // Prevent divide by zero
+  const donePct = total ? (done / total * 100) : 0;
+  const ipPct = total ? (inProgress / total * 100) : 0;
+
+  // Donut chart logic simplified: 
+  // We used SVG dasharrays before. 
+  // Dasharray = [length of dash, length of gap]. 
+  // Circumference C ~ 100 for pathLength="100" (or viewBox logic).
+  // The previous viewBox was 0 0 36 36, C ~ 100 (actually 100 is easier for percent).
+
   return (
     <div className="flex flex-col items-center justify-center mr-6">
-      {/* Container for the donut chart */}
       <div className="relative w-32 h-32">
         <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
           <path
-            className="text-gray-200"
+            className="text-gray-100"
             d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
             fill="none"
             stroke="currentColor"
             strokeWidth="3.8"
           />
           <path
-            className="text-blue-500"
-            strokeDasharray={`${(inProgress / total) * 100}, 100`}
+            className="text-blue-500 transition-all duration-1000 ease-out"
+            strokeDasharray={`${ipPct}, 100`}
             d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
             fill="none"
             stroke="currentColor"
@@ -59,7 +69,10 @@ export default function SummaryView({ tasks }: { tasks: Task[] }) {
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-1">
       {/* 1. Status Overview Card */}
       <div className="col-span-1 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <h2 className="text-lg font-bold text-gray-800 mb-6">Status overview</h2>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-bold text-gray-800">Status overview</h2>
+          <Info size={16} className="text-gray-400" />
+        </div>
         <div className="flex flex-col sm:flex-row items-center">
           <StatusChart tasks={tasks} />
           <div className="space-y-3 mt-4 sm:mt-0 w-full">
@@ -81,7 +94,10 @@ export default function SummaryView({ tasks }: { tasks: Task[] }) {
 
       {/* 2. Recent Activity Card */}
       <div className="col-span-1 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <h2 className="text-lg font-bold text-gray-800 mb-4">Recent activity</h2>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-bold text-gray-800">Recent activity</h2>
+          <Activity size={16} className="text-gray-400" />
+        </div>
         <div className="space-y-2">
           <ActivityItem
             description="System updated status on tasks"
@@ -91,9 +107,14 @@ export default function SummaryView({ tasks }: { tasks: Task[] }) {
       </div>
 
       {/* Placeholder stats for layout parity */}
-      <div className="col-span-1 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <h2 className="text-lg font-bold text-gray-800 mb-4">Types of work</h2>
-        <p className="text-sm text-gray-400">Task breakdown visualization...</p>
+      <div className="col-span-1 bg-white p-6 rounded-lg shadow-sm border border-gray-200 flex flex-col justify-between">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-gray-800">Types of work</h2>
+          <PieChart size={16} className="text-gray-400" />
+        </div>
+        <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
+          Visualization coming soon
+        </div>
       </div>
 
     </div>

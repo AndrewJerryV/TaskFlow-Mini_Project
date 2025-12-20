@@ -1,9 +1,8 @@
 // src/app/layout.tsx
 
 import './globals.css';
-import { Inter } from 'next/font/google';
-
-const inter = Inter({ subsets: ['latin'] });
+import { Sidebar } from '@/components/Sidebar';
+import Link from 'next/link';
 
 export const metadata = {
   title: 'TaskFlow Clone',
@@ -17,7 +16,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className="font-sans">
         <div className="flex h-screen bg-gray-50">
           {/* Main Layout Container */}
           <div className="flex-1 overflow-y-auto">
@@ -36,33 +35,17 @@ export default function RootLayout({
                 </div>
               </div>
               <div className="flex items-center space-x-3">
-                <button className="px-3 py-1 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700">
-                  + Create
-                </button>
-                <button className="px-3 py-1 text-sm font-semibold text-purple-700 bg-purple-200 rounded-md hover:bg-purple-300">
-                  Premium trial
-                </button>
                 {/* User Icon/Avatar */}
-                <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-700">Andrew</span>
+                  <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-semibold">AM</div>
+                </div>
               </div>
             </div>
 
             <div className="flex h-[calc(100vh-3rem)]">
               {/* Left Sidebar */}
-              <aside className="w-56 bg-white border-r border-gray-200 p-4 overflow-y-auto">
-                {/* Content for you, Spaces, Recent, etc. */}
-                <h2 className="text-xs font-semibold uppercase text-gray-500 mb-2">For you</h2>
-                <ul className="space-y-1 text-sm">
-                  <li className="p-2 rounded-md hover:bg-gray-100 cursor-pointer">
-                    <span className="mr-2">+</span> Spaces
-                  </li>
-                  {/* ... other sidebar links */}
-                  <li className="p-2 rounded-md bg-blue-100 text-blue-700 font-medium flex justify-between items-center">
-                    <span>My Software Team</span>
-                    <span>...</span>
-                  </li>
-                </ul>
-              </aside>
+              <Sidebar />
 
               {/* Main Content Area */}
               <main className="flex-1 p-4 overflow-y-auto">

@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { DbSchema, Project, Task, User, ActivityLog } from '@/types';
+import { DbSchema, Project, Task, User, ActivityLog, Message } from '@/types';
 
 const DB_PATH = path.join(process.cwd(), 'data.json');
 
@@ -50,6 +50,8 @@ const INITIAL_DATA: DbSchema = {
             status: 'In Progress',
             priority: 'Critical',
             assigneeId: 'u1',
+            startDate: new Date().toISOString(),
+            dueDate: new Date(Date.now() + 86400000 * 3).toISOString(), // 3 days from now
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             tags: ['Feature', 'Frontend'],
@@ -61,6 +63,8 @@ const INITIAL_DATA: DbSchema = {
             description: 'Implement secure login flow.',
             status: 'To Do',
             priority: 'Medium',
+            startDate: new Date(Date.now() + 86400000 * 5).toISOString(),
+            dueDate: new Date(Date.now() + 86400000 * 10).toISOString(),
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             tags: ['Backend'],
@@ -86,6 +90,7 @@ const INITIAL_DATA: DbSchema = {
             timestamp: new Date().toISOString()
         }
     ],
+    messages: []
 };
 
 // Singleton to handle DB operations
@@ -126,6 +131,9 @@ class Database {
         return allTasks;
     }
     getActivityLogs(): ActivityLog[] { return this.data?.activityLogs || []; }
+    getMessages(projectId: string): Message[] {
+        return this.data?.messages.filter(m => m.projectId === projectId).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()) || [];
+    }
 
     // Generic Modifiers
     addProject(project: Project) {
@@ -173,6 +181,11 @@ class Database {
 
     createLog(log: ActivityLog) {
         this.data?.activityLogs.unshift(log); // Add to beginning
+        this.save();
+    }
+
+    addMessage(message: Message) {
+        this.data?.messages.push(message);
         this.save();
     }
 }

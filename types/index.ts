@@ -5,8 +5,17 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  avatarUrl?: string;
+  avatarUrl?: string; // Optional
+  createdAt?: string; // Optional for now
   role: 'Admin' | 'Manager' | 'Member';
+}
+
+export interface Message {
+  id: string;
+  projectId: string;
+  userId: string;
+  content: string;
+  timestamp: string;
 }
 
 export interface Comment {
@@ -26,6 +35,7 @@ export interface Task {
   priority: Priority;
   assigneeId?: string; // User ID
   dueDate?: string; // ISO Date
+  startDate?: string; // ISO Date
   createdAt: string; // ISO Date
   updatedAt: string; // ISO Date
   tags: string[];
@@ -56,4 +66,5 @@ export interface DbSchema {
   projects: Project[];
   tasks: Task[];
   activityLogs: ActivityLog[];
+  messages: Message[];
 }

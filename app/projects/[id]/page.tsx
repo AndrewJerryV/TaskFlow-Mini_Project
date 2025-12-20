@@ -7,19 +7,14 @@ import { TaskBoard } from '@/components/TaskBoard';
 import SummaryView from '@/components/SummaryView';
 import BacklogView from '@/components/BacklogView';
 import TimelineView from '@/components/TimelineView';
+import { CreateTaskDialog } from '@/components/forms/CreateTaskDialog';
+import { ChatWidget } from '@/components/ChatWidget';
+import VideoRoom from '@/components/VideoRoom';
+import { Video } from 'lucide-react';
 
 // Nav Items definition
 const NAV_ITEMS = ['Summary', 'Backlog', 'Board', 'Timeline', 'Code', 'Pages'] as const;
 type Tab = typeof NAV_ITEMS[number];
-
-// Placeholder for missing views
-const Placeholder = ({ name }: { name: string }) => (
-    <div className="flex flex-col items-center justify-center h-96 text-gray-400 border-2 border-dashed border-gray-100 rounded-xl bg-gray-50/50">
-        <div className="text-4xl mb-4">🚧</div>
-        <h3 className="text-lg font-medium text-gray-600">{name} View</h3>
-        <p className="text-sm">This module is currently under development.</p>
-    </div>
-);
 
 export default function ProjectPage() {
     const params = useParams();
@@ -30,6 +25,8 @@ export default function ProjectPage() {
     const [tasks, setTasks] = useState<Task[]>([]);
     const [project, setProject] = useState<Project | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+    const [isVideoOpen, setIsVideoOpen] = useState(false);
 
     useEffect(() => {
         if (id) {
@@ -44,7 +41,7 @@ export default function ProjectPage() {
             const tasksData = await tasksRes.json();
             setTasks(tasksData);
 
-            // Fetch Projects to find current one (Optimization: Create single project endpoint later)
+            // Fetch Projects to find current one
             const projectsRes = await fetch('/api/projects');
             const projectsData = await projectsRes.json();
             const currentProject = projectsData.find((p: Project) => p.id === id);
@@ -74,27 +71,52 @@ export default function ProjectPage() {
         }
     };
 
-    const handleTaskCreate = async () => {
-        // Basic creation for demo
-        const title = prompt("Task Title:");
-        if (!title) return;
+    const handleTaskUpdate = async (updatedTask: Task) => {
+        // Optimistic
+        setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+
+        try {
+            await fetch('/api/tasks', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedTask)
+            });
+        } catch (err) {
+            console.error("Failed to update task", err);
+        }
+    };
+
+    const handleTaskCreateSubmit = async (taskData: Partial<Task>) => {
+        const newTask: Task = {
+            id: `temp-${Date.now()}`,
+            projectId: id,
+            title: taskData.title || 'Untitled',
+            description: taskData.description || '',
+            status: taskData.status || 'To Do',
+            priority: taskData.priority || 'Medium',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            tags: [],
+            assigneeId: taskData.assigneeId || 'u1',
+            startDate: taskData.startDate,
+            dueDate: taskData.dueDate
+        };
+
+        const previousTasks = [...tasks];
+        setTasks(prev => [...prev, newTask]);
 
         try {
             const res = await fetch('/api/tasks', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    projectId: id,
-                    title,
-                    priority: 'Medium',
-                    // Default to current user in a real app
-                    assigneeId: 'u1'
-                })
+                body: JSON.stringify(newTask),
+                headers: { 'Content-Type': 'application/json' }
             });
-            const newTask = await res.json();
-            setTasks(prev => [...prev, newTask]);
+            if (!res.ok) throw new Error('Failed');
+            const realTask = await res.json();
+            setTasks(prev => prev.map(t => t.id === newTask.id ? realTask : t));
         } catch (err) {
             console.error(err);
+            setTasks(previousTasks);
         }
     };
 
@@ -103,6 +125,9 @@ export default function ProjectPage() {
 
     return (
         <div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden bg-white">
+            {isVideoOpen && <VideoRoom projectId={id} onLeave={() => setIsVideoOpen(false)} />}
+            <ChatWidget projectId={id} />
+
             {/* Header */}
             <div className="border-b border-gray-200 px-6 py-4 flex justify-between items-center bg-white z-10">
                 <div>
@@ -117,6 +142,12 @@ export default function ProjectPage() {
                     </h1>
                 </div>
                 <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setIsVideoOpen(true)}
+                        className="flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                    >
+                        <Video size={16} /> Join Meeting
+                    </button>
                     <div className="flex -space-x-2">
                         <div className="w-8 h-8 rounded-full border-2 border-white bg-green-500 text-white flex items-center justify-center text-xs">A</div>
                         <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-200 text-gray-500 flex items-center justify-center text-xs">+</div>
@@ -135,8 +166,8 @@ export default function ProjectPage() {
                             key={item}
                             onClick={() => setActiveTab(item)}
                             className={`py-3 text-sm font-medium transition-colors border-b-2 ${activeTab === item
-                                    ? 'border-blue-600 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                ? 'border-blue-600 text-blue-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                 }`}
                         >
                             {item}
@@ -147,12 +178,63 @@ export default function ProjectPage() {
 
             {/* Main Content Area */}
             <div className="flex-1 overflow-auto bg-gray-50/30 p-6">
+                <CreateTaskDialog
+                    isOpen={isCreateTaskOpen}
+                    onClose={() => setIsCreateTaskOpen(false)}
+                    currentProjectId={params.id as string}
+                    onSubmit={handleTaskCreateSubmit}
+                />
+
                 {activeTab === 'Summary' && <SummaryView tasks={tasks} />}
-                {activeTab === 'Backlog' && <BacklogView tasks={tasks} onTaskCreate={handleTaskCreate} />}
+                {activeTab === 'Backlog' && <BacklogView tasks={tasks} onTaskCreate={() => setIsCreateTaskOpen(true)} onTaskUpdate={handleTaskUpdate} />}
+
                 {activeTab === 'Board' && <TaskBoard tasks={tasks} onTaskMove={handleTaskMove} />}
-                {activeTab === 'Timeline' && <TimelineView />}
-                {activeTab === 'Code' && <Placeholder name="Code" />}
-                {activeTab === 'Pages' && <Placeholder name="Pages" />}
+                {activeTab === 'Timeline' && <TimelineView tasks={tasks} />}
+
+                {activeTab === 'Code' && (
+                    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                        <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 text-xs font-mono text-gray-600 flex justify-between">
+                            <span>main</span>
+                            <span>Last commit: 10 mins ago</span>
+                        </div>
+                        <div className="p-0">
+                            {[
+                                { name: 'src', type: 'dir', time: '2 hours ago' },
+                                { name: 'public', type: 'dir', time: '2 hours ago' },
+                                { name: 'package.json', type: 'file', time: 'yesterday' },
+                                { name: 'README.md', type: 'file', time: '3 days ago' },
+                            ].map((file, i) => (
+                                <div key={i} className="flex items-center px-4 py-3 border-b border-gray-100 hover:bg-blue-50 cursor-pointer text-sm">
+                                    <span className="w-6 text-gray-400">{file.type === 'dir' ? '📁' : '📄'}</span>
+                                    <span className="flex-1 font-medium text-gray-700">{file.name}</span>
+                                    <span className="text-gray-400 text-xs">{file.time}</span>
+                                </div>
+                            ))}
+                            <div className="p-8 text-center text-gray-400 italic bg-gray-50/20">
+                                Repository connection active
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'Pages' && (
+                    <div className="grid grid-cols-3 gap-6">
+                        <div className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md cursor-pointer group">
+                            <div className="h-32 bg-gray-100 rounded-md mb-3 flex items-center justify-center text-4xl group-hover:bg-blue-50 transition-colors">📄</div>
+                            <h3 className="font-semibold text-gray-800">Project Requirements</h3>
+                            <p className="text-xs text-gray-500">Updated yesterday by User</p>
+                        </div>
+                        <div className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md cursor-pointer group">
+                            <div className="h-32 bg-gray-100 rounded-md mb-3 flex items-center justify-center text-4xl group-hover:bg-blue-50 transition-colors">📊</div>
+                            <h3 className="font-semibold text-gray-800">Q1 Marketing Strategy</h3>
+                            <p className="text-xs text-gray-500">Updated 2 days ago</p>
+                        </div>
+                        <div className="bg-white p-4 rounded-lg border border-2 border-dashed border-gray-200 hover:border-blue-400 hover:bg-blue-50 flex flex-col items-center justify-center text-gray-400 cursor-pointer transition-colors">
+                            <span className="text-2xl mb-1">+</span>
+                            <span>Create Page</span>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
