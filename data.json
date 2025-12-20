@@ -1,0 +1,157 @@
+{
+  "users": [
+    {
+      "id": "u1",
+      "name": "Andrew User",
+      "email": "andrew@example.com",
+      "role": "Admin",
+      "avatarUrl": "https://ui-avatars.com/api/?name=Andrew+User&background=0D8ABC&color=fff"
+    },
+    {
+      "id": "u2",
+      "name": "Jane Doe",
+      "email": "jane@example.com",
+      "role": "Manager",
+      "avatarUrl": "https://ui-avatars.com/api/?name=Jane+Doe&background=random"
+    }
+  ],
+  "projects": [
+    {
+      "id": "p1",
+      "name": "TaskFlow Development",
+      "description": "Building the ultimate work management platform.",
+      "key": "TF",
+      "ownerId": "u1",
+      "createdAt": "2025-12-20T09:55:58.944Z",
+      "updatedAt": "2025-12-20T09:55:58.946Z"
+    },
+    {
+      "id": "p2",
+      "name": "Marketing Campaign Q1",
+      "description": "Launch strategy for the new product line.",
+      "key": "MKT",
+      "ownerId": "u2",
+      "createdAt": "2025-12-20T09:55:58.947Z",
+      "updatedAt": "2025-12-20T09:55:58.947Z"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t1",
+      "projectId": "p1",
+      "title": "Initialize Project",
+      "description": "Set up Next.js and Tailwind.",
+      "status": "Done",
+      "priority": "High",
+      "assigneeId": "u1",
+      "createdAt": "2025-12-19T09:55:58.947Z",
+      "updatedAt": "2025-12-20T10:02:45.768Z",
+      "tags": [
+        "Dev",
+        "Setup"
+      ]
+    },
+    {
+      "id": "t2",
+      "projectId": "p1",
+      "title": "Implement Task Board",
+      "description": "Create a Kanban board using dnd-kit.",
+      "status": "In Progress",
+      "priority": "Critical",
+      "assigneeId": "u1",
+      "createdAt": "2025-12-20T09:55:58.947Z",
+      "updatedAt": "2025-12-20T10:02:53.493Z",
+      "tags": [
+        "Feature",
+        "Frontend"
+      ]
+    },
+    {
+      "id": "t3",
+      "projectId": "p1",
+      "title": "User Authentication",
+      "description": "Implement secure login flow.",
+      "status": "To Do",
+      "priority": "Medium",
+      "createdAt": "2025-12-20T09:55:58.947Z",
+      "updatedAt": "2025-12-20T10:52:56.989Z",
+      "tags": [
+        "Backend"
+      ]
+    }
+  ],
+  "activityLogs": [
+    {
+      "id": "33f3f196-7f97-4467-af26-56adff36439e",
+      "entityType": "Task",
+      "entityId": "t3",
+      "action": "Moved",
+      "details": "Status changed from \"In Progress\" to \"To Do\".",
+      "userId": "system",
+      "timestamp": "2025-12-20T10:52:02.999Z"
+    },
+    {
+      "id": "9463d613-98bd-43ae-868b-a5e83049a430",
+      "entityType": "Task",
+      "entityId": "t3",
+      "action": "Moved",
+      "details": "Status changed from \"To Do\" to \"In Progress\".",
+      "userId": "system",
+      "timestamp": "2025-12-20T10:52:01.504Z"
+    },
+    {
+      "id": "f31b9cec-0023-46e6-9ff7-edaaddbedad8",
+      "entityType": "Task",
+      "entityId": "t2",
+      "action": "Moved",
+      "details": "Status changed from \"To Do\" to \"In Progress\".",
+      "userId": "system",
+      "timestamp": "2025-12-20T10:02:53.493Z"
+    },
+    {
+      "id": "cdc7445f-74f9-4a6e-9d2f-f1986761d950",
+      "entityType": "Task",
+      "entityId": "t2",
+      "action": "Moved",
+      "details": "Status changed from \"In Progress\" to \"To Do\".",
+      "userId": "system",
+      "timestamp": "2025-12-20T10:02:51.474Z"
+    },
+    {
+      "id": "5c11a6a2-340c-4631-ab9b-7ecaaa6046b0",
+      "entityType": "Task",
+      "entityId": "t3",
+      "action": "Moved",
+      "details": "Status changed from \"Done\" to \"To Do\".",
+      "userId": "system",
+      "timestamp": "2025-12-20T10:02:49.376Z"
+    },
+    {
+      "id": "2282f14f-ae33-4d19-85b0-31028ce589f8",
+      "entityType": "Task",
+      "entityId": "t3",
+      "action": "Moved",
+      "details": "Status changed from \"To Do\" to \"Done\".",
+      "userId": "system",
+      "timestamp": "2025-12-20T10:02:47.113Z"
+    },
+    {
+      "id": "l1",
+      "entityType": "Task",
+      "entityId": "t1",
+      "action": "Created",
+      "details": "Task created.",
+      "userId": "u1",
+      "timestamp": "2025-12-19T09:55:58.947Z"
+    },
+    {
+      "id": "l2",
+      "entityType": "Task",
+      "entityId": "t1",
+      "action": "Moved",
+      "details": "Moved from \"In Progress\" to \"Done\".",
+      "userId": "u1",
+      "timestamp": "2025-12-20T09:55:58.947Z"
+    }
+  ]
+}
