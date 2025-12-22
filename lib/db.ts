@@ -1,149 +1,88 @@
-import fs from 'fs';
-import path from 'path';
-import { DbSchema, Project, Task, User, ActivityLog, Message } from '@/types';
+import { PrismaClient } from '@prisma/client';
+import { Project, Task, User, ActivityLog, Message, Priority, Status } from '@/types';
 
-const DB_PATH = path.join(process.cwd(), 'data.json');
+// PrismaClient Singleton
+const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
-const INITIAL_DATA: DbSchema = {
-    users: [
-        { id: 'u1', name: 'Andrew User', email: 'andrew@example.com', role: 'Admin', avatarUrl: 'https://ui-avatars.com/api/?name=Andrew+User&background=0D8ABC&color=fff' },
-        { id: 'u2', name: 'Jane Doe', email: 'jane@example.com', role: 'Manager', avatarUrl: 'https://ui-avatars.com/api/?name=Jane+Doe&background=random' },
-    ],
-    projects: [
-        {
-            id: 'p1',
-            name: 'TaskFlow Development',
-            description: 'Building the ultimate work management platform.',
-            key: 'TF',
-            ownerId: 'u1',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-        },
-        {
-            id: 'p2',
-            name: 'Marketing Campaign Q1',
-            description: 'Launch strategy for the new product line.',
-            key: 'MKT',
-            ownerId: 'u2',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-        }
-    ],
-    tasks: [
-        {
-            id: 't1',
-            projectId: 'p1',
-            title: 'Initialize Project',
-            description: 'Set up Next.js and Tailwind.',
-            status: 'Done',
-            priority: 'High',
-            assigneeId: 'u1',
-            createdAt: new Date(Date.now() - 86400000).toISOString(),
-            updatedAt: new Date().toISOString(),
-            tags: ['Dev', 'Setup'],
-        },
-        {
-            id: 't2',
-            projectId: 'p1',
-            title: 'Implement Task Board',
-            description: 'Create a Kanban board using dnd-kit.',
-            status: 'In Progress',
-            priority: 'Critical',
-            assigneeId: 'u1',
-            startDate: new Date().toISOString(),
-            dueDate: new Date(Date.now() + 86400000 * 3).toISOString(), // 3 days from now
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            tags: ['Feature', 'Frontend'],
-        },
-        {
-            id: 't3',
-            projectId: 'p1',
-            title: 'User Authentication',
-            description: 'Implement secure login flow.',
-            status: 'To Do',
-            priority: 'Medium',
-            startDate: new Date(Date.now() + 86400000 * 5).toISOString(),
-            dueDate: new Date(Date.now() + 86400000 * 10).toISOString(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            tags: ['Backend'],
-        }
-    ],
-    activityLogs: [
-        {
-            id: 'l1',
-            entityType: 'Task',
-            entityId: 't1',
-            action: 'Created',
-            details: 'Task created.',
-            userId: 'u1',
-            timestamp: new Date(Date.now() - 86400000).toISOString()
-        },
-        {
-            id: 'l2',
-            entityType: 'Task',
-            entityId: 't1',
-            action: 'Moved',
-            details: 'Moved from "In Progress" to "Done".',
-            userId: 'u1',
-            timestamp: new Date().toISOString()
-        }
-    ],
-    messages: []
-};
+export const prisma = globalForPrisma.prisma || new PrismaClient();
 
-// Singleton to handle DB operations
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+
+// Database Adapter to maintain similar API structure but Async
 class Database {
-    private data: DbSchema | null = null;
-
-    constructor() {
-        this.load();
-    }
-
-    private load() {
-        try {
-            if (!fs.existsSync(DB_PATH)) {
-                this.data = INITIAL_DATA;
-                this.save();
-            } else {
-                const fileContent = fs.readFileSync(DB_PATH, 'utf-8');
-                this.data = JSON.parse(fileContent);
-            }
-        } catch (error) {
-            console.error('Failed to load database:', error);
-            this.data = INITIAL_DATA;
-        }
-    }
-
-    private save() {
-        if (this.data) {
-            fs.writeFileSync(DB_PATH, JSON.stringify(this.data, null, 2));
-        }
-    }
 
     // Generic Getters
-    getUsers(): User[] { return this.data?.users || []; }
-    getProjects(): Project[] { return this.data?.projects || []; }
-    getTasks(projectId?: string): Task[] {
-        const allTasks = this.data?.tasks || [];
-        if (projectId) return allTasks.filter(t => t.projectId === projectId);
-        return allTasks;
+    async getUsers(): Promise<User[]> {
+        const users = await prisma.user.findMany();
+        // Map Prisma types to our types if needed (mostly 1:1)
+        return users as unknown as User[];
     }
-    getActivityLogs(): ActivityLog[] { return this.data?.activityLogs || []; }
-    getMessages(projectId: string): Message[] {
-        return this.data?.messages.filter(m => m.projectId === projectId).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()) || [];
+
+    async getProjects(): Promise<Project[]> {
+        const projects = await prisma.project.findMany();
+        return projects as unknown as Project[];
+    }
+
+    async getTasks(projectId?: string): Promise<Task[]> {
+        let tasks;
+        if (projectId) {
+            tasks = await prisma.task.findMany({ where: { projectId } });
+        } else {
+            tasks = await prisma.task.findMany();
+        }
+
+        // Parse tags from string to array for SQLite
+        return tasks.map((t: any) => ({
+            ...t,
+            tags: JSON.parse(t.tags || '[]')
+        })) as unknown as Task[];
+    }
+
+    async getActivityLogs(): Promise<ActivityLog[]> {
+        return await prisma.activityLog.findMany({ orderBy: { timestamp: 'desc' } }) as unknown as ActivityLog[];
+    }
+
+    async getMessages(projectId: string): Promise<Message[]> {
+        return await prisma.message.findMany({
+            where: { projectId },
+            orderBy: { timestamp: 'asc' }
+        }) as unknown as Message[];
     }
 
     // Generic Modifiers
-    addProject(project: Project) {
-        this.data?.projects.push(project);
-        this.save();
+    async addProject(project: Project) {
+        await prisma.project.create({
+            data: {
+                id: project.id,
+                key: project.key,
+                name: project.name,
+                description: project.description,
+                ownerId: project.ownerId,
+                createdAt: project.createdAt,
+                updatedAt: project.updatedAt
+            }
+        });
     }
 
-    addTask(task: Task) {
-        this.data?.tasks.push(task);
-        this.createLog({
+    async addTask(task: Task) {
+        await prisma.task.create({
+            data: {
+                id: task.id,
+                projectId: task.projectId,
+                title: task.title,
+                description: task.description,
+                status: task.status,
+                priority: task.priority,
+                assigneeId: task.assigneeId,
+                startDate: task.startDate,
+                dueDate: task.dueDate,
+                tags: JSON.stringify(task.tags || []), // Serialize for SQLite
+                createdAt: task.createdAt,
+                updatedAt: task.updatedAt
+            }
+        });
+
+        await this.createLog({
             id: crypto.randomUUID(),
             entityType: 'Task',
             entityId: task.id,
@@ -152,42 +91,85 @@ class Database {
             userId: task.assigneeId || 'system',
             timestamp: new Date().toISOString()
         });
-        this.save();
     }
 
-    updateTask(id: string, updates: Partial<Task>) {
-        const task = this.data?.tasks.find(t => t.id === id);
+    async updateTask(id: string, updates: Partial<Task>) {
+        const task = await prisma.task.findUnique({ where: { id } });
         if (!task) return null;
 
         const oldStatus = task.status;
-        Object.assign(task, updates);
-        task.updatedAt = new Date().toISOString();
+
+        const dataToUpdate: any = { ...updates };
+        if (updates.tags) {
+            dataToUpdate.tags = JSON.stringify(updates.tags);
+        }
+
+        const updated = await prisma.task.update({
+            where: { id },
+            data: {
+                ...dataToUpdate,
+                updatedAt: new Date().toISOString()
+            }
+        });
 
         if (updates.status && updates.status !== oldStatus) {
-            this.createLog({
+            await this.createLog({
                 id: crypto.randomUUID(),
                 entityType: 'Task',
-                entityId: task.id,
+                entityId: id,
                 action: 'Moved',
                 details: `Status changed from "${oldStatus}" to "${updates.status}".`,
-                userId: 'system', // In a real app, this would be the current user
+                userId: 'system',
                 timestamp: new Date().toISOString()
             });
         }
 
-        this.save();
-        return task;
+        return {
+            ...updated,
+            tags: JSON.parse(updated.tags || '[]')
+        } as unknown as Task;
     }
 
-    createLog(log: ActivityLog) {
-        this.data?.activityLogs.unshift(log); // Add to beginning
-        this.save();
+    async createLog(log: ActivityLog) {
+        await prisma.activityLog.create({
+            data: {
+                id: log.id,
+                entityType: log.entityType,
+                entityId: log.entityId,
+                action: log.action,
+                details: log.details,
+                userId: log.userId,
+                timestamp: log.timestamp
+            }
+        });
     }
 
-    addMessage(message: Message) {
-        this.data?.messages.push(message);
-        this.save();
+    async addMessage(message: Message) {
+        await prisma.message.create({
+            data: {
+                id: message.id,
+                projectId: message.projectId,
+                userId: message.userId,
+                content: message.content,
+                timestamp: message.timestamp
+            }
+        });
     }
+
+    async addUser(user: Partial<User>) {
+        await prisma.user.create({
+            data: {
+                id: user.id || crypto.randomUUID(),
+                name: user.name || 'New Member',
+                email: user.email!,
+                avatarUrl: user.avatarUrl || '',
+                role: user.role || 'Member',
+                createdAt: new Date().toISOString()
+            }
+        });
+    }
+
 }
 
 export const db = new Database();
+

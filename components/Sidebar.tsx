@@ -92,8 +92,7 @@ export function Sidebar() {
                         AM
                     </div>
                     <div className="flex-1 overflow-hidden">
-                        <p className="text-sm font-medium text-gray-900 truncate">Andrew M.</p>
-                        <p className="text-xs text-gray-500 truncate">Pro Plan</p>
+                        <p className="text-sm font-medium text-gray-900 truncate">Andrew</p>
                     </div>
                 </div>
             </div>

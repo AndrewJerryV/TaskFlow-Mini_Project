@@ -4,6 +4,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Project } from '@/types';
+import { AlertCircle } from 'lucide-react';
 
 type ProjectWithStats = Project & {
   stats: {
@@ -16,15 +17,22 @@ type ProjectWithStats = Project & {
 export default function Home() {
   const [projects, setProjects] = useState<ProjectWithStats[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProjects = async () => {
       try {
+        setLoading(true);
         const res = await fetch('/api/projects');
+        if (!res.ok) {
+          throw new Error(`Failed to fetch projects: ${res.statusText}`);
+        }
         const data = await res.json();
         setProjects(data);
+        setError(null);
       } catch (err) {
-        console.error(err);
+        console.error('Project Fetch Error:', err);
+        setError('Connection failed. Please check your database settings.');
       } finally {
         setLoading(false);
       }
@@ -42,6 +50,14 @@ export default function Home() {
 
         {loading ? (
           <div className="text-sm text-gray-400">Loading projects...</div>
+        ) : error ? (
+          <div className="flex items-center p-4 text-sm text-red-800 border border-red-300 rounded-lg bg-red-50" role="alert">
+            <AlertCircle className="flex-shrink-0 inline w-4 h-4 me-3" />
+            <span className="sr-only">Error</span>
+            <div>
+              <span className="font-medium">System Unavailable:</span> {error}
+            </div>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
@@ -61,10 +77,10 @@ export default function Home() {
                   <div className="z-10">
                     <div className="flex justify-between text-xs text-gray-500 mb-1">
                       <span>Progress</span>
-                      <span>{project.stats.progress}%</span>
+                      <span>{project.stats?.progress || 0}%</span>
                     </div>
                     <div className="w-full bg-gray-100 rounded-full h-1.5">
-                      <div className="bg-green-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${project.stats.progress}%` }}></div>
+                      <div className="bg-green-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${project.stats?.progress || 0}%` }}></div>
                     </div>
                   </div>
                 </div>
@@ -85,9 +101,6 @@ export default function Home() {
         <h2 className="text-sm font-semibold text-gray-500 uppercase mb-4">Activity Feed</h2>
         <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
           <div className="divide-y divide-gray-100">
-            {/* We will fetch these effectively via a new API or just inline here for simplicity since we have direct DB access in API routes, but here we need an API endpoint or reuse the projects one? 
-                Actually, let's make a quick API for activity logs to do this right. 
-             */}
             <ActivityFeedList />
           </div>
         </div>
@@ -98,17 +111,24 @@ export default function Home() {
 
 function ActivityFeedList() {
   const [logs, setLogs] = useState<any[]>([]);
+  const [error, setError] = useState<boolean>(false);
 
   useEffect(() => {
-    // Quick fetch - in a real app, this would be a dedicated endpoint
-    // For now, let's assume we create a route or just reuse what we have.
-    // Wait, I didn't create an activity log endpoint. I should probably do that.
-    // Let's create `app/api/activity/route.ts` quickly.
     fetch('/api/activity')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error("Failed");
+        return res.json();
+      })
       .then(data => setLogs(data))
-      .catch(err => console.error(err));
+      .catch(err => {
+        console.error(err);
+        setError(true);
+      });
   }, []);
+
+  if (error) {
+    return <div className="p-8 text-center text-red-400 text-sm">Unable to load activity feed.</div>;
+  }
 
   if (logs.length === 0) {
     return <div className="p-8 text-center text-gray-400 italic">No recent activity</div>;
@@ -119,8 +139,8 @@ function ActivityFeedList() {
       {logs.slice(0, 5).map((log: any) => (
         <div key={log.id} className="p-4 flex items-center hover:bg-gray-50 from-gray-50 to-white transition-colors cursor-default">
           <div className={`w-8 h-8 mr-4 flex items-center justify-center rounded-sm text-lg ${log.action === 'Created' ? 'bg-green-100 text-green-600' :
-              log.action === 'Moved' ? 'bg-blue-100 text-blue-600' :
-                'bg-gray-100 text-gray-600'
+            log.action === 'Moved' ? 'bg-blue-100 text-blue-600' :
+              'bg-gray-100 text-gray-600'
             }`}>
             {log.action === 'Created' ? '✨' : log.action === 'Moved' ? '➡️' : '📝'}
           </div>

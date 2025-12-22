@@ -6,7 +6,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
 
-    const tasks = db.getTasks(projectId || undefined);
+    const tasks = await db.getTasks(projectId || undefined);
     return NextResponse.json(tasks);
 }
 
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
         tags: body.tags || [],
     };
 
-    db.addTask(newTask);
+    await db.addTask(newTask);
     return NextResponse.json(newTask);
 }
 
@@ -42,7 +42,7 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: 'Task ID is required' }, { status: 400 });
     }
 
-    const updatedTask = db.updateTask(id, updates);
+    const updatedTask = await db.updateTask(id, updates);
 
     if (!updatedTask) {
         return NextResponse.json({ error: 'Task not found' }, { status: 404 });

@@ -74,7 +74,7 @@
       "status": "To Do",
       "priority": "Medium",
       "createdAt": "2025-12-20T09:55:58.947Z",
-      "updatedAt": "2025-12-20T13:07:56.995Z",
+      "updatedAt": "2025-12-20T15:02:37.823Z",
       "tags": [
         "Backend"
       ]
@@ -84,15 +84,42 @@
       "projectId": "p1",
       "title": "Issue 2",
       "description": "",
-      "status": "In Progress",
+      "status": "To Do",
       "priority": "Medium",
       "assigneeId": "u1",
       "createdAt": "2025-12-20T13:08:13.813Z",
-      "updatedAt": "2025-12-20T13:08:29.809Z",
+      "updatedAt": "2025-12-20T13:25:40.503Z",
       "tags": []
     }
   ],
   "activityLogs": [
+    {
+      "id": "5ccf969a-56e7-4c99-ba51-75fe727fb925",
+      "entityType": "Task",
+      "entityId": "t3",
+      "action": "Moved",
+      "details": "Status changed from \"In Progress\" to \"To Do\".",
+      "userId": "system",
+      "timestamp": "2025-12-20T15:02:37.823Z"
+    },
+    {
+      "id": "fef0f0a5-9d65-4af4-9c20-35e453e05cf3",
+      "entityType": "Task",
+      "entityId": "t3",
+      "action": "Moved",
+      "details": "Status changed from \"To Do\" to \"In Progress\".",
+      "userId": "system",
+      "timestamp": "2025-12-20T15:02:37.513Z"
+    },
+    {
+      "id": "6de684e3-2552-4172-9d9f-9b12dcb925f1",
+      "entityType": "Task",
+      "entityId": "95af4b38-0de1-4342-b16e-b4f9ac0a3e18",
+      "action": "Moved",
+      "details": "Status changed from \"In Progress\" to \"To Do\".",
+      "userId": "system",
+      "timestamp": "2025-12-20T13:25:34.226Z"
+    },
     {
       "id": "1ffa8c61-71ab-4c94-b763-27c8eea9d75d",
       "entityType": "Task",

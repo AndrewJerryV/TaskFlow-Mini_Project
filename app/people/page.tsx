@@ -6,37 +6,46 @@ import { Mail, Plus, User as UserIcon } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 
 export default function PeoplePage() {
-    // Determine the users. For prototype we might just show mocked users if we didn't add users API.
-    // Checking types/index.ts -> DbSchema has users. 
-    // We didn't create /api/users yet. Let's create a quick list here or mock it for now
-    // leveraging the seed data we know exists in db.ts + some new ones.
-
-    // Actually, to be consistent, let's just use a hardcoded list that represents "workspace members"
-    // Since we didn't plan an /api/users route in the plan explicitly, 
-    // I made a small oversight in the plan details, but I will just mock perfectly for the "Functional" feel.
-
-    const [users, setUsers] = useState<User[]>([
-        { id: 'u1', name: 'Andrew M.', email: 'andrew@example.com', avatarUrl: '', createdAt: '', role: 'Admin' },
-        { id: 'u2', name: 'Sarah Connor', email: 'sarah@example.com', avatarUrl: '', createdAt: '', role: 'Manager' },
-        { id: 'u3', name: 'John Doe', email: 'john@example.com', avatarUrl: '', createdAt: '', role: 'Member' },
-    ]);
-
+    const [users, setUsers] = useState<User[]>([]);
+    const [loading, setLoading] = useState(true);
     const [isInviteOpen, setIsInviteOpen] = useState(false);
     const [inviteEmail, setInviteEmail] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleInvite = (e: React.FormEvent) => {
+    useEffect(() => {
+        fetch('/api/users')
+            .then(res => res.json())
+            .then(data => {
+                setUsers(data);
+                setLoading(false);
+            })
+            .catch(err => {
+                console.error(err);
+                setLoading(false);
+            });
+    }, []);
+
+    const handleInvite = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Mock add
-        setUsers([...users, {
-            id: `u${Date.now()}`,
-            name: inviteEmail.split('@')[0],
-            email: inviteEmail,
-            avatarUrl: '',
-            createdAt: new Date().toISOString(),
-            role: 'Member'
-        }]);
-        setInviteEmail('');
-        setIsInviteOpen(false);
+        setIsSubmitting(true);
+        try {
+            const res = await fetch('/api/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: inviteEmail })
+            });
+
+            if (res.ok) {
+                const newUser = await res.json();
+                setUsers([...users, newUser]);
+                setInviteEmail('');
+                setIsInviteOpen(false);
+            }
+        } catch (error) {
+            console.error('Failed to invite:', error);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -54,27 +63,34 @@ export default function PeoplePage() {
                 </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {users.map(user => (
-                    <div key={user.id} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 text-lg font-semibold">
-                            {user.avatarUrl ? <img src={user.avatarUrl} className="rounded-full" /> : user.name.charAt(0)}
+            {loading ? (
+                <div className="text-gray-400">Loading members...</div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {users.map(user => (
+                        <div key={user.id} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-4">
+                            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 text-lg font-semibold overflow-hidden">
+                                {user.avatarUrl ? <img src={user.avatarUrl} className="w-full h-full object-cover" /> : user.name.charAt(0)}
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-gray-900">{user.name}</h3>
+                                <p className="text-sm text-gray-500 flex items-center gap-1">
+                                    <Mail size={12} /> {user.email}
+                                </p>
+                                <span className={`text-xs px-2 py-0.5 rounded-full mt-1 inline-block ${user.role === 'Admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
+                                    {user.role}
+                                </span>
+                            </div>
                         </div>
-                        <div>
-                            <h3 className="font-semibold text-gray-900">{user.name}</h3>
-                            <p className="text-sm text-gray-500 flex items-center gap-1">
-                                <Mail size={12} /> {user.email}
-                            </p>
-                        </div>
-                    </div>
-                ))}
+                    ))}
 
-                {/* Upgrade Card */}
-                <div className="border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center p-6 text-gray-400 hover:border-blue-400 hover:bg-blue-50 transition-colors cursor-pointer" onClick={() => setIsInviteOpen(true)}>
-                    <Plus size={32} className="mb-2 opacity-50" />
-                    <span className="text-sm font-medium">Invite new member</span>
+                    {/* Upgrade Card */}
+                    <div className="border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center p-6 text-gray-400 hover:border-blue-400 hover:bg-blue-50 transition-colors cursor-pointer" onClick={() => setIsInviteOpen(true)}>
+                        <Plus size={32} className="mb-2 opacity-50" />
+                        <span className="text-sm font-medium">Invite new member</span>
+                    </div>
                 </div>
-            </div>
+            )}
 
             <Modal isOpen={isInviteOpen} onClose={() => setIsInviteOpen(false)} title="Invite to Workspace">
                 <form onSubmit={handleInvite} className="p-4 space-y-4">
@@ -90,7 +106,12 @@ export default function PeoplePage() {
                         />
                     </div>
                     <div className="flex justify-end pt-4">
-                        <button className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Send Invite</button>
+                        <button
+                            disabled={isSubmitting}
+                            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+                        >
+                            {isSubmitting ? 'Sending...' : 'Send Invite'}
+                        </button>
                     </div>
                 </form>
             </Modal>

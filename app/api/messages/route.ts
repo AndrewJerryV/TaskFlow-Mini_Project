@@ -10,7 +10,7 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'ProjectId required' }, { status: 400 });
     }
 
-    const messages = db.getMessages(projectId);
+    const messages = await db.getMessages(projectId);
     return NextResponse.json(messages);
 }
 
@@ -29,6 +29,6 @@ export async function POST(request: Request) {
         timestamp: new Date().toISOString()
     };
 
-    db.addMessage(newMessage);
+    await db.addMessage(newMessage);
     return NextResponse.json(newMessage);
 }

@@ -1,10 +1,25 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function SettingsPage() {
     const [workspaceName, setWorkspaceName] = useState('My Software Team');
     const [theme, setTheme] = useState('Light');
+    const [isSaved, setIsSaved] = useState(false);
+
+    useEffect(() => {
+        const savedName = localStorage.getItem('taskflow_workspace_name');
+        const savedTheme = localStorage.getItem('taskflow_theme');
+        if (savedName) setWorkspaceName(savedName);
+        if (savedTheme) setTheme(savedTheme);
+    }, []);
+
+    const handleSave = () => {
+        localStorage.setItem('taskflow_workspace_name', workspaceName);
+        localStorage.setItem('taskflow_theme', theme);
+        setIsSaved(true);
+        setTimeout(() => setIsSaved(false), 2000);
+    };
 
     return (
         <div className="p-8 max-w-3xl">
@@ -32,8 +47,8 @@ export default function SettingsPage() {
                                 <input
                                     type="text"
                                     disabled
-                                    value="my-software-team"
-                                    className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md border border-gray-300 bg-gray-50 sm:text-sm"
+                                    value={workspaceName.toLowerCase().replace(/\s+/g, '-')}
+                                    className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md border border-gray-300 bg-gray-50 sm:text-sm text-gray-500"
                                 />
                             </div>
                         </div>
@@ -61,8 +76,12 @@ export default function SettingsPage() {
                     </div>
                 </div>
 
-                <div className="p-6 bg-gray-50 flex justify-end">
-                    <button className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium">
+                <div className="p-6 bg-gray-50 flex justify-end items-center gap-3">
+                    {isSaved && <span className="text-sm text-green-600 font-medium">Settings saved!</span>}
+                    <button
+                        onClick={handleSave}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium transition-colors"
+                    >
                         Save changes
                     </button>
                 </div>

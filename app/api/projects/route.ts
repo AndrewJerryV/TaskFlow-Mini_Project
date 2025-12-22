@@ -3,10 +3,12 @@ import { Project } from '@/types';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-    const projects = db.getProjects();
+    const projects = await db.getProjects();
     // Enrich with stats
-    const projectsWithStats = projects.map(p => {
-        const tasks = db.getTasks(p.id);
+    // Note: getTasks is now async, so we can't map synchronously if we want to await inside.
+    // Efficient way: Promise.all
+    const projectsWithStats = await Promise.all(projects.map(async (p) => {
+        const tasks = await db.getTasks(p.id);
         const doneCount = tasks.filter(t => t.status === 'Done').length;
         const totalCount = tasks.length;
         const progress = totalCount === 0 ? 0 : Math.round((doneCount / totalCount) * 100);
@@ -19,7 +21,7 @@ export async function GET() {
                 progress
             }
         };
-    });
+    }));
 
     return NextResponse.json(projectsWithStats);
 }
@@ -42,6 +44,14 @@ export async function POST(request: Request) {
         updatedAt: new Date().toISOString(),
     };
 
-    db.addProject(newProject);
-    return NextResponse.json(newProject);
+    try {
+        await db.addProject(newProject);
+        return NextResponse.json(newProject);
+    } catch (error: any) {
+        if (error.code === 'P2002') {
+            return NextResponse.json({ error: 'A project with this Key already exists.' }, { status: 409 });
+        }
+        console.error("Create Project Error:", error);
+        return NextResponse.json({ error: 'Failed to create project' }, { status: 500 });
+    }
 }

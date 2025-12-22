@@ -16,9 +16,12 @@ export function CreateProjectDialog({ isOpen, onClose }: CreateProjectDialogProp
     const [loading, setLoading] = useState(false);
     const router = useRouter();
 
+    const [error, setError] = useState('');
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
+        setError('');
 
         try {
             const res = await fetch('/api/projects', {
@@ -34,11 +37,14 @@ export function CreateProjectDialog({ isOpen, onClose }: CreateProjectDialogProp
                 setKey('');
                 setDescription('');
                 router.push(`/projects/${project.id}`);
-                // Force router refresh to update sidebar
                 router.refresh();
+            } else {
+                const data = await res.json();
+                setError(data.error || 'Failed to create project');
             }
         } catch (error) {
             console.error(error);
+            setError('An unexpected error occurred.');
         } finally {
             setLoading(false);
         }
@@ -47,6 +53,11 @@ export function CreateProjectDialog({ isOpen, onClose }: CreateProjectDialogProp
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Create Project">
             <form onSubmit={handleSubmit} className="p-4 space-y-4">
+                {error && (
+                    <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm border border-red-100">
+                        {error}
+                    </div>
+                )}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Project Name <span className="text-red-500">*</span></label>
                     <input
