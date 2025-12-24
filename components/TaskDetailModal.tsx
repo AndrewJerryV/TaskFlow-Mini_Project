@@ -2,9 +2,23 @@
 
 import React, { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
-import { Task, Comment, Priority, Status, User } from '@/types';
+import { Task, Comment, Priority, Status } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { Trash2, Calendar, User as UserIcon, MessageSquare, Clock, AlertCircle } from 'lucide-react';
+import { Trash2, Calendar, User as UserIcon, MessageSquare, Clock, Sparkles, ArrowRight, Edit } from 'lucide-react';
+import { PRIORITY_COLORS, STATUS_COLORS } from '@/lib/constants';
+import { getUserName, getActionDisplay } from '@/lib/utils';
+
+// Icon component to render Lucide icons by name
+const ActionIcon = ({ iconName, size = 14 }: { iconName: string; size?: number }) => {
+    switch (iconName) {
+        case 'Sparkles': return <Sparkles size={size} />;
+        case 'ArrowRight': return <ArrowRight size={size} />;
+        case 'Trash2': return <Trash2 size={size} />;
+        case 'MessageSquare': return <MessageSquare size={size} />;
+        case 'Edit': return <Edit size={size} />;
+        default: return <Edit size={size} />;
+    }
+};
 
 interface TaskDetailModalProps {
     task: Task | null;
@@ -13,20 +27,6 @@ interface TaskDetailModalProps {
     onUpdate: (task: Task) => void;
     onDelete: (taskId: string) => void;
 }
-
-const PRIORITY_COLORS: Record<Priority, string> = {
-    Low: 'bg-gray-100 text-gray-600',
-    Medium: 'bg-blue-100 text-blue-600',
-    High: 'bg-orange-100 text-orange-600',
-    Critical: 'bg-red-100 text-red-600',
-};
-
-const STATUS_COLORS: Record<Status, string> = {
-    'To Do': 'bg-gray-100 text-gray-600',
-    'In Progress': 'bg-blue-100 text-blue-600',
-    'Review': 'bg-purple-100 text-purple-600',
-    'Done': 'bg-green-100 text-green-600',
-};
 
 export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: TaskDetailModalProps) {
     const { currentUser, users } = useAuth();
@@ -135,11 +135,6 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
         }
     };
 
-    const getUserName = (userId: string) => {
-        const user = users.find(u => u.id === userId);
-        return user?.name || 'Unknown';
-    };
-
     if (!task || !editedTask) return null;
 
     return (
@@ -235,7 +230,7 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                         <div className="grid grid-cols-2 gap-4 text-sm">
                             <div className="flex items-center gap-2 text-gray-600">
                                 <UserIcon size={14} />
-                                <span>Assignee: {task.assigneeId ? getUserName(task.assigneeId) : 'Unassigned'}</span>
+                                <span>Assignee: {task.assigneeId ? getUserName(users, task.assigneeId) : 'Unassigned'}</span>
                             </div>
                             {task.dueDate && (
                                 <div className="flex items-center gap-2 text-gray-600">
@@ -284,7 +279,7 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                                         <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
                                             <div className="flex justify-between items-start mb-1">
                                                 <span className="text-sm font-medium text-gray-800">
-                                                    {getUserName(comment.userId)}
+                                                    {getUserName(users, comment.userId)}
                                                 </span>
                                                 <span className="text-xs text-gray-400">
                                                     {new Date(comment.createdAt).toLocaleString()}
@@ -327,15 +322,12 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                             ) : (
                                 history.map((log: any) => (
                                     <div key={log.id} className="flex gap-3 text-sm">
-                                        <div className="mt-0.5">
-                                            {log.action === 'Created' ? '✨' :
-                                                log.action === 'Moved' ? '➡️' :
-                                                    log.action === 'Deleted' ? '🗑️' :
-                                                        log.action === 'Commented' ? '💬' : '📝'}
+                                        <div className={`mt-0.5 ${getActionDisplay(log.action).bgColor} w-6 h-6 rounded flex items-center justify-center`}>
+                                            <ActionIcon iconName={getActionDisplay(log.action).iconName} size={12} />
                                         </div>
                                         <div>
                                             <p className="text-gray-900">
-                                                <span className="font-medium">{getUserName(log.userId)}</span> {log.details.replace(`Task "${task.title}"`, 'Task').replace(task.title, 'this task')}
+                                                <span className="font-medium">{getUserName(users, log.userId)}</span> {log.details.replace(`Task "${task.title}"`, 'Task').replace(task.title, 'this task')}
                                             </p>
                                             <p className="text-xs text-gray-400">
                                                 {new Date(log.timestamp).toLocaleString()}

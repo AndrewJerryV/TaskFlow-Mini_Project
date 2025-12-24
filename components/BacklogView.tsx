@@ -6,6 +6,7 @@ import { CheckSquare, Plus, Edit2, MoreVertical, Search, PlayCircle, Layers } fr
 import { TaskFilters } from './TaskFilters';
 import { TaskDetailModal } from './TaskDetailModal';
 import { useAuth } from '@/contexts/AuthContext';
+import { getStatusColorBacklog, getPriorityColor } from '@/lib/utils';
 
 interface BacklogViewProps {
   tasks: Task[];
@@ -18,14 +19,17 @@ interface BacklogViewProps {
 const TaskItem = ({
   item,
   onUpdate,
-  onClick
+  onClick,
+  onDelete
 }: {
   item: Task,
   onUpdate?: (t: Task) => void,
   onClick?: (t: Task) => void,
+  onDelete?: (taskId: string) => void,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(item.title);
+  const [showMenu, setShowMenu] = useState(false);
 
   const handleSave = () => {
     setIsEditing(false);
@@ -34,10 +38,17 @@ const TaskItem = ({
     }
   };
 
+  const handleRowClick = (e: React.MouseEvent) => {
+    // Only trigger onClick if we're not in editing mode and no menu is open
+    if (!isEditing && !showMenu) {
+      onClick?.(item);
+    }
+  };
+
   return (
     <div
-      className="flex items-center justify-between p-3 bg-white border border-gray-200 hover:bg-gray-50 transition-colors group cursor-pointer"
-      onClick={() => onClick?.(item)}
+      className="flex items-center justify-between p-3 bg-white border border-gray-200 hover:bg-gray-50 transition-colors group cursor-pointer relative"
+      onClick={handleRowClick}
     >
       <div className="flex items-center space-x-3 flex-1">
         <input
@@ -73,19 +84,11 @@ const TaskItem = ({
       </div>
 
       <div className="flex items-center space-x-4">
-        <span className={`px-2 py-0.5 text-xs font-bold uppercase rounded ${item.status === 'To Do' ? 'bg-gray-100 text-gray-600' :
-            item.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-              item.status === 'Review' ? 'bg-purple-100 text-purple-700' :
-                'bg-green-100 text-green-700'
-          }`}>
+        <span className={`px-2 py-0.5 text-xs font-bold uppercase rounded ${getStatusColorBacklog(item.status)}`}>
           {item.status}
         </span>
 
-        <span className={`px-2 py-0.5 text-xs font-medium rounded ${item.priority === 'Critical' ? 'bg-red-100 text-red-600' :
-            item.priority === 'High' ? 'bg-orange-100 text-orange-600' :
-              item.priority === 'Medium' ? 'bg-blue-100 text-blue-600' :
-                'bg-gray-100 text-gray-600'
-          }`}>
+        <span className={`px-2 py-0.5 text-xs font-medium rounded ${getPriorityColor(item.priority)}`}>
           {item.priority}
         </span>
 
@@ -94,9 +97,39 @@ const TaskItem = ({
             {item.assigneeId.charAt(0)}
           </div>
         )}
-        <button className="text-gray-400 hover:text-gray-600" onClick={(e) => e.stopPropagation()}>
-          <MoreVertical size={14} />
-        </button>
+        <div className="relative">
+          <button
+            className="text-gray-400 hover:text-gray-600 p-1"
+            onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
+          >
+            <MoreVertical size={14} />
+          </button>
+          {showMenu && (
+            <div
+              className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1 min-w-[120px]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                className="w-full text-left px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+                onClick={() => { onClick?.(item); setShowMenu(false); }}
+              >
+                View Details
+              </button>
+              <button
+                className="w-full text-left px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+                onClick={() => { setIsEditing(true); setShowMenu(false); }}
+              >
+                Edit Title
+              </button>
+              <button
+                className="w-full text-left px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+                onClick={() => { onDelete?.(item.id); setShowMenu(false); }}
+              >
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -208,7 +241,7 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskD
         {isSprintOpen && (
           <div className="space-y-[-1px] mt-2">
             {sprintTasks.map(item => (
-              <TaskItem key={item.id} item={item} onUpdate={onTaskUpdate} onClick={handleTaskClick} />
+              <TaskItem key={item.id} item={item} onUpdate={onTaskUpdate} onClick={handleTaskClick} onDelete={handleTaskDelete} />
             ))}
             {sprintTasks.length === 0 && (
               <p className="text-sm text-gray-400 italic py-4 text-center">No tasks in sprint</p>
@@ -236,7 +269,7 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskD
         {isBacklogOpen && (
           <div className="space-y-[-1px] mt-2">
             {backlogTasks.map(item => (
-              <TaskItem key={item.id} item={item} onUpdate={onTaskUpdate} onClick={handleTaskClick} />
+              <TaskItem key={item.id} item={item} onUpdate={onTaskUpdate} onClick={handleTaskClick} onDelete={handleTaskDelete} />
             ))}
             {backlogTasks.length === 0 && (
               <p className="text-sm text-gray-400 italic py-4 text-center">No tasks in backlog</p>

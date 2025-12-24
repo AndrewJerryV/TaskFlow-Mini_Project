@@ -1,12 +1,10 @@
-// ... imports
-// (Ensure all imports are present from previous file content, recreating full file content for safety or using targeted replacement if confident.
-// Given the complexity of state needed (filter string, view mode), I will wrap the component in state.)
+'use client';
 
-// I'll rewrite the component to be safer with state.
 import React, { useState } from 'react';
-import { Task } from '@/types';
-import { Search, ChevronDown, User } from 'lucide-react';
+import { Task, Status } from '@/types';
+import { Search, ChevronDown, User, Zap, Circle } from 'lucide-react';
 import { format, addMonths, subMonths, startOfMonth, eachMonthOfInterval, differenceInDays } from 'date-fns';
+import { STATUSES } from '@/lib/constants';
 
 const TIMELINE_START = startOfMonth(new Date());
 const TIMELINE_END_MONTHS = addMonths(TIMELINE_START, 6);
@@ -15,6 +13,8 @@ const TIMELINE_END_QUARTERS = addMonths(TIMELINE_START, 12);
 export default function TimelineView({ tasks = [] }: { tasks?: Task[] }) {
   const [filter, setFilter] = useState('');
   const [viewMode, setViewMode] = useState<'Months' | 'Quarters'>('Months');
+  const [statusFilter, setStatusFilter] = useState<Status | 'all'>('all');
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
   const TIMELINE_END = viewMode === 'Months' ? TIMELINE_END_MONTHS : TIMELINE_END_QUARTERS;
   const TOTAL_DAYS = differenceInDays(TIMELINE_END, TIMELINE_START);
@@ -25,11 +25,15 @@ export default function TimelineView({ tasks = [] }: { tasks?: Task[] }) {
   });
 
   // Filter tasks
-  const filteredTasks = tasks.filter(t => t.title.toLowerCase().includes(filter.toLowerCase()));
+  const filteredTasks = tasks.filter(t => {
+    if (!t.title.toLowerCase().includes(filter.toLowerCase())) return false;
+    if (statusFilter !== 'all' && t.status !== statusFilter) return false;
+    return true;
+  });
 
   const getTaskStyle = (task: Task) => {
     let start = task.startDate ? new Date(task.startDate) : new Date();
-    let end = task.dueDate ? new Date(task.dueDate) : new Date(start.getTime() + 86400000 * 2);
+    let end = task.dueDate ? new Date(task.dueDate) : new Date(start.getTime() + 86400000 * 7);
 
     if (start < TIMELINE_START) start = TIMELINE_START;
     if (end > TIMELINE_END) end = TIMELINE_END;
@@ -42,8 +46,18 @@ export default function TimelineView({ tasks = [] }: { tasks?: Task[] }) {
 
     return {
       left: `${Math.max(0, leftPct)}%`,
-      width: `${Math.max(0.5, widthPct)}%`
+      width: `${Math.max(3, widthPct)}%`,
+      minWidth: '60px'
     };
+  };
+
+  const getStatusColor = (status: Status) => {
+    switch (status) {
+      case 'Done': return 'bg-green-500 border-green-600';
+      case 'In Progress': return 'bg-blue-500 border-blue-600';
+      case 'Review': return 'bg-purple-500 border-purple-600';
+      default: return 'bg-gray-400 border-gray-500';
+    }
   };
 
   return (
@@ -63,9 +77,33 @@ export default function TimelineView({ tasks = [] }: { tasks?: Task[] }) {
         <div className="flex -space-x-1 pl-2">
           <div className="w-7 h-7 bg-indigo-600 rounded-full border-2 border-white flex items-center justify-center text-xs text-white z-10">U</div>
         </div>
-        <button className="px-2 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded border border-gray-300 text-gray-700 flex items-center gap-1">
-          Status category <ChevronDown size={12} />
-        </button>
+        <div className="relative">
+          <button
+            className="px-2 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded border border-gray-300 text-gray-700 flex items-center gap-1"
+            onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+          >
+            {statusFilter === 'all' ? 'All Status' : statusFilter} <ChevronDown size={12} />
+          </button>
+          {showStatusDropdown && (
+            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-30 py-1 min-w-[140px]">
+              <button
+                className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 ${statusFilter === 'all' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'}`}
+                onClick={() => { setStatusFilter('all'); setShowStatusDropdown(false); }}
+              >
+                All Status
+              </button>
+              {STATUSES.map(status => (
+                <button
+                  key={status}
+                  className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 ${statusFilter === status ? 'bg-blue-50 text-blue-700' : 'text-gray-700'}`}
+                  onClick={() => { setStatusFilter(status); setShowStatusDropdown(false); }}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 2. Main Split View */}
@@ -80,11 +118,14 @@ export default function TimelineView({ tasks = [] }: { tasks?: Task[] }) {
             {filteredTasks.map(task => (
               <div key={task.id} className="flex items-center px-4 py-3 border-b border-gray-100 h-[50px]">
                 <span className={`mr-2 flex-shrink-0 ${task.priority === 'Critical' ? 'text-red-500' : 'text-blue-500'}`}>
-                  {task.priority === 'Critical' ? '⚡' : '●'}
+                  {task.priority === 'Critical' ? <Zap size={14} /> : <Circle size={14} fill="currentColor" />}
                 </span>
                 <span className="text-sm text-gray-700 truncate font-medium">{task.title}</span>
               </div>
             ))}
+            {filteredTasks.length === 0 && (
+              <div className="p-4 text-center text-gray-400 text-sm italic">No tasks match filter</div>
+            )}
           </div>
         </div>
 
@@ -109,14 +150,14 @@ export default function TimelineView({ tasks = [] }: { tasks?: Task[] }) {
               {filteredTasks.map((task) => (
                 <div key={task.id} className="relative h-[50px] w-full flex items-center hover:bg-gray-50/50">
                   <div
-                    className={`absolute h-6 rounded-md border text-[10px] text-white flex items-center px-2 cursor-pointer shadow-sm hover:shadow-md transition-all
-                            ${task.status === 'Done' ? 'bg-green-500 border-green-600' : 'bg-blue-500 border-blue-600'}
+                    className={`absolute h-7 rounded-md border text-[11px] text-white flex items-center px-2 cursor-pointer shadow-sm hover:shadow-md transition-all overflow-hidden
+                            ${getStatusColor(task.status)}
                         `}
                     style={getTaskStyle(task)}
-                    title={`${task.title}`}
+                    title={`${task.title} - ${task.status}`}
                   >
-                    {task.assigneeId && <User size={10} className="mr-1 opacity-75" />}
-                    <span className="truncate">{task.status}</span>
+                    {task.assigneeId && <User size={12} className="mr-1 opacity-75 flex-shrink-0" />}
+                    <span className="truncate font-medium">{task.title}</span>
                   </div>
                 </div>
               ))}

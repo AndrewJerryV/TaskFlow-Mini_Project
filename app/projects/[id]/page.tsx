@@ -7,13 +7,15 @@ import { TaskBoard } from '@/components/TaskBoard';
 import SummaryView from '@/components/SummaryView';
 import BacklogView from '@/components/BacklogView';
 import TimelineView from '@/components/TimelineView';
+import ChatView from '@/components/ChatView';
 import { CreateTaskDialog } from '@/components/forms/CreateTaskDialog';
-import { ChatWidget } from '@/components/ChatWidget';
+import { Modal } from '@/components/ui/Modal';
 import VideoRoom from '@/components/VideoRoom';
-import { Video } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Video, Folder, FileText, BarChart3, Plus, UserPlus, Check } from 'lucide-react';
 
-// Nav Items definition
-const NAV_ITEMS = ['Summary', 'Backlog', 'Board', 'Timeline', 'Code', 'Pages'] as const;
+// Nav Items definition - Chat moved after Pages
+const NAV_ITEMS = ['Summary', 'Backlog', 'Board', 'Timeline', 'Code', 'Pages', 'Chat'] as const;
 type Tab = typeof NAV_ITEMS[number];
 
 export default function ProjectPage() {
@@ -27,6 +29,9 @@ export default function ProjectPage() {
     const [loading, setLoading] = useState(true);
     const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
     const [isVideoOpen, setIsVideoOpen] = useState(false);
+    const [isInviteOpen, setIsInviteOpen] = useState(false);
+    const [projectMembers, setProjectMembers] = useState<string[]>([]);
+    const { users, currentUser } = useAuth();
 
     useEffect(() => {
         if (id) {
@@ -130,7 +135,6 @@ export default function ProjectPage() {
     return (
         <div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden bg-white">
             {isVideoOpen && <VideoRoom projectId={id} onLeave={() => setIsVideoOpen(false)} />}
-            <ChatWidget projectId={id} />
 
             {/* Header */}
             <div className="border-b border-gray-200 px-6 py-4 flex justify-between items-center bg-white z-10">
@@ -153,13 +157,43 @@ export default function ProjectPage() {
                         <Video size={16} /> Join Meeting
                     </button>
                     <div className="flex -space-x-2">
-                        <div className="w-8 h-8 rounded-full border-2 border-white bg-green-500 text-white flex items-center justify-center text-xs">A</div>
-                        <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-200 text-gray-500 flex items-center justify-center text-xs">+</div>
+                        {/* Show project members */}
+                        {projectMembers.slice(0, 3).map((memberId, idx) => {
+                            const member = users.find(u => u.id === memberId);
+                            return (
+                                <div
+                                    key={memberId}
+                                    className="w-8 h-8 rounded-full border-2 border-white bg-indigo-500 text-white flex items-center justify-center text-xs font-medium"
+                                    title={member?.name}
+                                >
+                                    {member?.name?.charAt(0).toUpperCase() || '?'}
+                                </div>
+                            );
+                        })}
+                        {projectMembers.length > 3 && (
+                            <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-500 text-white flex items-center justify-center text-xs">
+                                +{projectMembers.length - 3}
+                            </div>
+                        )}
+                        {/* Add member button */}
+                        <button
+                            onClick={() => setIsInviteOpen(true)}
+                            className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center text-xs transition-colors"
+                            title="Add team member"
+                        >
+                            <Plus size={14} />
+                        </button>
                     </div>
                     <button
                         onClick={() => {
-                            navigator.clipboard.writeText(window.location.href);
-                            alert('Project link copied to clipboard!');
+                            if (navigator.clipboard && navigator.clipboard.writeText) {
+                                navigator.clipboard.writeText(window.location.href)
+                                    .then(() => alert('Project link copied to clipboard!'))
+                                    .catch(() => alert('Failed to copy link'));
+                            } else {
+                                // Fallback for environments without clipboard API
+                                prompt('Copy this link:', window.location.href);
+                            }
                         }}
                         className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                     >
@@ -200,6 +234,7 @@ export default function ProjectPage() {
 
                 {activeTab === 'Board' && <TaskBoard tasks={tasks} onTaskMove={handleTaskMove} />}
                 {activeTab === 'Timeline' && <TimelineView tasks={tasks} />}
+                {activeTab === 'Chat' && <ChatView projectId={id} />}
 
                 {activeTab === 'Code' && (
                     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -215,7 +250,7 @@ export default function ProjectPage() {
                                 { name: 'README.md', type: 'file', time: '3 days ago' },
                             ].map((file, i) => (
                                 <div key={i} className="flex items-center px-4 py-3 border-b border-gray-100 hover:bg-blue-50 cursor-pointer text-sm">
-                                    <span className="w-6 text-gray-400">{file.type === 'dir' ? '📁' : '📄'}</span>
+                                    <span className="w-6 text-gray-400">{file.type === 'dir' ? <Folder size={16} /> : <FileText size={16} />}</span>
                                     <span className="flex-1 font-medium text-gray-700">{file.name}</span>
                                     <span className="text-gray-400 text-xs">{file.time}</span>
                                 </div>
@@ -230,22 +265,87 @@ export default function ProjectPage() {
                 {activeTab === 'Pages' && (
                     <div className="grid grid-cols-3 gap-6">
                         <div className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md cursor-pointer group">
-                            <div className="h-32 bg-gray-100 rounded-md mb-3 flex items-center justify-center text-4xl group-hover:bg-blue-50 transition-colors">📄</div>
+                            <div className="h-32 bg-gray-100 rounded-md mb-3 flex items-center justify-center group-hover:bg-blue-50 transition-colors">
+                                <FileText size={48} className="text-gray-400" />
+                            </div>
                             <h3 className="font-semibold text-gray-800">Project Requirements</h3>
                             <p className="text-xs text-gray-500">Updated yesterday by User</p>
                         </div>
                         <div className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md cursor-pointer group">
-                            <div className="h-32 bg-gray-100 rounded-md mb-3 flex items-center justify-center text-4xl group-hover:bg-blue-50 transition-colors">📊</div>
+                            <div className="h-32 bg-gray-100 rounded-md mb-3 flex items-center justify-center group-hover:bg-blue-50 transition-colors">
+                                <BarChart3 size={48} className="text-gray-400" />
+                            </div>
                             <h3 className="font-semibold text-gray-800">Q1 Marketing Strategy</h3>
                             <p className="text-xs text-gray-500">Updated 2 days ago</p>
                         </div>
-                        <div className="bg-white p-4 rounded-lg border border-2 border-dashed border-gray-200 hover:border-blue-400 hover:bg-blue-50 flex flex-col items-center justify-center text-gray-400 cursor-pointer transition-colors">
-                            <span className="text-2xl mb-1">+</span>
+                        <div
+                            className="bg-white p-4 rounded-lg border border-2 border-dashed border-gray-200 hover:border-blue-400 hover:bg-blue-50 flex flex-col items-center justify-center text-gray-400 cursor-pointer transition-colors"
+                            onClick={() => alert('Page creation coming soon!')}
+                        >
+                            <Plus size={32} className="mb-1" />
                             <span>Create Page</span>
                         </div>
                     </div>
                 )}
             </div>
+
+            {/* Invite Team Member Modal */}
+            <Modal isOpen={isInviteOpen} onClose={() => setIsInviteOpen(false)} title="Add Team Members">
+                <div className="p-4">
+                    <p className="text-sm text-gray-600 mb-4">Select team members to add to this project:</p>
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {users.filter(u => u.id !== currentUser?.id).map(user => {
+                            const isMember = projectMembers.includes(user.id);
+                            return (
+                                <div
+                                    key={user.id}
+                                    className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${isMember ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200 hover:bg-gray-50'
+                                        }`}
+                                    onClick={() => {
+                                        if (isMember) {
+                                            setProjectMembers(prev => prev.filter(id => id !== user.id));
+                                        } else {
+                                            setProjectMembers(prev => [...prev, user.id]);
+                                        }
+                                    }}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center text-white font-medium">
+                                            {user.name.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div>
+                                            <p className="font-medium text-gray-900">{user.name}</p>
+                                            <p className="text-xs text-gray-500">{user.email}</p>
+                                        </div>
+                                    </div>
+                                    {isMember && (
+                                        <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
+                                            <Check size={14} className="text-white" />
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-200">
+                        <button
+                            onClick={() => setIsInviteOpen(false)}
+                            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={() => {
+                                setIsInviteOpen(false);
+                                alert(`Added ${projectMembers.length} member(s) to project!`);
+                            }}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                        >
+                            Done
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }

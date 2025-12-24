@@ -1,0 +1,395 @@
+'use client';
+
+import React, { useEffect, useState, useRef } from 'react';
+import { Message } from '@/types';
+import { Send, MessageCircle, Paperclip, Image, FileText, X, Download } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { getUserName } from '@/lib/utils';
+
+interface ChatViewProps {
+    projectId: string;
+}
+
+interface Attachment {
+    name: string;
+    type: 'image' | 'video' | 'document';
+    url: string;
+    size?: string;
+}
+
+// Extended Message type for local use (with optional attachment)
+interface ChatMessage extends Omit<Message, 'content'> {
+    content: string;
+    attachment?: Attachment;
+}
+
+export default function ChatView({ projectId }: ChatViewProps) {
+    const { currentUser, users } = useAuth();
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [newMessage, setNewMessage] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [showAttachMenu, setShowAttachMenu] = useState(false);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Poll for messages
+    useEffect(() => {
+        if (projectId) {
+            fetchMessages();
+            const interval = setInterval(fetchMessages, 3000);
+            return () => clearInterval(interval);
+        }
+    }, [projectId]);
+
+    const fetchMessages = async () => {
+        try {
+            const res = await fetch(`/api/messages?projectId=${projectId}`);
+            if (res.ok) {
+                const data = await res.json();
+                setMessages(data);
+                scrollToBottom();
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const scrollToBottom = () => {
+        setTimeout(() => {
+            if (scrollRef.current) {
+                scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+            }
+        }, 100);
+    };
+
+    const handleFileSelect = (type: 'image' | 'video' | 'document') => {
+        if (fileInputRef.current) {
+            let accept = '';
+            switch (type) {
+                case 'image': accept = 'image/*'; break;
+                case 'video': accept = 'video/*'; break;
+                case 'document': accept = '.pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx'; break;
+            }
+            fileInputRef.current.accept = accept;
+            fileInputRef.current.click();
+        }
+        setShowAttachMenu(false);
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setSelectedFile(file);
+            if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+                setPreviewUrl(URL.createObjectURL(file));
+            } else {
+                setPreviewUrl(null);
+            }
+        }
+    };
+
+    const clearSelectedFile = () => {
+        setSelectedFile(null);
+        setPreviewUrl(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    const formatFileSize = (bytes: number) => {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / 1048576).toFixed(1) + ' MB';
+    };
+
+    const handleSend = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if ((!newMessage.trim() && !selectedFile) || !currentUser) return;
+
+        // Create attachment info if file selected
+        let attachment: Attachment | undefined;
+        if (selectedFile) {
+            const type = selectedFile.type.startsWith('image/') ? 'image'
+                : selectedFile.type.startsWith('video/') ? 'video' : 'document';
+            attachment = {
+                name: selectedFile.name,
+                type,
+                url: previewUrl || '#', // In real app, would upload to storage
+                size: formatFileSize(selectedFile.size)
+            };
+        }
+
+        // Optimistic update
+        const tempMessage: ChatMessage = {
+            id: `temp-${Date.now()}`,
+            projectId,
+            content: newMessage || (attachment ? `Shared ${attachment.type}: ${attachment.name}` : ''),
+            userId: currentUser.id,
+            timestamp: new Date().toISOString(),
+            attachment
+        };
+        setMessages(prev => [...prev, tempMessage]);
+        setNewMessage('');
+        clearSelectedFile();
+        scrollToBottom();
+
+        try {
+            await fetch('/api/messages', {
+                method: 'POST',
+                body: JSON.stringify({
+                    projectId,
+                    content: tempMessage.content,
+                    userId: currentUser.id
+                }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            fetchMessages();
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    const formatTime = (dateStr: string) => {
+        const date = new Date(dateStr);
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
+    const formatDate = (dateStr: string) => {
+        const date = new Date(dateStr);
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+
+        if (date.toDateString() === today.toDateString()) return 'Today';
+        if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+        return date.toLocaleDateString();
+    };
+
+    // Group messages by date
+    const groupedMessages: { date: string; messages: ChatMessage[] }[] = [];
+    let currentDate = '';
+    messages.forEach(msg => {
+        const msgDate = formatDate(msg.timestamp);
+        if (msgDate !== currentDate) {
+            currentDate = msgDate;
+            groupedMessages.push({ date: msgDate, messages: [msg] });
+        } else {
+            groupedMessages[groupedMessages.length - 1].messages.push(msg);
+        }
+    });
+
+    const isCurrentUser = (userId: string) => currentUser?.id === userId;
+
+    const renderAttachment = (attachment: Attachment) => {
+        if (attachment.type === 'image') {
+            return (
+                <div className="mt-2 rounded-lg overflow-hidden max-w-[240px]">
+                    <img src={attachment.url} alt={attachment.name} className="w-full h-auto" />
+                </div>
+            );
+        }
+        if (attachment.type === 'video') {
+            return (
+                <div className="mt-2 rounded-lg overflow-hidden max-w-[280px]">
+                    <video src={attachment.url} controls className="w-full h-auto" />
+                </div>
+            );
+        }
+        return (
+            <div className="mt-2 flex items-center gap-2 bg-gray-100 rounded-lg p-2">
+                <FileText size={20} className="text-blue-600" />
+                <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">{attachment.name}</p>
+                    <p className="text-xs text-gray-500">{attachment.size}</p>
+                </div>
+                <button className="p-1 hover:bg-gray-200 rounded">
+                    <Download size={16} className="text-gray-600" />
+                </button>
+            </div>
+        );
+    };
+
+    return (
+        <div className="bg-white rounded-lg border border-gray-200 h-[600px] flex flex-col overflow-hidden shadow-sm">
+            {/* Header - matches app theme */}
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                    <MessageCircle size={20} className="text-white" />
+                </div>
+                <div>
+                    <h2 className="text-white font-semibold">Team Chat</h2>
+                    <p className="text-blue-100 text-xs">{users.length} members • {messages.length} messages</p>
+                </div>
+            </div>
+
+            {/* Messages Area */}
+            <div
+                className="flex-1 p-4 overflow-y-auto bg-gray-50"
+                ref={scrollRef}
+            >
+                {loading ? (
+                    <div className="text-center text-gray-500 mt-20">Loading messages...</div>
+                ) : messages.length === 0 ? (
+                    <div className="text-center mt-20">
+                        <div className="w-16 h-16 bg-blue-100 rounded-full mx-auto mb-3 flex items-center justify-center">
+                            <MessageCircle size={32} className="text-blue-500" />
+                        </div>
+                        <p className="text-gray-600 font-medium">No messages yet</p>
+                        <p className="text-gray-500 text-sm">Start the conversation!</p>
+                    </div>
+                ) : (
+                    groupedMessages.map((group, gi) => (
+                        <div key={gi}>
+                            {/* Date Separator */}
+                            <div className="flex justify-center my-4">
+                                <span className="bg-gray-200 px-3 py-1 rounded-full text-xs font-medium text-gray-600">
+                                    {group.date}
+                                </span>
+                            </div>
+
+                            {/* Messages */}
+                            {group.messages.map((msg, mi) => {
+                                const isSender = isCurrentUser(msg.userId);
+                                const senderName = getUserName(users, msg.userId);
+                                const showName = !isSender && (mi === 0 || group.messages[mi - 1].userId !== msg.userId);
+                                const showAvatar = !isSender && (mi === group.messages.length - 1 || group.messages[mi + 1].userId !== msg.userId);
+
+                                return (
+                                    <div
+                                        key={msg.id}
+                                        className={`flex mb-2 ${isSender ? 'justify-end' : 'justify-start'}`}
+                                    >
+                                        {/* Avatar for received messages */}
+                                        {!isSender && (
+                                            <div className="w-8 mr-2 flex flex-col justify-end">
+                                                {showAvatar && (
+                                                    <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white text-xs font-medium">
+                                                        {senderName.charAt(0).toUpperCase()}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        <div
+                                            className={`max-w-[70%] px-3 py-2 rounded-lg shadow-sm ${isSender
+                                                    ? 'bg-blue-600 text-white rounded-br-none'
+                                                    : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none'
+                                                }`}
+                                        >
+                                            {/* Sender Name */}
+                                            {showName && (
+                                                <p className="text-xs font-semibold text-indigo-600 mb-1">
+                                                    {senderName}
+                                                </p>
+                                            )}
+
+                                            {/* Message Content */}
+                                            {msg.content && (
+                                                <p className={`text-sm break-words ${isSender ? 'text-white' : 'text-gray-800'}`}>
+                                                    {msg.content}
+                                                </p>
+                                            )}
+
+                                            {/* Attachment */}
+                                            {msg.attachment && renderAttachment(msg.attachment)}
+
+                                            {/* Time */}
+                                            <p className={`text-[10px] mt-1 text-right ${isSender ? 'text-blue-200' : 'text-gray-400'}`}>
+                                                {formatTime(msg.timestamp)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ))
+                )}
+            </div>
+
+            {/* File Preview */}
+            {selectedFile && (
+                <div className="px-4 py-2 bg-gray-100 border-t border-gray-200 flex items-center gap-3">
+                    {previewUrl && selectedFile.type.startsWith('image/') ? (
+                        <img src={previewUrl} alt="Preview" className="w-12 h-12 object-cover rounded" />
+                    ) : (
+                        <div className="w-12 h-12 bg-blue-100 rounded flex items-center justify-center">
+                            <FileText size={20} className="text-blue-600" />
+                        </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">{selectedFile.name}</p>
+                        <p className="text-xs text-gray-500">{formatFileSize(selectedFile.size)}</p>
+                    </div>
+                    <button onClick={clearSelectedFile} className="p-1 hover:bg-gray-200 rounded">
+                        <X size={18} className="text-gray-500" />
+                    </button>
+                </div>
+            )}
+
+            {/* Input Area */}
+            <form onSubmit={handleSend} className="p-3 bg-white border-t border-gray-200 flex items-center gap-2">
+                {/* Attachment Button */}
+                <div className="relative">
+                    <button
+                        type="button"
+                        onClick={() => setShowAttachMenu(!showAttachMenu)}
+                        className="p-2 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded-full transition-colors"
+                    >
+                        <Paperclip size={20} />
+                    </button>
+
+                    {/* Attachment Menu */}
+                    {showAttachMenu && (
+                        <div className="absolute bottom-12 left-0 bg-white border border-gray-200 rounded-lg shadow-lg py-2 min-w-[160px] z-10">
+                            <button
+                                type="button"
+                                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                onClick={() => handleFileSelect('image')}
+                            >
+                                <Image size={18} className="text-green-500" />
+                                Photos
+                            </button>
+                            <button
+                                type="button"
+                                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                onClick={() => handleFileSelect('video')}
+                            >
+                                <div className="w-[18px] h-[18px] bg-red-500 rounded flex items-center justify-center">
+                                    <div className="w-0 h-0 border-l-[6px] border-l-white border-y-[4px] border-y-transparent ml-0.5" />
+                                </div>
+                                Videos
+                            </button>
+                            <button
+                                type="button"
+                                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                onClick={() => handleFileSelect('document')}
+                            >
+                                <FileText size={18} className="text-blue-500" />
+                                Documents
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
+
+                <input
+                    type="text"
+                    className="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Type a message..."
+                    value={newMessage}
+                    onChange={e => setNewMessage(e.target.value)}
+                />
+                <button
+                    type="submit"
+                    disabled={!newMessage.trim() && !selectedFile}
+                    className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                >
+                    <Send size={18} />
+                </button>
+            </form>
+        </div>
+    );
+}

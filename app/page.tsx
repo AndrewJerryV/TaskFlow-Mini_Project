@@ -5,6 +5,20 @@ import Link from 'next/link';
 import { Project } from '@/types';
 import { CreateProjectDialog } from '@/components/forms/CreateProjectDialog';
 import { useAuth } from '@/contexts/AuthContext';
+import { getUserName, getActionDisplay } from '@/lib/utils';
+import { Sparkles, ArrowRight, Trash2, MessageSquare, Edit } from 'lucide-react';
+
+// Icon component to render Lucide icons by name
+const ActionIcon = ({ iconName, size = 14 }: { iconName: string; size?: number }) => {
+  switch (iconName) {
+    case 'Sparkles': return <Sparkles size={size} />;
+    case 'ArrowRight': return <ArrowRight size={size} />;
+    case 'Trash2': return <Trash2 size={size} />;
+    case 'MessageSquare': return <MessageSquare size={size} />;
+    case 'Edit': return <Edit size={size} />;
+    default: return <Edit size={size} />;
+  }
+};
 
 type ProjectWithStats = Project & {
   stats: {
@@ -37,10 +51,7 @@ export default function Home() {
     fetchProjects();
   }, []);
 
-  const getOwnerName = (ownerId: string) => {
-    const owner = users.find(u => u.id === ownerId);
-    return owner?.name || 'Unknown';
-  };
+  const getOwnerName = (ownerId: string) => getUserName(users, ownerId);
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
@@ -141,10 +152,7 @@ function ActivityFeedList({ users }: { users: any[] }) {
       .catch(err => console.error(err));
   }, []);
 
-  const getUserName = (userId: string) => {
-    const user = users.find(u => u.id === userId);
-    return user?.name || (userId === 'system' ? 'System' : 'Unknown');
-  };
+  const getLocalUserName = (userId: string) => getUserName(users, userId);
 
   if (logs.length === 0) {
     return <div className="p-8 text-center text-gray-400 italic">No recent activity</div>;
@@ -152,27 +160,22 @@ function ActivityFeedList({ users }: { users: any[] }) {
 
   return (
     <>
-      {logs.slice(0, 10).map((log: any) => (
-        <div key={log.id} className="p-4 flex items-center hover:bg-gray-50 from-gray-50 to-white transition-colors cursor-default">
-          <div className={`w-8 h-8 mr-4 flex items-center justify-center rounded-sm text-lg ${log.action === 'Created' ? 'bg-green-100 text-green-600' :
-            log.action === 'Moved' ? 'bg-blue-100 text-blue-600' :
-              log.action === 'Deleted' ? 'bg-red-100 text-red-600' :
-                log.action === 'Commented' ? 'bg-purple-100 text-purple-600' :
-                  'bg-gray-100 text-gray-600'
-            }`}>
-            {log.action === 'Created' ? '✨' :
-              log.action === 'Moved' ? '➡️' :
-                log.action === 'Deleted' ? '🗑️' :
-                  log.action === 'Commented' ? '💬' : '📝'}
+      {logs.slice(0, 10).map((log: any) => {
+        const actionInfo = getActionDisplay(log.action);
+        return (
+          <div key={log.id} className="p-4 flex items-center hover:bg-gray-50 from-gray-50 to-white transition-colors cursor-default">
+            <div className={`w-8 h-8 mr-4 flex items-center justify-center rounded-sm ${actionInfo.bgColor}`}>
+              <ActionIcon iconName={actionInfo.iconName} size={16} />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-900">{log.details}</p>
+              <p className="text-xs text-gray-500">
+                {getLocalUserName(log.userId)} • {new Date(log.timestamp).toLocaleString()}
+              </p>
+            </div>
           </div>
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-900">{log.details}</p>
-            <p className="text-xs text-gray-500">
-              {getUserName(log.userId)} • {new Date(log.timestamp).toLocaleString()}
-            </p>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </>
   );
 }

@@ -5,15 +5,7 @@ import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Task } from '@/types';
 import { User, Tag } from 'lucide-react';
-
-const getPriorityColor = (priority: string) => {
-    switch (priority) {
-        case 'Critical': return 'bg-red-100 text-red-800 border-red-200';
-        case 'High': return 'bg-orange-100 text-orange-800 border-orange-200';
-        case 'Medium': return 'bg-blue-100 text-blue-800 border-blue-200';
-        default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-};
+import { getPriorityColorBordered } from '@/lib/utils';
 
 interface TaskCardProps {
     task: Task;
@@ -65,7 +57,7 @@ function CardContent({ task }: { task: Task }) {
     return (
         <>
             <div className="flex justify-between items-start mb-2">
-                <span className={`text-xs px-2 py-0.5 rounded-full border ${getPriorityColor(task.priority)} font-medium`}>
+                <span className={`text-xs px-2 py-0.5 rounded-full border ${getPriorityColorBordered(task.priority)} font-medium`}>
                     {task.priority}
                 </span>
                 {task.assigneeId && (
