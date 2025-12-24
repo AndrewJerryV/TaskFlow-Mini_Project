@@ -33,14 +33,18 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
     const [isEditing, setIsEditing] = useState(false);
     const [editedTask, setEditedTask] = useState<Task | null>(null);
     const [comments, setComments] = useState<Comment[]>([]);
+    const [history, setHistory] = useState<any[]>([]);
+    const [activeTab, setActiveTab] = useState<'comments' | 'history'>('comments');
     const [newComment, setNewComment] = useState('');
     const [isDeleting, setIsDeleting] = useState(false);
     const [loadingComments, setLoadingComments] = useState(false);
+    const [loadingHistory, setLoadingHistory] = useState(false);
 
     useEffect(() => {
         if (task) {
             setEditedTask(task);
             fetchComments(task.id);
+            fetchHistory(task.id);
         }
     }, [task]);
 
@@ -56,6 +60,28 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
             console.error('Error fetching comments:', error);
         } finally {
             setLoadingComments(false);
+        }
+    };
+
+    const fetchHistory = async (taskId: string) => {
+        if (!task) return;
+        const taskTitle = task.title; // Capture before async
+        setLoadingHistory(true);
+        try {
+            const res = await fetch('/api/activity');
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data)) {
+                    const taskLogs = data.filter((log: any) =>
+                        log.entityId === taskId || log.details.includes(taskTitle)
+                    );
+                    setHistory(taskLogs);
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching history:', error);
+        } finally {
+            setLoadingHistory(false);
         }
     };
 
@@ -225,54 +251,101 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                     </div>
                 )}
 
-                {/* Comments Section */}
+                {/* Tabs for Comments and History */}
                 <div className="border-t pt-4">
-                    <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-                        <MessageSquare size={14} />
-                        Comments ({comments.length})
-                    </h4>
+                    <div className="flex gap-4 mb-3 border-b border-gray-100">
+                        <button
+                            className={`pb-2 text-sm font-medium ${activeTab === 'comments' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
+                            onClick={() => setActiveTab('comments')}
+                        >
+                            <span className="flex items-center gap-2">
+                                <MessageSquare size={14} />
+                                Comments ({comments.length})
+                            </span>
+                        </button>
+                        <button
+                            className={`pb-2 text-sm font-medium ${activeTab === 'history' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
+                            onClick={() => setActiveTab('history')}
+                        >
+                            <span className="flex items-center gap-2">
+                                <Clock size={14} />
+                                History
+                            </span>
+                        </button>
+                    </div>
 
-                    {loadingComments ? (
-                        <div className="text-sm text-gray-400">Loading comments...</div>
-                    ) : (
-                        <div className="space-y-3 max-h-48 overflow-y-auto">
-                            {comments.map(comment => (
-                                <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
-                                    <div className="flex justify-between items-start mb-1">
-                                        <span className="text-sm font-medium text-gray-800">
-                                            {getUserName(comment.userId)}
-                                        </span>
-                                        <span className="text-xs text-gray-400">
-                                            {new Date(comment.createdAt).toLocaleString()}
-                                        </span>
-                                    </div>
-                                    <p className="text-sm text-gray-600">{comment.content}</p>
+                    {activeTab === 'comments' ? (
+                        <>
+                            {loadingComments ? (
+                                <div className="text-sm text-gray-400">Loading comments...</div>
+                            ) : (
+                                <div className="space-y-3 max-h-48 overflow-y-auto">
+                                    {comments.map(comment => (
+                                        <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
+                                            <div className="flex justify-between items-start mb-1">
+                                                <span className="text-sm font-medium text-gray-800">
+                                                    {getUserName(comment.userId)}
+                                                </span>
+                                                <span className="text-xs text-gray-400">
+                                                    {new Date(comment.createdAt).toLocaleString()}
+                                                </span>
+                                            </div>
+                                            <p className="text-sm text-gray-600">{comment.content}</p>
+                                        </div>
+                                    ))}
+                                    {comments.length === 0 && (
+                                        <p className="text-sm text-gray-400 italic">No comments yet</p>
+                                    )}
                                 </div>
-                            ))}
-                            {comments.length === 0 && (
-                                <p className="text-sm text-gray-400 italic">No comments yet</p>
+                            )}
+
+                            {/* Add Comment */}
+                            <div className="mt-3 flex gap-2">
+                                <input
+                                    type="text"
+                                    placeholder="Add a comment..."
+                                    className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+                                    value={newComment}
+                                    onChange={(e) => setNewComment(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
+                                />
+                                <button
+                                    onClick={handleAddComment}
+                                    disabled={!newComment.trim()}
+                                    className="px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                                >
+                                    Send
+                                </button>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="space-y-3 max-h-64 overflow-y-auto">
+                            {loadingHistory ? (
+                                <div className="text-sm text-gray-400">Loading history...</div>
+                            ) : history.length === 0 ? (
+                                <p className="text-sm text-gray-400 italic">No history available</p>
+                            ) : (
+                                history.map((log: any) => (
+                                    <div key={log.id} className="flex gap-3 text-sm">
+                                        <div className="mt-0.5">
+                                            {log.action === 'Created' ? '✨' :
+                                                log.action === 'Moved' ? '➡️' :
+                                                    log.action === 'Deleted' ? '🗑️' :
+                                                        log.action === 'Commented' ? '💬' : '📝'}
+                                        </div>
+                                        <div>
+                                            <p className="text-gray-900">
+                                                <span className="font-medium">{getUserName(log.userId)}</span> {log.details.replace(`Task "${task.title}"`, 'Task').replace(task.title, 'this task')}
+                                            </p>
+                                            <p className="text-xs text-gray-400">
+                                                {new Date(log.timestamp).toLocaleString()}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))
                             )}
                         </div>
                     )}
-
-                    {/* Add Comment */}
-                    <div className="mt-3 flex gap-2">
-                        <input
-                            type="text"
-                            placeholder="Add a comment..."
-                            className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
-                            value={newComment}
-                            onChange={(e) => setNewComment(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
-                        />
-                        <button
-                            onClick={handleAddComment}
-                            disabled={!newComment.trim()}
-                            className="px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
-                        >
-                            Send
-                        </button>
-                    </div>
                 </div>
 
                 {/* Actions */}

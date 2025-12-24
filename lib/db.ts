@@ -121,6 +121,30 @@ class Database {
         }
     }
 
+    async deleteProject(id: string): Promise<boolean> {
+        // Delete all tasks in this project first
+        const { error: tasksError } = await getSupabase()
+            .from('tasks')
+            .delete()
+            .eq('project_id', id);
+
+        if (tasksError) {
+            console.error('Error deleting project tasks:', tasksError);
+        }
+
+        // Delete the project
+        const { error } = await getSupabase()
+            .from('projects')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error deleting project:', error);
+            return false;
+        }
+        return true;
+    }
+
     // Tasks
     async getTasks(projectId?: string): Promise<Task[]> {
         let query = getSupabase().from('tasks').select('*');

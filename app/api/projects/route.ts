@@ -57,3 +57,24 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed to create project' }, { status: 500 });
     }
 }
+
+export async function DELETE(request: Request) {
+    try {
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get('id');
+
+        if (!id) {
+            return NextResponse.json({ error: 'Project ID is required' }, { status: 400 });
+        }
+
+        const success = await db.deleteProject(id);
+        if (!success) {
+            return NextResponse.json({ error: 'Failed to delete project' }, { status: 500 });
+        }
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error('Error deleting project:', error);
+        return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed to delete project' }, { status: 500 });
+    }
+}
