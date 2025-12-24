@@ -120,6 +120,10 @@ export default function ProjectPage() {
         }
     };
 
+    const handleTaskDelete = (taskId: string) => {
+        setTasks(prev => prev.filter(t => t.id !== taskId));
+    };
+
     if (loading) return <div className="p-10 text-center text-gray-500">Loading Workspace...</div>;
     if (!project) return <div className="p-10 text-center text-red-500">Project not found</div>;
 
@@ -152,7 +156,13 @@ export default function ProjectPage() {
                         <div className="w-8 h-8 rounded-full border-2 border-white bg-green-500 text-white flex items-center justify-center text-xs">A</div>
                         <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-200 text-gray-500 flex items-center justify-center text-xs">+</div>
                     </div>
-                    <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                    <button
+                        onClick={() => {
+                            navigator.clipboard.writeText(window.location.href);
+                            alert('Project link copied to clipboard!');
+                        }}
+                        className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                    >
                         Share
                     </button>
                 </div>
@@ -186,7 +196,7 @@ export default function ProjectPage() {
                 />
 
                 {activeTab === 'Summary' && <SummaryView tasks={tasks} />}
-                {activeTab === 'Backlog' && <BacklogView tasks={tasks} onTaskCreate={() => setIsCreateTaskOpen(true)} onTaskUpdate={handleTaskUpdate} />}
+                {activeTab === 'Backlog' && <BacklogView tasks={tasks} onTaskCreate={() => setIsCreateTaskOpen(true)} onTaskUpdate={handleTaskUpdate} onTaskDelete={handleTaskDelete} />}
 
                 {activeTab === 'Board' && <TaskBoard tasks={tasks} onTaskMove={handleTaskMove} />}
                 {activeTab === 'Timeline' && <TimelineView tasks={tasks} />}

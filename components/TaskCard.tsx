@@ -4,7 +4,7 @@ import React from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Task } from '@/types';
-import { Badge, User, Tag } from 'lucide-react';
+import { User, Tag } from 'lucide-react';
 
 const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -18,9 +18,10 @@ const getPriorityColor = (priority: string) => {
 interface TaskCardProps {
     task: Task;
     isOverlay?: boolean;
+    onClick?: (task: Task) => void;
 }
 
-export function TaskCard({ task, isOverlay }: TaskCardProps) {
+export function TaskCard({ task, isOverlay, onClick }: TaskCardProps) {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: task.id,
         data: { task }
@@ -29,6 +30,13 @@ export function TaskCard({ task, isOverlay }: TaskCardProps) {
     const style = transform ? {
         transform: CSS.Translate.toString(transform),
     } : undefined;
+
+    const handleClick = (e: React.MouseEvent) => {
+        // Only trigger click if not dragging
+        if (!isDragging && onClick) {
+            onClick(task);
+        }
+    };
 
     // If overlay, we force opacity 1 and maybe add shadow
     if (isOverlay) {
@@ -45,6 +53,7 @@ export function TaskCard({ task, isOverlay }: TaskCardProps) {
             style={style}
             {...listeners}
             {...attributes}
+            onClick={handleClick}
             className={`bg-white p-3 rounded-md shadow-sm border border-gray-200 cursor-grab hover:shadow-md hover:border-blue-300 transition-all ${isDragging ? 'opacity-30' : ''} mb-3`}
         >
             <CardContent task={task} />

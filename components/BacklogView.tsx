@@ -1,17 +1,29 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Task } from '@/types';
-import { CheckSquare, Plus, Edit2, MoreVertical, Search, Filter, PlayCircle, Layers } from 'lucide-react';
+import { Task, Priority, Status } from '@/types';
+import { CheckSquare, Plus, Edit2, MoreVertical, Search, PlayCircle, Layers } from 'lucide-react';
+import { TaskFilters } from './TaskFilters';
+import { TaskDetailModal } from './TaskDetailModal';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface BacklogViewProps {
   tasks: Task[];
   onTaskCreate?: () => void;
   onTaskUpdate?: (task: Task) => void;
+  onTaskDelete?: (taskId: string) => void;
 }
 
 // Editable Task Item Component
-const TaskItem = ({ item, onUpdate }: { item: Task, onUpdate?: (t: Task) => void }) => {
+const TaskItem = ({
+  item,
+  onUpdate,
+  onClick
+}: {
+  item: Task,
+  onUpdate?: (t: Task) => void,
+  onClick?: (t: Task) => void,
+}) => {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(item.title);
 
@@ -23,9 +35,16 @@ const TaskItem = ({ item, onUpdate }: { item: Task, onUpdate?: (t: Task) => void
   };
 
   return (
-    <div className="flex items-center justify-between p-3 bg-white border border-gray-200 hover:bg-gray-50 transition-colors group cursor-default">
+    <div
+      className="flex items-center justify-between p-3 bg-white border border-gray-200 hover:bg-gray-50 transition-colors group cursor-pointer"
+      onClick={() => onClick?.(item)}
+    >
       <div className="flex items-center space-x-3 flex-1">
-        <input type="checkbox" className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" />
+        <input
+          type="checkbox"
+          className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+          onClick={(e) => e.stopPropagation()}
+        />
         <span className="text-gray-500 font-medium text-xs w-16 truncate font-mono" title={item.id}>{item.id.substring(0, 6)}</span>
 
         {isEditing ? (
@@ -35,26 +54,39 @@ const TaskItem = ({ item, onUpdate }: { item: Task, onUpdate?: (t: Task) => void
             onChange={(e) => setTitle(e.target.value)}
             onBlur={handleSave}
             onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+            onClick={(e) => e.stopPropagation()}
             autoFocus
             className="text-sm font-medium border border-blue-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         ) : (
-          <span className="text-gray-900 text-sm font-medium cursor-text" onClick={() => setIsEditing(true)}>
+          <span className="text-gray-900 text-sm font-medium">
             {item.title}
           </span>
         )}
 
-        {/* Edit Icon */}
-        <button onClick={() => setIsEditing(!isEditing)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 transition-opacity">
+        <button
+          onClick={(e) => { e.stopPropagation(); setIsEditing(!isEditing); }}
+          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 transition-opacity"
+        >
           <Edit2 size={12} />
         </button>
       </div>
 
       <div className="flex items-center space-x-4">
         <span className={`px-2 py-0.5 text-xs font-bold uppercase rounded ${item.status === 'To Do' ? 'bg-gray-100 text-gray-600' :
-            item.status === 'In Progress' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+            item.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+              item.status === 'Review' ? 'bg-purple-100 text-purple-700' :
+                'bg-green-100 text-green-700'
           }`}>
           {item.status}
+        </span>
+
+        <span className={`px-2 py-0.5 text-xs font-medium rounded ${item.priority === 'Critical' ? 'bg-red-100 text-red-600' :
+            item.priority === 'High' ? 'bg-orange-100 text-orange-600' :
+              item.priority === 'Medium' ? 'bg-blue-100 text-blue-600' :
+                'bg-gray-100 text-gray-600'
+          }`}>
+          {item.priority}
         </span>
 
         {item.assigneeId && (
@@ -62,7 +94,7 @@ const TaskItem = ({ item, onUpdate }: { item: Task, onUpdate?: (t: Task) => void
             {item.assigneeId.charAt(0)}
           </div>
         )}
-        <button className="text-gray-400 hover:text-gray-600">
+        <button className="text-gray-400 hover:text-gray-600" onClick={(e) => e.stopPropagation()}>
           <MoreVertical size={14} />
         </button>
       </div>
@@ -70,35 +102,92 @@ const TaskItem = ({ item, onUpdate }: { item: Task, onUpdate?: (t: Task) => void
   );
 };
 
-export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate }: BacklogViewProps) {
+export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskDelete }: BacklogViewProps) {
+  const { users } = useAuth();
   const [isSprintOpen, setIsSprintOpen] = useState(true);
   const [isBacklogOpen, setIsBacklogOpen] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Filters
+  const [statusFilter, setStatusFilter] = useState<Status | 'all'>('all');
+  const [priorityFilter, setPriorityFilter] = useState<Priority | 'all'>('all');
+  const [assigneeFilter, setAssigneeFilter] = useState<string | 'all'>('all');
+
+  // Task detail modal
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  // Filter tasks
+  const filteredTasks = tasks.filter(task => {
+    if (statusFilter !== 'all' && task.status !== statusFilter) return false;
+    if (priorityFilter !== 'all' && task.priority !== priorityFilter) return false;
+    if (assigneeFilter === 'unassigned' && task.assigneeId) return false;
+    if (assigneeFilter !== 'all' && assigneeFilter !== 'unassigned' && task.assigneeId !== assigneeFilter) return false;
+    if (searchQuery && !task.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    return true;
+  });
 
   // Group tasks
-  const sprintTasks = tasks.filter(t => t.status === 'In Progress' || t.status === 'Done');
-  const backlogTasks = tasks.filter(t => t.status === 'To Do');
+  const sprintTasks = filteredTasks.filter(t => t.status === 'In Progress' || t.status === 'Done' || t.status === 'Review');
+  const backlogTasks = filteredTasks.filter(t => t.status === 'To Do');
+
+  const handleTaskClick = (task: Task) => {
+    setSelectedTask(task);
+    setIsDetailOpen(true);
+  };
+
+  const handleTaskUpdate = (updatedTask: Task) => {
+    onTaskUpdate?.(updatedTask);
+    setSelectedTask(updatedTask);
+  };
+
+  const handleTaskDelete = (taskId: string) => {
+    onTaskDelete?.(taskId);
+    setIsDetailOpen(false);
+  };
+
+  const clearFilters = () => {
+    setStatusFilter('all');
+    setPriorityFilter('all');
+    setAssigneeFilter('all');
+  };
 
   return (
-    <div className="space-y-6 max-w-5xl">
-      {/* Filters / Search Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-2">
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" size={14} />
-            <input
-              type="text"
-              placeholder="Search backlog"
-              className="pl-8 pr-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none w-64"
-            />
-          </div>
-          <div className="flex -space-x-1 pl-2">
-            <div className="w-7 h-7 bg-indigo-600 rounded-full border-2 border-white flex items-center justify-center text-xs text-white">TW</div>
-            <div className="w-7 h-7 bg-gray-200 rounded-full border-2 border-white flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:bg-gray-300 transition-colors">
-              <Plus size={12} />
-            </div>
-          </div>
+    <div className="space-y-4 max-w-5xl">
+      {/* Task Detail Modal */}
+      <TaskDetailModal
+        task={selectedTask}
+        isOpen={isDetailOpen}
+        onClose={() => setIsDetailOpen(false)}
+        onUpdate={handleTaskUpdate}
+        onDelete={handleTaskDelete}
+      />
+
+      {/* Search and Filters */}
+      <div className="flex items-center gap-4 mb-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" size={14} />
+          <input
+            type="text"
+            placeholder="Search tasks..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-8 pr-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          />
         </div>
       </div>
+
+      {/* Filters Component */}
+      <TaskFilters
+        users={users}
+        statusFilter={statusFilter}
+        priorityFilter={priorityFilter}
+        assigneeFilter={assigneeFilter}
+        onStatusChange={setStatusFilter}
+        onPriorityChange={setPriorityFilter}
+        onAssigneeChange={setAssigneeFilter}
+        onClearFilters={clearFilters}
+      />
 
       {/* Active Sprint Section */}
       <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
@@ -118,7 +207,12 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate }: Backl
 
         {isSprintOpen && (
           <div className="space-y-[-1px] mt-2">
-            {sprintTasks.map(item => <TaskItem key={item.id} item={item} onUpdate={onTaskUpdate} />)}
+            {sprintTasks.map(item => (
+              <TaskItem key={item.id} item={item} onUpdate={onTaskUpdate} onClick={handleTaskClick} />
+            ))}
+            {sprintTasks.length === 0 && (
+              <p className="text-sm text-gray-400 italic py-4 text-center">No tasks in sprint</p>
+            )}
             <button onClick={onTaskCreate} className="w-full text-left p-2 pl-3 mt-1 flex items-center gap-2 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors rounded">
               <Plus size={14} /> Create issue
             </button>
@@ -141,7 +235,12 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate }: Backl
 
         {isBacklogOpen && (
           <div className="space-y-[-1px] mt-2">
-            {backlogTasks.map(item => <TaskItem key={item.id} item={item} onUpdate={onTaskUpdate} />)}
+            {backlogTasks.map(item => (
+              <TaskItem key={item.id} item={item} onUpdate={onTaskUpdate} onClick={handleTaskClick} />
+            ))}
+            {backlogTasks.length === 0 && (
+              <p className="text-sm text-gray-400 italic py-4 text-center">No tasks in backlog</p>
+            )}
             <button onClick={onTaskCreate} className="w-full text-left p-2 pl-3 mt-1 flex items-center gap-2 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors rounded">
               <Plus size={14} /> Create issue
             </button>

@@ -1,5 +1,5 @@
-import { getSupabase, DbUser, DbProject, DbTask, DbActivityLog, DbMessage } from './supabase';
-import { Project, Task, User, ActivityLog, Message } from '@/types';
+import { getSupabase, DbUser, DbProject, DbTask, DbActivityLog, DbMessage, DbComment } from './supabase';
+import { Project, Task, User, ActivityLog, Message, Comment } from '@/types';
 
 // Helper functions to convert between snake_case DB and camelCase TS
 function toUser(dbUser: DbUser): User {
@@ -61,6 +61,16 @@ function toMessage(dbMessage: DbMessage): Message {
         userId: dbMessage.user_id,
         content: dbMessage.content,
         timestamp: dbMessage.timestamp,
+    };
+}
+
+function toComment(dbComment: DbComment): Comment {
+    return {
+        id: dbComment.id,
+        taskId: dbComment.task_id,
+        userId: dbComment.user_id,
+        content: dbComment.content,
+        createdAt: dbComment.created_at,
     };
 }
 
@@ -282,6 +292,96 @@ class Database {
             console.error('Error adding message:', error);
         }
     }
+
+    // Get single task by ID
+    async getTaskById(id: string): Promise<Task | null> {
+        const { data, error } = await getSupabase()
+            .from('tasks')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error || !data) {
+            console.error('Error fetching task:', error);
+            return null;
+        }
+        return toTask(data);
+    }
+
+    // Delete task
+    async deleteTask(id: string, userId: string): Promise<boolean> {
+        // Get task title for activity log
+        const task = await this.getTaskById(id);
+        if (!task) return false;
+
+        const { error } = await getSupabase()
+            .from('tasks')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error deleting task:', error);
+            return false;
+        }
+
+        // Log deletion
+        await this.createLog({
+            id: crypto.randomUUID(),
+            entityType: 'Task',
+            entityId: id,
+            action: 'Deleted',
+            details: `Task "${task.title}" deleted.`,
+            userId: userId,
+            timestamp: new Date().toISOString()
+        });
+
+        return true;
+    }
+
+    // Comments
+    async getComments(taskId: string): Promise<Comment[]> {
+        const { data, error } = await getSupabase()
+            .from('comments')
+            .select('*')
+            .eq('task_id', taskId)
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching comments:', error);
+            return [];
+        }
+        return (data || []).map(toComment);
+    }
+
+    async addComment(comment: Comment): Promise<void> {
+        const { error } = await getSupabase()
+            .from('comments')
+            .insert({
+                id: comment.id,
+                task_id: comment.taskId,
+                user_id: comment.userId,
+                content: comment.content,
+                created_at: comment.createdAt,
+            });
+
+        if (error) {
+            console.error('Error adding comment:', error);
+            return;
+        }
+
+        // Log comment activity
+        const task = await this.getTaskById(comment.taskId);
+        await this.createLog({
+            id: crypto.randomUUID(),
+            entityType: 'Task',
+            entityId: comment.taskId,
+            action: 'Commented',
+            details: `Comment added on "${task?.title || 'task'}".`,
+            userId: comment.userId,
+            timestamp: new Date().toISOString()
+        });
+    }
 }
 
 export const db = new Database();
+

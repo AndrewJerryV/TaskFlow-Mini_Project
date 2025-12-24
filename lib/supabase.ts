@@ -70,3 +70,11 @@ export interface DbMessage {
     content: string;
     timestamp: string;
 }
+
+export interface DbComment {
+    id: string;
+    task_id: string;
+    user_id: string;
+    content: string;
+    created_at: string;
+}

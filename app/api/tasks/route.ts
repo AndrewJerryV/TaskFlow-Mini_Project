@@ -65,3 +65,26 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed to update task' }, { status: 500 });
     }
 }
+
+export async function DELETE(request: Request) {
+    try {
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get('id');
+        const userId = searchParams.get('userId') || 'system';
+
+        if (!id) {
+            return NextResponse.json({ error: 'Task ID is required' }, { status: 400 });
+        }
+
+        const success = await db.deleteTask(id, userId);
+
+        if (!success) {
+            return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+        }
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error('Error deleting task:', error);
+        return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed to delete task' }, { status: 500 });
+    }
+}

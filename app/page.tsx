@@ -1,9 +1,10 @@
-// src/app/page.tsx
 'use client';
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Project } from '@/types';
+import { CreateProjectDialog } from '@/components/forms/CreateProjectDialog';
+import { useAuth } from '@/contexts/AuthContext';
 
 type ProjectWithStats = Project & {
   stats: {
@@ -14,15 +15,19 @@ type ProjectWithStats = Project & {
 };
 
 export default function Home() {
+  const { currentUser, users } = useAuth();
   const [projects, setProjects] = useState<ProjectWithStats[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   useEffect(() => {
     const fetchProjects = async () => {
       try {
         const res = await fetch('/api/projects');
         const data = await res.json();
-        setProjects(data);
+        if (Array.isArray(data)) {
+          setProjects(data);
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -32,9 +37,24 @@ export default function Home() {
     fetchProjects();
   }, []);
 
+  const getOwnerName = (ownerId: string) => {
+    const owner = users.find(u => u.id === ownerId);
+    return owner?.name || 'Unknown';
+  };
+
   return (
     <div className="p-8 max-w-6xl mx-auto">
-      <h1 className="text-2xl font-semibold text-gray-800 mb-6">Your Work</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-semibold text-gray-800">Your Work</h1>
+        {currentUser && (
+          <div className="text-sm text-gray-500">
+            Welcome back, <span className="font-medium text-gray-700">{currentUser.name}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Create Project Dialog */}
+      <CreateProjectDialog isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
 
       {/* Recent Projects Section */}
       <section className="mb-10">
@@ -60,7 +80,7 @@ export default function Home() {
 
                   <div className="z-10">
                     <div className="flex justify-between text-xs text-gray-500 mb-1">
-                      <span>Progress</span>
+                      <span>Owner: {getOwnerName(project.ownerId)}</span>
                       <span>{project.stats.progress}%</span>
                     </div>
                     <div className="w-full bg-gray-100 rounded-full h-1.5">
@@ -72,7 +92,10 @@ export default function Home() {
             ))}
 
             {/* Create New Project Card */}
-            <button className="border-2 border-dashed border-gray-300 rounded-lg p-4 h-36 flex flex-col items-center justify-center text-gray-400 hover:border-blue-400 hover:text-blue-500 transition-all hover:bg-blue-50/10">
+            <button
+              onClick={() => setIsCreateOpen(true)}
+              className="border-2 border-dashed border-gray-300 rounded-lg p-4 h-36 flex flex-col items-center justify-center text-gray-400 hover:border-blue-400 hover:text-blue-500 transition-all hover:bg-blue-50/10"
+            >
               <span className="text-2xl mb-1">+</span>
               <span className="text-sm font-medium">Create Project</span>
             </button>
@@ -85,10 +108,7 @@ export default function Home() {
         <h2 className="text-sm font-semibold text-gray-500 uppercase mb-4">Activity Feed</h2>
         <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
           <div className="divide-y divide-gray-100">
-            {/* We will fetch these effectively via a new API or just inline here for simplicity since we have direct DB access in API routes, but here we need an API endpoint or reuse the projects one? 
-                Actually, let's make a quick API for activity logs to do this right. 
-             */}
-            <ActivityFeedList />
+            <ActivityFeedList users={users} />
           </div>
         </div>
       </section>
@@ -96,19 +116,20 @@ export default function Home() {
   );
 }
 
-function ActivityFeedList() {
+function ActivityFeedList({ users }: { users: any[] }) {
   const [logs, setLogs] = useState<any[]>([]);
 
   useEffect(() => {
-    // Quick fetch - in a real app, this would be a dedicated endpoint
-    // For now, let's assume we create a route or just reuse what we have.
-    // Wait, I didn't create an activity log endpoint. I should probably do that.
-    // Let's create `app/api/activity/route.ts` quickly.
     fetch('/api/activity')
       .then(res => res.json())
-      .then(data => setLogs(data))
+      .then(data => setLogs(Array.isArray(data) ? data : []))
       .catch(err => console.error(err));
   }, []);
+
+  const getUserName = (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    return user?.name || (userId === 'system' ? 'System' : 'Unknown');
+  };
 
   if (logs.length === 0) {
     return <div className="p-8 text-center text-gray-400 italic">No recent activity</div>;
@@ -116,18 +137,23 @@ function ActivityFeedList() {
 
   return (
     <>
-      {logs.slice(0, 5).map((log: any) => (
+      {logs.slice(0, 10).map((log: any) => (
         <div key={log.id} className="p-4 flex items-center hover:bg-gray-50 from-gray-50 to-white transition-colors cursor-default">
           <div className={`w-8 h-8 mr-4 flex items-center justify-center rounded-sm text-lg ${log.action === 'Created' ? 'bg-green-100 text-green-600' :
-              log.action === 'Moved' ? 'bg-blue-100 text-blue-600' :
-                'bg-gray-100 text-gray-600'
+            log.action === 'Moved' ? 'bg-blue-100 text-blue-600' :
+              log.action === 'Deleted' ? 'bg-red-100 text-red-600' :
+                log.action === 'Commented' ? 'bg-purple-100 text-purple-600' :
+                  'bg-gray-100 text-gray-600'
             }`}>
-            {log.action === 'Created' ? '✨' : log.action === 'Moved' ? '➡️' : '📝'}
+            {log.action === 'Created' ? '✨' :
+              log.action === 'Moved' ? '➡️' :
+                log.action === 'Deleted' ? '🗑️' :
+                  log.action === 'Commented' ? '💬' : '📝'}
           </div>
           <div className="flex-1">
             <p className="text-sm font-medium text-gray-900">{log.details}</p>
             <p className="text-xs text-gray-500">
-              {log.userId === 'system' ? 'System' : 'User'} • {new Date(log.timestamp).toLocaleString()}
+              {getUserName(log.userId)} • {new Date(log.timestamp).toLocaleString()}
             </p>
           </div>
         </div>
