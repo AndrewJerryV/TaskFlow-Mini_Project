@@ -8,6 +8,7 @@ import SummaryView from '@/components/SummaryView';
 import BacklogView from '@/components/BacklogView';
 import TimelineView from '@/components/TimelineView';
 import ChatView from '@/components/ChatView';
+import PagesView from '@/components/PagesView';
 import { CreateTaskDialog } from '@/components/forms/CreateTaskDialog';
 import { Modal } from '@/components/ui/Modal';
 import VideoRoom from '@/components/VideoRoom';
@@ -129,22 +130,22 @@ export default function ProjectPage() {
         setTasks(prev => prev.filter(t => t.id !== taskId));
     };
 
-    if (loading) return <div className="p-10 text-center text-gray-500">Loading Workspace...</div>;
+    if (loading) return <div className="p-10 text-center text-gray-500 dark:text-gray-400">Loading Workspace...</div>;
     if (!project) return <div className="p-10 text-center text-red-500">Project not found</div>;
 
     return (
-        <div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden bg-white">
+        <div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden bg-white dark:bg-gray-900">
             {isVideoOpen && <VideoRoom projectId={id} onLeave={() => setIsVideoOpen(false)} />}
 
             {/* Header */}
-            <div className="border-b border-gray-200 px-6 py-4 flex justify-between items-center bg-white z-10">
+            <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-between items-center bg-white dark:bg-gray-800 z-10">
                 <div>
-                    <div className="flex items-center space-x-2 text-sm text-gray-500 mb-1">
+                    <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
                         <span>Projects</span>
                         <span>/</span>
                         <span>{project.name}</span>
                     </div>
-                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
                         <span className="w-8 h-8 flex items-center justify-center bg-blue-600 text-white rounded text-sm">{project.key}</span>
                         {project.name}
                     </h1>
@@ -152,7 +153,7 @@ export default function ProjectPage() {
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => setIsVideoOpen(true)}
-                        className="flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                        className="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-400 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                     >
                         <Video size={16} /> Join Meeting
                     </button>
@@ -195,7 +196,7 @@ export default function ProjectPage() {
                                 prompt('Copy this link:', window.location.href);
                             }
                         }}
-                        className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                        className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                     >
                         Share
                     </button>
@@ -203,15 +204,15 @@ export default function ProjectPage() {
             </div>
 
             {/* Tabs */}
-            <div className="border-b border-gray-200 px-6 bg-gray-50/50">
+            <div className="border-b border-gray-200 dark:border-gray-700 px-6 bg-gray-50/50 dark:bg-gray-800/50">
                 <nav className="flex space-x-6 -mb-px">
                     {NAV_ITEMS.map((item) => (
                         <button
                             key={item}
                             onClick={() => setActiveTab(item)}
                             className={`py-3 text-sm font-medium transition-colors border-b-2 ${activeTab === item
-                                ? 'border-blue-600 text-blue-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                                 }`}
                         >
                             {item}
@@ -221,7 +222,7 @@ export default function ProjectPage() {
             </div>
 
             {/* Main Content Area */}
-            <div className="flex-1 overflow-auto bg-gray-50/30 p-6">
+            <div className="flex-1 overflow-auto bg-gray-50/30 dark:bg-gray-900 p-6">
                 <CreateTaskDialog
                     isOpen={isCreateTaskOpen}
                     onClose={() => setIsCreateTaskOpen(false)}
@@ -229,7 +230,7 @@ export default function ProjectPage() {
                     onSubmit={handleTaskCreateSubmit}
                 />
 
-                {activeTab === 'Summary' && <SummaryView tasks={tasks} />}
+                {activeTab === 'Summary' && <SummaryView tasks={tasks} projectId={id} />}
                 {activeTab === 'Backlog' && <BacklogView tasks={tasks} onTaskCreate={() => setIsCreateTaskOpen(true)} onTaskUpdate={handleTaskUpdate} onTaskDelete={handleTaskDelete} />}
 
                 {activeTab === 'Board' && <TaskBoard tasks={tasks} onTaskMove={handleTaskMove} />}
@@ -237,8 +238,8 @@ export default function ProjectPage() {
                 {activeTab === 'Chat' && <ChatView projectId={id} />}
 
                 {activeTab === 'Code' && (
-                    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                        <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 text-xs font-mono text-gray-600 flex justify-between">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                        <div className="bg-gray-50 dark:bg-gray-900 px-4 py-2 border-b border-gray-200 dark:border-gray-700 text-xs font-mono text-gray-600 dark:text-gray-400 flex justify-between">
                             <span>main</span>
                             <span>Last commit: 10 mins ago</span>
                         </div>
@@ -249,13 +250,13 @@ export default function ProjectPage() {
                                 { name: 'package.json', type: 'file', time: 'yesterday' },
                                 { name: 'README.md', type: 'file', time: '3 days ago' },
                             ].map((file, i) => (
-                                <div key={i} className="flex items-center px-4 py-3 border-b border-gray-100 hover:bg-blue-50 cursor-pointer text-sm">
-                                    <span className="w-6 text-gray-400">{file.type === 'dir' ? <Folder size={16} /> : <FileText size={16} />}</span>
-                                    <span className="flex-1 font-medium text-gray-700">{file.name}</span>
-                                    <span className="text-gray-400 text-xs">{file.time}</span>
+                                <div key={i} className="flex items-center px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer text-sm">
+                                    <span className="w-6 text-gray-400 dark:text-gray-500">{file.type === 'dir' ? <Folder size={16} /> : <FileText size={16} />}</span>
+                                    <span className="flex-1 font-medium text-gray-700 dark:text-gray-300">{file.name}</span>
+                                    <span className="text-gray-400 dark:text-gray-500 text-xs">{file.time}</span>
                                 </div>
                             ))}
-                            <div className="p-8 text-center text-gray-400 italic bg-gray-50/20">
+                            <div className="p-8 text-center text-gray-400 dark:text-gray-500 italic bg-gray-50/20 dark:bg-gray-900/20">
                                 Repository connection active
                             </div>
                         </div>
@@ -263,43 +264,21 @@ export default function ProjectPage() {
                 )}
 
                 {activeTab === 'Pages' && (
-                    <div className="grid grid-cols-3 gap-6">
-                        <div className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md cursor-pointer group">
-                            <div className="h-32 bg-gray-100 rounded-md mb-3 flex items-center justify-center group-hover:bg-blue-50 transition-colors">
-                                <FileText size={48} className="text-gray-400" />
-                            </div>
-                            <h3 className="font-semibold text-gray-800">Project Requirements</h3>
-                            <p className="text-xs text-gray-500">Updated yesterday by User</p>
-                        </div>
-                        <div className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md cursor-pointer group">
-                            <div className="h-32 bg-gray-100 rounded-md mb-3 flex items-center justify-center group-hover:bg-blue-50 transition-colors">
-                                <BarChart3 size={48} className="text-gray-400" />
-                            </div>
-                            <h3 className="font-semibold text-gray-800">Q1 Marketing Strategy</h3>
-                            <p className="text-xs text-gray-500">Updated 2 days ago</p>
-                        </div>
-                        <div
-                            className="bg-white p-4 rounded-lg border border-2 border-dashed border-gray-200 hover:border-blue-400 hover:bg-blue-50 flex flex-col items-center justify-center text-gray-400 cursor-pointer transition-colors"
-                            onClick={() => alert('Page creation coming soon!')}
-                        >
-                            <Plus size={32} className="mb-1" />
-                            <span>Create Page</span>
-                        </div>
-                    </div>
+                    <PagesView projectId={id} />
                 )}
             </div>
 
             {/* Invite Team Member Modal */}
             <Modal isOpen={isInviteOpen} onClose={() => setIsInviteOpen(false)} title="Add Team Members">
                 <div className="p-4">
-                    <p className="text-sm text-gray-600 mb-4">Select team members to add to this project:</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Select team members to add to this project:</p>
                     <div className="space-y-2 max-h-64 overflow-y-auto">
                         {users.filter(u => u.id !== currentUser?.id).map(user => {
                             const isMember = projectMembers.includes(user.id);
                             return (
                                 <div
                                     key={user.id}
-                                    className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${isMember ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200 hover:bg-gray-50'
+                                    className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${isMember ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700' : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
                                         }`}
                                     onClick={() => {
                                         if (isMember) {
@@ -314,8 +293,8 @@ export default function ProjectPage() {
                                             {user.name.charAt(0).toUpperCase()}
                                         </div>
                                         <div>
-                                            <p className="font-medium text-gray-900">{user.name}</p>
-                                            <p className="text-xs text-gray-500">{user.email}</p>
+                                            <p className="font-medium text-gray-900 dark:text-white">{user.name}</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
                                         </div>
                                     </div>
                                     {isMember && (
@@ -327,10 +306,10 @@ export default function ProjectPage() {
                             );
                         })}
                     </div>
-                    <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-200">
+                    <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                         <button
                             onClick={() => setIsInviteOpen(false)}
-                            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                            className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
                         >
                             Cancel
                         </button>

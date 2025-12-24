@@ -198,21 +198,21 @@ export default function ChatView({ projectId }: ChatViewProps) {
             );
         }
         return (
-            <div className="mt-2 flex items-center gap-2 bg-gray-100 rounded-lg p-2">
-                <FileText size={20} className="text-blue-600" />
+            <div className="mt-2 flex items-center gap-2 bg-gray-100 dark:bg-gray-700 rounded-lg p-2">
+                <FileText size={20} className="text-blue-600 dark:text-blue-400" />
                 <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">{attachment.name}</p>
-                    <p className="text-xs text-gray-500">{attachment.size}</p>
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{attachment.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{attachment.size}</p>
                 </div>
-                <button className="p-1 hover:bg-gray-200 rounded">
-                    <Download size={16} className="text-gray-600" />
+                <button className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded">
+                    <Download size={16} className="text-gray-600 dark:text-gray-400" />
                 </button>
             </div>
         );
     };
 
     return (
-        <div className="bg-white rounded-lg border border-gray-200 h-[600px] flex flex-col overflow-hidden shadow-sm">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 h-[600px] flex flex-col overflow-hidden shadow-sm">
             {/* Header - matches app theme */}
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 flex items-center gap-3">
                 <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
@@ -226,25 +226,25 @@ export default function ChatView({ projectId }: ChatViewProps) {
 
             {/* Messages Area */}
             <div
-                className="flex-1 p-4 overflow-y-auto bg-gray-50"
+                className="flex-1 p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900"
                 ref={scrollRef}
             >
                 {loading ? (
-                    <div className="text-center text-gray-500 mt-20">Loading messages...</div>
+                    <div className="text-center text-gray-500 dark:text-gray-400 mt-20">Loading messages...</div>
                 ) : messages.length === 0 ? (
                     <div className="text-center mt-20">
-                        <div className="w-16 h-16 bg-blue-100 rounded-full mx-auto mb-3 flex items-center justify-center">
-                            <MessageCircle size={32} className="text-blue-500" />
+                        <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full mx-auto mb-3 flex items-center justify-center">
+                            <MessageCircle size={32} className="text-blue-500 dark:text-blue-400" />
                         </div>
-                        <p className="text-gray-600 font-medium">No messages yet</p>
-                        <p className="text-gray-500 text-sm">Start the conversation!</p>
+                        <p className="text-gray-600 dark:text-gray-300 font-medium">No messages yet</p>
+                        <p className="text-gray-500 dark:text-gray-400 text-sm">Start the conversation!</p>
                     </div>
                 ) : (
                     groupedMessages.map((group, gi) => (
                         <div key={gi}>
                             {/* Date Separator */}
                             <div className="flex justify-center my-4">
-                                <span className="bg-gray-200 px-3 py-1 rounded-full text-xs font-medium text-gray-600">
+                                <span className="bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded-full text-xs font-medium text-gray-600 dark:text-gray-400">
                                     {group.date}
                                 </span>
                             </div>
@@ -274,20 +274,20 @@ export default function ChatView({ projectId }: ChatViewProps) {
 
                                         <div
                                             className={`max-w-[70%] px-3 py-2 rounded-lg shadow-sm ${isSender
-                                                    ? 'bg-blue-600 text-white rounded-br-none'
-                                                    : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none'
+                                                ? 'bg-blue-600 text-white rounded-br-none'
+                                                : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-bl-none'
                                                 }`}
                                         >
                                             {/* Sender Name */}
                                             {showName && (
-                                                <p className="text-xs font-semibold text-indigo-600 mb-1">
+                                                <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mb-1">
                                                     {senderName}
                                                 </p>
                                             )}
 
                                             {/* Message Content */}
                                             {msg.content && (
-                                                <p className={`text-sm break-words ${isSender ? 'text-white' : 'text-gray-800'}`}>
+                                                <p className={`text-sm break-words ${isSender ? 'text-white' : 'text-gray-800 dark:text-gray-200'}`}>
                                                     {msg.content}
                                                 </p>
                                             )}
@@ -296,7 +296,7 @@ export default function ChatView({ projectId }: ChatViewProps) {
                                             {msg.attachment && renderAttachment(msg.attachment)}
 
                                             {/* Time */}
-                                            <p className={`text-[10px] mt-1 text-right ${isSender ? 'text-blue-200' : 'text-gray-400'}`}>
+                                            <p className={`text-[10px] mt-1 text-right ${isSender ? 'text-blue-200' : 'text-gray-400 dark:text-gray-500'}`}>
                                                 {formatTime(msg.timestamp)}
                                             </p>
                                         </div>
@@ -310,42 +310,42 @@ export default function ChatView({ projectId }: ChatViewProps) {
 
             {/* File Preview */}
             {selectedFile && (
-                <div className="px-4 py-2 bg-gray-100 border-t border-gray-200 flex items-center gap-3">
+                <div className="px-4 py-2 bg-gray-100 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600 flex items-center gap-3">
                     {previewUrl && selectedFile.type.startsWith('image/') ? (
                         <img src={previewUrl} alt="Preview" className="w-12 h-12 object-cover rounded" />
                     ) : (
-                        <div className="w-12 h-12 bg-blue-100 rounded flex items-center justify-center">
-                            <FileText size={20} className="text-blue-600" />
+                        <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded flex items-center justify-center">
+                            <FileText size={20} className="text-blue-600 dark:text-blue-400" />
                         </div>
                     )}
                     <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate">{selectedFile.name}</p>
-                        <p className="text-xs text-gray-500">{formatFileSize(selectedFile.size)}</p>
+                        <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{selectedFile.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{formatFileSize(selectedFile.size)}</p>
                     </div>
-                    <button onClick={clearSelectedFile} className="p-1 hover:bg-gray-200 rounded">
-                        <X size={18} className="text-gray-500" />
+                    <button onClick={clearSelectedFile} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded">
+                        <X size={18} className="text-gray-500 dark:text-gray-400" />
                     </button>
                 </div>
             )}
 
             {/* Input Area */}
-            <form onSubmit={handleSend} className="p-3 bg-white border-t border-gray-200 flex items-center gap-2">
+            <form onSubmit={handleSend} className="p-3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center gap-2">
                 {/* Attachment Button */}
                 <div className="relative">
                     <button
                         type="button"
                         onClick={() => setShowAttachMenu(!showAttachMenu)}
-                        className="p-2 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded-full transition-colors"
+                        className="p-2 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
                     >
                         <Paperclip size={20} />
                     </button>
 
                     {/* Attachment Menu */}
                     {showAttachMenu && (
-                        <div className="absolute bottom-12 left-0 bg-white border border-gray-200 rounded-lg shadow-lg py-2 min-w-[160px] z-10">
+                        <div className="absolute bottom-12 left-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2 min-w-[160px] z-10">
                             <button
                                 type="button"
-                                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                                 onClick={() => handleFileSelect('image')}
                             >
                                 <Image size={18} className="text-green-500" />
@@ -353,7 +353,7 @@ export default function ChatView({ projectId }: ChatViewProps) {
                             </button>
                             <button
                                 type="button"
-                                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                                 onClick={() => handleFileSelect('video')}
                             >
                                 <div className="w-[18px] h-[18px] bg-red-500 rounded flex items-center justify-center">
@@ -363,7 +363,7 @@ export default function ChatView({ projectId }: ChatViewProps) {
                             </button>
                             <button
                                 type="button"
-                                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                                 onClick={() => handleFileSelect('document')}
                             >
                                 <FileText size={18} className="text-blue-500" />
@@ -377,7 +377,7 @@ export default function ChatView({ projectId }: ChatViewProps) {
 
                 <input
                     type="text"
-                    className="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="flex-1 border border-gray-300 dark:border-gray-600 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                     placeholder="Type a message..."
                     value={newMessage}
                     onChange={e => setNewMessage(e.target.value)}
@@ -385,7 +385,7 @@ export default function ChatView({ projectId }: ChatViewProps) {
                 <button
                     type="submit"
                     disabled={!newMessage.trim() && !selectedFile}
-                    className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                    className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
                 >
                     <Send size={18} />
                 </button>

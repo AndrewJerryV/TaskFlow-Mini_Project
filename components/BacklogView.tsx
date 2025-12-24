@@ -47,16 +47,16 @@ const TaskItem = ({
 
   return (
     <div
-      className="flex items-center justify-between p-3 bg-white border border-gray-200 hover:bg-gray-50 transition-colors group cursor-pointer relative"
+      className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group cursor-pointer relative"
       onClick={handleRowClick}
     >
       <div className="flex items-center space-x-3 flex-1">
         <input
           type="checkbox"
-          className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+          className="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500 dark:bg-gray-700"
           onClick={(e) => e.stopPropagation()}
         />
-        <span className="text-gray-500 font-medium text-xs w-16 truncate font-mono" title={item.id}>{item.id.substring(0, 6)}</span>
+        <span className="text-gray-500 dark:text-gray-400 font-medium text-xs w-16 truncate font-mono" title={item.id}>{item.id.substring(0, 6)}</span>
 
         {isEditing ? (
           <input
@@ -67,17 +67,17 @@ const TaskItem = ({
             onKeyDown={(e) => e.key === 'Enter' && handleSave()}
             onClick={(e) => e.stopPropagation()}
             autoFocus
-            className="text-sm font-medium border border-blue-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="text-sm font-medium border border-blue-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white dark:border-blue-500"
           />
         ) : (
-          <span className="text-gray-900 text-sm font-medium">
+          <span className="text-gray-900 dark:text-white text-sm font-medium">
             {item.title}
           </span>
         )}
 
         <button
           onClick={(e) => { e.stopPropagation(); setIsEditing(!isEditing); }}
-          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 transition-opacity"
+          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-opacity"
         >
           <Edit2 size={12} />
         </button>
@@ -99,30 +99,30 @@ const TaskItem = ({
         )}
         <div className="relative">
           <button
-            className="text-gray-400 hover:text-gray-600 p-1"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1"
             onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
           >
             <MoreVertical size={14} />
           </button>
           {showMenu && (
             <div
-              className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1 min-w-[120px]"
+              className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-20 py-1 min-w-[120px]"
               onClick={(e) => e.stopPropagation()}
             >
               <button
-                className="w-full text-left px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+                className="w-full text-left px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                 onClick={() => { onClick?.(item); setShowMenu(false); }}
               >
                 View Details
               </button>
               <button
-                className="w-full text-left px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+                className="w-full text-left px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                 onClick={() => { setIsEditing(true); setShowMenu(false); }}
               >
                 Edit Title
               </button>
               <button
-                className="w-full text-left px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+                className="w-full text-left px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
                 onClick={() => { onDelete?.(item.id); setShowMenu(false); }}
               >
                 Delete
@@ -205,7 +205,7 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskD
             placeholder="Search tasks..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            className="w-full pl-8 pr-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
           />
         </div>
       </div>
@@ -223,18 +223,18 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskD
       />
 
       {/* Active Sprint Section */}
-      <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
         <div
           className="flex items-center justify-between mb-2 cursor-pointer select-none"
           onClick={() => setIsSprintOpen(!isSprintOpen)}
         >
-          <div className="flex items-center font-semibold text-sm text-gray-700 gap-2">
+          <div className="flex items-center font-semibold text-sm text-gray-700 dark:text-gray-300 gap-2">
             <PlayCircle size={14} className={isSprintOpen ? "text-blue-600" : "text-gray-400"} />
             Active Sprint
-            <span className="ml-2 text-gray-400 font-normal text-xs">({sprintTasks.length} items)</span>
+            <span className="ml-2 text-gray-400 dark:text-gray-500 font-normal text-xs">({sprintTasks.length} items)</span>
           </div>
           <div className="flex space-x-2 text-xs">
-            <button className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-3 py-1 rounded shadow-sm transition-all">Complete sprint</button>
+            <button className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-1 rounded shadow-sm transition-all">Complete sprint</button>
           </div>
         </div>
 
@@ -244,9 +244,9 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskD
               <TaskItem key={item.id} item={item} onUpdate={onTaskUpdate} onClick={handleTaskClick} onDelete={handleTaskDelete} />
             ))}
             {sprintTasks.length === 0 && (
-              <p className="text-sm text-gray-400 italic py-4 text-center">No tasks in sprint</p>
+              <p className="text-sm text-gray-400 dark:text-gray-500 italic py-4 text-center">No tasks in sprint</p>
             )}
-            <button onClick={onTaskCreate} className="w-full text-left p-2 pl-3 mt-1 flex items-center gap-2 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors rounded">
+            <button onClick={onTaskCreate} className="w-full text-left p-2 pl-3 mt-1 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300 transition-colors rounded">
               <Plus size={14} /> Create issue
             </button>
           </div>
@@ -254,15 +254,15 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskD
       </div>
 
       {/* Backlog Section */}
-      <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
         <div
           className="flex items-center justify-between mb-2 cursor-pointer select-none"
           onClick={() => setIsBacklogOpen(!isBacklogOpen)}
         >
-          <div className="flex items-center font-semibold text-sm text-gray-700 gap-2">
+          <div className="flex items-center font-semibold text-sm text-gray-700 dark:text-gray-300 gap-2">
             <Layers size={14} className="text-gray-400" />
             Backlog
-            <span className="ml-2 text-gray-400 font-normal text-xs">({backlogTasks.length} items)</span>
+            <span className="ml-2 text-gray-400 dark:text-gray-500 font-normal text-xs">({backlogTasks.length} items)</span>
           </div>
         </div>
 
@@ -272,9 +272,9 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskD
               <TaskItem key={item.id} item={item} onUpdate={onTaskUpdate} onClick={handleTaskClick} onDelete={handleTaskDelete} />
             ))}
             {backlogTasks.length === 0 && (
-              <p className="text-sm text-gray-400 italic py-4 text-center">No tasks in backlog</p>
+              <p className="text-sm text-gray-400 dark:text-gray-500 italic py-4 text-center">No tasks in backlog</p>
             )}
-            <button onClick={onTaskCreate} className="w-full text-left p-2 pl-3 mt-1 flex items-center gap-2 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors rounded">
+            <button onClick={onTaskCreate} className="w-full text-left p-2 pl-3 mt-1 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300 transition-colors rounded">
               <Plus size={14} /> Create issue
             </button>
           </div>

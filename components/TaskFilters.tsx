@@ -28,8 +28,8 @@ export function TaskFilters({
     const hasActiveFilters = statusFilter !== 'all' || priorityFilter !== 'all' || assigneeFilter !== 'all';
 
     return (
-        <div className="flex items-center gap-3 flex-wrap bg-white p-3 rounded-lg border border-gray-200 mb-4">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+        <div className="flex items-center gap-3 flex-wrap bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 mb-4">
+            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                 <Filter size={14} />
                 <span className="font-medium">Filters:</span>
             </div>
@@ -38,7 +38,7 @@ export function TaskFilters({
             <select
                 value={statusFilter}
                 onChange={(e) => onStatusChange(e.target.value as Status | 'all')}
-                className="text-sm border border-gray-300 rounded px-2 py-1.5 bg-white focus:ring-blue-500 focus:border-blue-500"
+                className="text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500"
             >
                 <option value="all">All Status</option>
                 <option value="To Do">To Do</option>
@@ -51,7 +51,7 @@ export function TaskFilters({
             <select
                 value={priorityFilter}
                 onChange={(e) => onPriorityChange(e.target.value as Priority | 'all')}
-                className="text-sm border border-gray-300 rounded px-2 py-1.5 bg-white focus:ring-blue-500 focus:border-blue-500"
+                className="text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500"
             >
                 <option value="all">All Priority</option>
                 <option value="Low">Low</option>
@@ -64,7 +64,7 @@ export function TaskFilters({
             <select
                 value={assigneeFilter}
                 onChange={(e) => onAssigneeChange(e.target.value)}
-                className="text-sm border border-gray-300 rounded px-2 py-1.5 bg-white focus:ring-blue-500 focus:border-blue-500"
+                className="text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500"
             >
                 <option value="all">All Assignees</option>
                 <option value="unassigned">Unassigned</option>
@@ -77,7 +77,7 @@ export function TaskFilters({
             {hasActiveFilters && (
                 <button
                     onClick={onClearFilters}
-                    className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 px-2 py-1.5 rounded"
+                    className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-2 py-1.5 rounded"
                 >
                     <X size={14} />
                     Clear

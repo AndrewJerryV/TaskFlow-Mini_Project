@@ -61,33 +61,33 @@ export default function TimelineView({ tasks = [] }: { tasks?: Task[] }) {
   };
 
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden bg-white h-[600px] flex flex-col">
+    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800 h-[600px] flex flex-col">
       {/* 1. Filter Bar */}
-      <div className="p-2 border-b border-gray-200 flex items-center space-x-3 bg-white z-20">
+      <div className="p-2 border-b border-gray-200 dark:border-gray-700 flex items-center space-x-3 bg-white dark:bg-gray-800 z-20">
         <div className="relative">
           <input
             type="text"
             placeholder="Search timeline"
-            className="pl-8 pr-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 focus:ring-blue-500 focus:border-blue-500 w-48 focus:outline-none"
+            className="pl-8 pr-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-blue-500 focus:border-blue-500 w-48 focus:outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             value={filter}
             onChange={e => setFilter(e.target.value)}
           />
           <Search className="absolute w-4 h-4 text-gray-400 left-2 top-1/2 transform -translate-y-1/2" />
         </div>
         <div className="flex -space-x-1 pl-2">
-          <div className="w-7 h-7 bg-indigo-600 rounded-full border-2 border-white flex items-center justify-center text-xs text-white z-10">U</div>
+          <div className="w-7 h-7 bg-indigo-600 rounded-full border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs text-white z-10">U</div>
         </div>
         <div className="relative">
           <button
-            className="px-2 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded border border-gray-300 text-gray-700 flex items-center gap-1"
+            className="px-2 py-1 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 flex items-center gap-1"
             onClick={() => setShowStatusDropdown(!showStatusDropdown)}
           >
             {statusFilter === 'all' ? 'All Status' : statusFilter} <ChevronDown size={12} />
           </button>
           {showStatusDropdown && (
-            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-30 py-1 min-w-[140px]">
+            <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-30 py-1 min-w-[140px]">
               <button
-                className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 ${statusFilter === 'all' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'}`}
+                className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${statusFilter === 'all' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'}`}
                 onClick={() => { setStatusFilter('all'); setShowStatusDropdown(false); }}
               >
                 All Status
@@ -95,7 +95,7 @@ export default function TimelineView({ tasks = [] }: { tasks?: Task[] }) {
               {STATUSES.map(status => (
                 <button
                   key={status}
-                  className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 ${statusFilter === status ? 'bg-blue-50 text-blue-700' : 'text-gray-700'}`}
+                  className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${statusFilter === status ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'}`}
                   onClick={() => { setStatusFilter(status); setShowStatusDropdown(false); }}
                 >
                   {status}
@@ -110,45 +110,45 @@ export default function TimelineView({ tasks = [] }: { tasks?: Task[] }) {
       <div className="flex flex-1 overflow-hidden">
 
         {/* LEFT PANE: Task List */}
-        <div className="w-1/4 border-r border-gray-200 flex flex-col bg-white z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
-          <div className="h-10 border-b border-gray-200 flex items-center px-4 bg-gray-50 text-xs font-semibold text-gray-500">
+        <div className="w-1/4 border-r border-gray-200 dark:border-gray-700 flex flex-col bg-white dark:bg-gray-800 z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+          <div className="h-10 border-b border-gray-200 dark:border-gray-700 flex items-center px-4 bg-gray-50 dark:bg-gray-900 text-xs font-semibold text-gray-500 dark:text-gray-400">
             Work ({filteredTasks.length})
           </div>
           <div className="flex-1 overflow-y-auto">
             {filteredTasks.map(task => (
-              <div key={task.id} className="flex items-center px-4 py-3 border-b border-gray-100 h-[50px]">
+              <div key={task.id} className="flex items-center px-4 py-3 border-b border-gray-100 dark:border-gray-700 h-[50px]">
                 <span className={`mr-2 flex-shrink-0 ${task.priority === 'Critical' ? 'text-red-500' : 'text-blue-500'}`}>
                   {task.priority === 'Critical' ? <Zap size={14} /> : <Circle size={14} fill="currentColor" />}
                 </span>
-                <span className="text-sm text-gray-700 truncate font-medium">{task.title}</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300 truncate font-medium">{task.title}</span>
               </div>
             ))}
             {filteredTasks.length === 0 && (
-              <div className="p-4 text-center text-gray-400 text-sm italic">No tasks match filter</div>
+              <div className="p-4 text-center text-gray-400 dark:text-gray-500 text-sm italic">No tasks match filter</div>
             )}
           </div>
         </div>
 
         {/* RIGHT PANE: Timeline Grid */}
         <div className="flex-1 flex flex-col overflow-x-auto relative scrollbar-hide">
-          <div className="h-10 flex border-b border-gray-200 bg-gray-50 min-w-[800px]">
+          <div className="h-10 flex border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 min-w-[800px]">
             {MONTHS.map((m) => (
-              <div key={m.toString()} className="flex-1 border-r border-gray-200 flex items-center justify-center text-xs font-semibold text-gray-500 uppercase">
+              <div key={m.toString()} className="flex-1 border-r border-gray-200 dark:border-gray-700 flex items-center justify-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
                 {format(m, 'MMM yy')}
               </div>
             ))}
           </div>
 
-          <div className="flex-1 relative min-w-[800px] bg-white">
+          <div className="flex-1 relative min-w-[800px] bg-white dark:bg-gray-800">
             <div className="absolute inset-0 flex pointer-events-none">
               {MONTHS.map((_, i) => (
-                <div key={i} className="flex-1 border-r border-dashed border-gray-100 h-full"></div>
+                <div key={i} className="flex-1 border-r border-dashed border-gray-100 dark:border-gray-700 h-full"></div>
               ))}
             </div>
 
             <div className="absolute top-0 left-0 w-full pt-1">
               {filteredTasks.map((task) => (
-                <div key={task.id} className="relative h-[50px] w-full flex items-center hover:bg-gray-50/50">
+                <div key={task.id} className="relative h-[50px] w-full flex items-center hover:bg-gray-50/50 dark:hover:bg-gray-700/50">
                   <div
                     className={`absolute h-7 rounded-md border text-[11px] text-white flex items-center px-2 cursor-pointer shadow-sm hover:shadow-md transition-all overflow-hidden
                             ${getStatusColor(task.status)}
@@ -167,18 +167,18 @@ export default function TimelineView({ tasks = [] }: { tasks?: Task[] }) {
       </div>
 
       {/* Bottom Controls */}
-      <div className="p-2 border-t border-gray-200 flex justify-end space-x-2">
-        <div className="flex bg-white border border-gray-300 rounded-md text-xs divide-x divide-gray-300 shadow-sm">
-          <button className="px-3 py-1 hover:bg-gray-50 text-gray-600">Today</button>
+      <div className="p-2 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-2 bg-white dark:bg-gray-800">
+        <div className="flex bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-xs divide-x divide-gray-300 dark:divide-gray-600 shadow-sm">
+          <button className="px-3 py-1 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300">Today</button>
           <button
             onClick={() => setViewMode('Months')}
-            className={`px-3 py-1 font-medium ${viewMode === 'Months' ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-600'}`}
+            className={`px-3 py-1 font-medium ${viewMode === 'Months' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300'}`}
           >
             Months
           </button>
           <button
             onClick={() => setViewMode('Quarters')}
-            className={`px-3 py-1 font-medium ${viewMode === 'Quarters' ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-600'}`}
+            className={`px-3 py-1 font-medium ${viewMode === 'Quarters' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300'}`}
           >
             Quarters
           </button>

@@ -149,7 +149,7 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                         {task.priority}
                     </span>
                     {task.tags.map(tag => (
-                        <span key={tag} className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">
+                        <span key={tag} className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full">
                             {tag}
                         </span>
                     ))}
@@ -159,27 +159,27 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                     /* Edit Mode */
                     <div className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
                             <input
                                 type="text"
-                                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                                className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                                 value={editedTask.title}
                                 onChange={(e) => setEditedTask({ ...editedTask, title: e.target.value })}
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
                             <textarea
-                                className="w-full border border-gray-300 rounded px-3 py-2 text-sm min-h-[100px]"
+                                className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm min-h-[100px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                                 value={editedTask.description || ''}
                                 onChange={(e) => setEditedTask({ ...editedTask, description: e.target.value })}
                             />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
                                 <select
-                                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                                    className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                                     value={editedTask.status}
                                     onChange={(e) => setEditedTask({ ...editedTask, status: e.target.value as Status })}
                                 >
@@ -190,9 +190,9 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Priority</label>
                                 <select
-                                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                                    className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                                     value={editedTask.priority}
                                     onChange={(e) => setEditedTask({ ...editedTask, priority: e.target.value as Priority })}
                                 >
@@ -204,9 +204,9 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assignee</label>
                             <select
-                                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                                className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                                 value={editedTask.assigneeId || ''}
                                 onChange={(e) => setEditedTask({ ...editedTask, assigneeId: e.target.value || undefined })}
                             >
@@ -222,23 +222,23 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                     <div className="space-y-4">
                         {task.description && (
                             <div>
-                                <h4 className="text-sm font-medium text-gray-700 mb-1">Description</h4>
-                                <p className="text-sm text-gray-600">{task.description}</p>
+                                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</h4>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">{task.description}</p>
                             </div>
                         )}
 
                         <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div className="flex items-center gap-2 text-gray-600">
+                            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                                 <UserIcon size={14} />
                                 <span>Assignee: {task.assigneeId ? getUserName(users, task.assigneeId) : 'Unassigned'}</span>
                             </div>
                             {task.dueDate && (
-                                <div className="flex items-center gap-2 text-gray-600">
+                                <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                                     <Calendar size={14} />
                                     <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
                                 </div>
                             )}
-                            <div className="flex items-center gap-2 text-gray-600">
+                            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                                 <Clock size={14} />
                                 <span>Created: {new Date(task.createdAt).toLocaleDateString()}</span>
                             </div>
@@ -247,10 +247,10 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                 )}
 
                 {/* Tabs for Comments and History */}
-                <div className="border-t pt-4">
-                    <div className="flex gap-4 mb-3 border-b border-gray-100">
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                    <div className="flex gap-4 mb-3 border-b border-gray-100 dark:border-gray-700">
                         <button
-                            className={`pb-2 text-sm font-medium ${activeTab === 'comments' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
+                            className={`pb-2 text-sm font-medium ${activeTab === 'comments' ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600' : 'text-gray-500 dark:text-gray-400'}`}
                             onClick={() => setActiveTab('comments')}
                         >
                             <span className="flex items-center gap-2">
@@ -259,7 +259,7 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                             </span>
                         </button>
                         <button
-                            className={`pb-2 text-sm font-medium ${activeTab === 'history' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
+                            className={`pb-2 text-sm font-medium ${activeTab === 'history' ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600' : 'text-gray-500 dark:text-gray-400'}`}
                             onClick={() => setActiveTab('history')}
                         >
                             <span className="flex items-center gap-2">
@@ -272,24 +272,24 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                     {activeTab === 'comments' ? (
                         <>
                             {loadingComments ? (
-                                <div className="text-sm text-gray-400">Loading comments...</div>
+                                <div className="text-sm text-gray-400 dark:text-gray-500">Loading comments...</div>
                             ) : (
                                 <div className="space-y-3 max-h-48 overflow-y-auto">
                                     {comments.map(comment => (
-                                        <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
+                                        <div key={comment.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
                                             <div className="flex justify-between items-start mb-1">
-                                                <span className="text-sm font-medium text-gray-800">
+                                                <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
                                                     {getUserName(users, comment.userId)}
                                                 </span>
-                                                <span className="text-xs text-gray-400">
+                                                <span className="text-xs text-gray-400 dark:text-gray-500">
                                                     {new Date(comment.createdAt).toLocaleString()}
                                                 </span>
                                             </div>
-                                            <p className="text-sm text-gray-600">{comment.content}</p>
+                                            <p className="text-sm text-gray-600 dark:text-gray-300">{comment.content}</p>
                                         </div>
                                     ))}
                                     {comments.length === 0 && (
-                                        <p className="text-sm text-gray-400 italic">No comments yet</p>
+                                        <p className="text-sm text-gray-400 dark:text-gray-500 italic">No comments yet</p>
                                     )}
                                 </div>
                             )}
@@ -299,7 +299,7 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                                 <input
                                     type="text"
                                     placeholder="Add a comment..."
-                                    className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+                                    className="flex-1 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                                     value={newComment}
                                     onChange={(e) => setNewComment(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
@@ -307,7 +307,7 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                                 <button
                                     onClick={handleAddComment}
                                     disabled={!newComment.trim()}
-                                    className="px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                                    className="px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
                                 >
                                     Send
                                 </button>
@@ -316,9 +316,9 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                     ) : (
                         <div className="space-y-3 max-h-64 overflow-y-auto">
                             {loadingHistory ? (
-                                <div className="text-sm text-gray-400">Loading history...</div>
+                                <div className="text-sm text-gray-400 dark:text-gray-500">Loading history...</div>
                             ) : history.length === 0 ? (
-                                <p className="text-sm text-gray-400 italic">No history available</p>
+                                <p className="text-sm text-gray-400 dark:text-gray-500 italic">No history available</p>
                             ) : (
                                 history.map((log: any) => (
                                     <div key={log.id} className="flex gap-3 text-sm">
@@ -326,10 +326,10 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                                             <ActionIcon iconName={getActionDisplay(log.action).iconName} size={12} />
                                         </div>
                                         <div>
-                                            <p className="text-gray-900">
+                                            <p className="text-gray-900 dark:text-gray-100">
                                                 <span className="font-medium">{getUserName(users, log.userId)}</span> {log.details.replace(`Task "${task.title}"`, 'Task').replace(task.title, 'this task')}
                                             </p>
-                                            <p className="text-xs text-gray-400">
+                                            <p className="text-xs text-gray-400 dark:text-gray-500">
                                                 {new Date(log.timestamp).toLocaleString()}
                                             </p>
                                         </div>
@@ -341,11 +341,11 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                 </div>
 
                 {/* Actions */}
-                <div className="flex justify-between items-center pt-4 border-t">
+                <div className="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
                     <button
                         onClick={handleDelete}
                         disabled={isDeleting}
-                        className="flex items-center gap-1 px-3 py-2 text-red-600 hover:bg-red-50 rounded text-sm"
+                        className="flex items-center gap-1 px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded text-sm"
                     >
                         <Trash2 size={14} />
                         {isDeleting ? 'Deleting...' : 'Delete'}
@@ -356,7 +356,7 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                             <>
                                 <button
                                     onClick={() => { setIsEditing(false); setEditedTask(task); }}
-                                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded text-sm"
+                                    className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-sm"
                                 >
                                     Cancel
                                 </button>
@@ -371,7 +371,7 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                             <>
                                 <button
                                     onClick={onClose}
-                                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded text-sm"
+                                    className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-sm"
                                 >
                                     Close
                                 </button>
