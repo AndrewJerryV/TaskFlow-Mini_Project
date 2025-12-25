@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { Message } from '@/types';
-import { Send, MessageCircle, Paperclip, Image, FileText, X, Download } from 'lucide-react';
+import { Send, MessageCircle, Paperclip, Image, FileText, X, Download, Calendar } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUserName } from '@/lib/utils';
 
@@ -33,6 +33,8 @@ export default function ChatView({ projectId }: ChatViewProps) {
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [jumpToDate, setJumpToDate] = useState('');
 
     // Poll for messages
     useEffect(() => {
@@ -212,15 +214,60 @@ export default function ChatView({ projectId }: ChatViewProps) {
     };
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 h-[600px] flex flex-col overflow-hidden shadow-sm">
-            {/* Header - matches app theme */}
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 flex items-center gap-3">
-                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                    <MessageCircle size={20} className="text-white" />
+        <div className="h-full flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-900">
+            {/* Thin Header Banner */}
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 flex items-center justify-between flex-shrink-0">
+                <div className="flex items-center gap-3">
+                    <MessageCircle size={16} className="text-white" />
+                    <span className="text-white text-sm font-medium">Team Chat</span>
+                    <span className="text-blue-200 text-xs">• {users.length} members</span>
                 </div>
-                <div>
-                    <h2 className="text-white font-semibold">Team Chat</h2>
-                    <p className="text-blue-100 text-xs">{users.length} members • {messages.length} messages</p>
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                        <span className="text-blue-200 text-xs">{Math.min(users.length, 3)} online</span>
+                    </div>
+                    {/* Date Jump */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowDatePicker(!showDatePicker)}
+                            className="p-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded transition-colors"
+                            title="Jump to date"
+                        >
+                            <Calendar size={16} />
+                        </button>
+                        {showDatePicker && (
+                            <div className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 z-20">
+                                <input
+                                    type="date"
+                                    value={jumpToDate}
+                                    onChange={(e) => {
+                                        setJumpToDate(e.target.value);
+                                        // Find the date separator for this date and scroll to it
+                                        if (scrollRef.current) {
+                                            const targetDate = e.target.value;
+                                            const dateSeparator = scrollRef.current.querySelector(`[data-date="${targetDate}"]`);
+                                            if (dateSeparator) {
+                                                dateSeparator.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                            } else {
+                                                // If exact date not found, find closest date after
+                                                const allDates = scrollRef.current.querySelectorAll('[data-date]');
+                                                for (const el of allDates) {
+                                                    const elDate = el.getAttribute('data-date');
+                                                    if (elDate && elDate >= targetDate) {
+                                                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        setShowDatePicker(false);
+                                    }}
+                                    className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                />
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -241,9 +288,12 @@ export default function ChatView({ projectId }: ChatViewProps) {
                     </div>
                 ) : (
                     groupedMessages.map((group, gi) => (
-                        <div key={gi}>
+                        <div key={gi} data-date-group={group.date}>
                             {/* Date Separator */}
-                            <div className="flex justify-center my-4">
+                            <div
+                                className="flex justify-center my-4"
+                                data-date={messages.find(m => formatDate(m.timestamp) === group.date)?.timestamp.split('T')[0]}
+                            >
                                 <span className="bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded-full text-xs font-medium text-gray-600 dark:text-gray-400">
                                     {group.date}
                                 </span>
@@ -328,8 +378,8 @@ export default function ChatView({ projectId }: ChatViewProps) {
                 </div>
             )}
 
-            {/* Input Area */}
-            <form onSubmit={handleSend} className="p-3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center gap-2">
+            {/* Input Area - Flush to bottom */}
+            <form onSubmit={handleSend} className="px-3 py-2 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center gap-2 flex-shrink-0">
                 {/* Attachment Button */}
                 <div className="relative">
                     <button

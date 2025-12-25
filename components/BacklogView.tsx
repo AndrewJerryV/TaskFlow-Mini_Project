@@ -196,21 +196,7 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskD
         onDelete={handleTaskDelete}
       />
 
-      {/* Search and Filters */}
-      <div className="flex items-center gap-4 mb-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" size={14} />
-          <input
-            type="text"
-            placeholder="Search tasks..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-          />
-        </div>
-      </div>
-
-      {/* Filters Component */}
+      {/* Filters Component with Search */}
       <TaskFilters
         users={users}
         statusFilter={statusFilter}
@@ -220,6 +206,8 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskD
         onPriorityChange={setPriorityFilter}
         onAssigneeChange={setAssigneeFilter}
         onClearFilters={clearFilters}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
       />
 
       {/* Active Sprint Section */}

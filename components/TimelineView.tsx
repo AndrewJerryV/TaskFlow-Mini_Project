@@ -74,9 +74,6 @@ export default function TimelineView({ tasks = [] }: { tasks?: Task[] }) {
           />
           <Search className="absolute w-4 h-4 text-gray-400 left-2 top-1/2 transform -translate-y-1/2" />
         </div>
-        <div className="flex -space-x-1 pl-2">
-          <div className="w-7 h-7 bg-indigo-600 rounded-full border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs text-white z-10">U</div>
-        </div>
         <div className="relative">
           <button
             className="px-2 py-1 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 flex items-center gap-1"

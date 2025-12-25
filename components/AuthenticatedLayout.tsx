@@ -196,8 +196,8 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
                                                     className="w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-left transition-colors"
                                                 >
                                                     <div className={`w-8 h-8 rounded flex items-center justify-center flex-shrink-0 ${result.type === 'project'
-                                                            ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'
-                                                            : 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400'
+                                                        ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'
+                                                        : 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400'
                                                         }`}>
                                                         {result.type === 'project' ? <Folder size={16} /> : <CheckSquare size={16} />}
                                                     </div>
@@ -249,7 +249,7 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
 
                 <div className="flex h-[calc(100vh-3rem)]">
                     <Sidebar />
-                    <main className="flex-1 p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900">
+                    <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
                         {children}
                     </main>
                 </div>
