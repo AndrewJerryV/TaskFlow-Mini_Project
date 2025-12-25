@@ -11,16 +11,26 @@ type TaskBoardProps = {
     onTaskMove: (taskId: string, newStatus: Status) => void;
 };
 
-const COLUMNS: Status[] = ['To Do', 'In Progress', 'Done'];
+const COLUMNS: Status[] = ['To Do', 'In Progress', 'Review', 'Done'];
 
 function Column({ id, title, tasks }: { id: Status, title: string, tasks: Task[] }) {
     const { setNodeRef } = useDroppable({ id });
+
+    const getColumnColor = () => {
+        switch (id) {
+            case 'To Do': return 'bg-gray-400';
+            case 'In Progress': return 'bg-blue-500';
+            case 'Review': return 'bg-purple-500';
+            case 'Done': return 'bg-green-500';
+            default: return 'bg-gray-400';
+        }
+    };
 
     return (
         <div ref={setNodeRef} className="flex-1 min-w-[280px] flex flex-col h-full bg-gray-50/50 dark:bg-gray-800/50 rounded-xl border border-gray-200/60 dark:border-gray-700/60 ml-3 first:ml-0">
             <div className="p-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${id === 'To Do' ? 'bg-gray-400' : id === 'In Progress' ? 'bg-blue-500' : 'bg-green-500'}`} />
+                    <div className={`w-2 h-2 rounded-full ${getColumnColor()}`} />
                     <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300">{title}</h3>
                 </div>
                 <span className="text-xs font-medium text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">{tasks.length}</span>

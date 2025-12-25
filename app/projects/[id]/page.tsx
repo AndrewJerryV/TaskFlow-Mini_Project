@@ -9,14 +9,18 @@ import BacklogView from '@/components/BacklogView';
 import TimelineView from '@/components/TimelineView';
 import ChatView from '@/components/ChatView';
 import PagesView from '@/components/PagesView';
+import DeploymentsView from '@/components/DeploymentsView';
+import CalendarView from '@/components/CalendarView';
+import ReportsView from '@/components/ReportsView';
+import ShortcutsView from '@/components/ShortcutsView';
 import { CreateTaskDialog } from '@/components/forms/CreateTaskDialog';
 import { Modal } from '@/components/ui/Modal';
 import VideoRoom from '@/components/VideoRoom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Video, Folder, FileText, BarChart3, Plus, UserPlus, Check } from 'lucide-react';
+import { Video, Folder, FileText, BarChart3, Plus, UserPlus, Check, Rocket, Calendar, PieChart } from 'lucide-react';
 
-// Nav Items definition - Chat moved after Pages
-const NAV_ITEMS = ['Summary', 'Backlog', 'Board', 'Timeline', 'Code', 'Pages', 'Chat'] as const;
+// Nav Items definition
+const NAV_ITEMS = ['Summary', 'Backlog', 'Board', 'Timeline', 'Code', 'Pages', 'Chat', 'Deployments', 'Calendar', 'Reports', 'Shortcuts'] as const;
 type Tab = typeof NAV_ITEMS[number];
 
 export default function ProjectPage() {
@@ -265,6 +269,22 @@ export default function ProjectPage() {
 
                 {activeTab === 'Pages' && (
                     <PagesView projectId={id} />
+                )}
+
+                {activeTab === 'Deployments' && (
+                    <DeploymentsView projectId={id} />
+                )}
+
+                {activeTab === 'Calendar' && (
+                    <CalendarView projectId={id} tasks={tasks} />
+                )}
+
+                {activeTab === 'Reports' && (
+                    <ReportsView projectId={id} tasks={tasks} />
+                )}
+
+                {activeTab === 'Shortcuts' && (
+                    <ShortcutsView projectId={id} />
                 )}
             </div>
 
