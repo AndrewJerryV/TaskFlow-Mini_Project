@@ -14,6 +14,7 @@ import CalendarView from '@/components/CalendarView';
 import ReportsView from '@/components/ReportsView';
 import ShortcutsView from '@/components/ShortcutsView';
 import FormsView from '@/components/FormsView';
+import CodeView from '@/components/CodeView';
 import { CreateTaskDialog } from '@/components/forms/CreateTaskDialog';
 import { Modal } from '@/components/ui/Modal';
 import VideoRoom from '@/components/VideoRoom';
@@ -238,28 +239,8 @@ export default function ProjectPage() {
                 {activeTab === 'Chat' && <ChatView projectId={id} />}
 
                 {activeTab === 'Code' && (
-                    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                        <div className="bg-gray-50 dark:bg-gray-900 px-4 py-2 border-b border-gray-200 dark:border-gray-700 text-xs font-mono text-gray-600 dark:text-gray-400 flex justify-between">
-                            <span>main</span>
-                            <span>Last commit: 10 mins ago</span>
-                        </div>
-                        <div className="p-0">
-                            {[
-                                { name: 'src', type: 'dir', time: '2 hours ago' },
-                                { name: 'public', type: 'dir', time: '2 hours ago' },
-                                { name: 'package.json', type: 'file', time: 'yesterday' },
-                                { name: 'README.md', type: 'file', time: '3 days ago' },
-                            ].map((file, i) => (
-                                <div key={i} className="flex items-center px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer text-sm">
-                                    <span className="w-6 text-gray-400 dark:text-gray-500">{file.type === 'dir' ? <Folder size={16} /> : <FileText size={16} />}</span>
-                                    <span className="flex-1 font-medium text-gray-700 dark:text-gray-300">{file.name}</span>
-                                    <span className="text-gray-400 dark:text-gray-500 text-xs">{file.time}</span>
-                                </div>
-                            ))}
-                            <div className="p-8 text-center text-gray-400 dark:text-gray-500 italic bg-gray-50/20 dark:bg-gray-900/20">
-                                Repository connection active
-                            </div>
-                        </div>
+                    <div className="h-[calc(100vh-220px)]">
+                        <CodeView projectId={id} />
                     </div>
                 )}
 
