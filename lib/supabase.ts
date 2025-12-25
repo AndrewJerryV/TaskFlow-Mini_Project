@@ -78,3 +78,23 @@ export interface DbComment {
     content: string;
     created_at: string;
 }
+
+export interface DbForm {
+    id: string;
+    project_id: string;
+    title: string;
+    description?: string;
+    fields: string; // JSON string of FormField[]
+    status: 'draft' | 'active' | 'closed';
+    created_by: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface DbFormResponse {
+    id: string;
+    form_id: string;
+    respondent_id: string;
+    answers: string; // JSON string of Record<string, any>
+    submitted_at: string;
+}

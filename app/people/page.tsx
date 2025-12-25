@@ -49,9 +49,9 @@ export default function PeoplePage() {
 
     const getRoleBadgeColor = (role: string) => {
         switch (role) {
-            case 'Admin': return 'bg-purple-100 text-purple-700';
-            case 'Manager': return 'bg-blue-100 text-blue-700';
-            default: return 'bg-gray-100 text-gray-600';
+            case 'Admin': return 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300';
+            case 'Manager': return 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300';
+            default: return 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300';
         }
     };
 
@@ -63,11 +63,11 @@ export default function PeoplePage() {
         <div className="p-8 max-w-5xl mx-auto">
             <div className="flex justify-between items-center mb-8">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                        <UsersIcon size={24} className="text-gray-500" />
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <UsersIcon size={24} className="text-gray-500 dark:text-gray-400" />
                         People
                     </h1>
-                    <p className="text-gray-500">Manage your workspace members.</p>
+                    <p className="text-gray-500 dark:text-gray-400">Manage your workspace members.</p>
                 </div>
                 {currentUser?.role === 'Admin' && (
                     <button
@@ -83,10 +83,10 @@ export default function PeoplePage() {
                 {users.map(user => (
                     <div
                         key={user.id}
-                        className={`bg-white p-6 rounded-xl border shadow-sm flex items-center space-x-4 ${currentUser?.id === user.id ? 'border-blue-300 ring-1 ring-blue-100' : 'border-gray-200'
+                        className={`bg-white dark:bg-gray-800 p-6 rounded-xl border shadow-sm flex items-center space-x-4 ${currentUser?.id === user.id ? 'border-blue-300 dark:border-blue-600 ring-1 ring-blue-100 dark:ring-blue-900' : 'border-gray-200 dark:border-gray-700'
                             }`}
                     >
-                        <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 text-lg font-semibold overflow-hidden">
+                        <div className="w-14 h-14 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-300 text-lg font-semibold overflow-hidden">
                             {user.avatarUrl ? (
                                 <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
                             ) : (
@@ -95,12 +95,12 @@ export default function PeoplePage() {
                         </div>
                         <div className="flex-1">
                             <div className="flex items-center gap-2">
-                                <h3 className="font-semibold text-gray-900">{user.name}</h3>
+                                <h3 className="font-semibold text-gray-900 dark:text-white">{user.name}</h3>
                                 {currentUser?.id === user.id && (
-                                    <span className="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">You</span>
+                                    <span className="text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/40 px-1.5 py-0.5 rounded">You</span>
                                 )}
                             </div>
-                            <p className="text-sm text-gray-500 flex items-center gap-1">
+                            <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
                                 <Mail size={12} /> {user.email}
                             </p>
                             <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full mt-1 ${getRoleBadgeColor(user.role)}`}>
@@ -114,7 +114,7 @@ export default function PeoplePage() {
                 {/* Add Member Card - Only for Admins */}
                 {currentUser?.role === 'Admin' && (
                     <div
-                        className="border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center p-6 text-gray-400 hover:border-blue-400 hover:bg-blue-50 transition-colors cursor-pointer"
+                        className="border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-xl flex flex-col items-center justify-center p-6 text-gray-400 dark:text-gray-500 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors cursor-pointer"
                         onClick={() => setIsInviteOpen(true)}
                     >
                         <Plus size={32} className="mb-2 opacity-50" />

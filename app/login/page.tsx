@@ -40,8 +40,8 @@ export default function LoginPage() {
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
             <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
                 <div className="text-center mb-8">
-                    <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4 shadow-lg">
-                        TF
+                    <div className="w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg overflow-hidden">
+                        <img src="/icon.svg" alt="TaskFlow" className="h-full w-auto" />
                     </div>
                     <h1 className="text-2xl font-bold text-gray-900">Welcome to TaskFlow</h1>
                     <p className="text-gray-500 mt-2">Select a user to continue</p>
@@ -59,8 +59,8 @@ export default function LoginPage() {
                                 key={user.id}
                                 onClick={() => setSelectedUser(user)}
                                 className={`w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 ${selectedUser?.id === user.id
-                                        ? 'border-blue-500 bg-blue-50'
-                                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                                    ? 'border-blue-500 bg-blue-50'
+                                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                                     }`}
                             >
                                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center text-gray-600 font-semibold overflow-hidden">
@@ -75,8 +75,8 @@ export default function LoginPage() {
                                     <div className="text-sm text-gray-500">{user.email}</div>
                                 </div>
                                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${user.role === 'Admin' ? 'bg-purple-100 text-purple-700' :
-                                        user.role === 'Manager' ? 'bg-blue-100 text-blue-700' :
-                                            'bg-gray-100 text-gray-600'
+                                    user.role === 'Manager' ? 'bg-blue-100 text-blue-700' :
+                                        'bg-gray-100 text-gray-600'
                                     }`}>
                                     {user.role}
                                 </span>

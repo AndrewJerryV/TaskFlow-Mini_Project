@@ -69,7 +69,7 @@ export function Sidebar() {
                                         href={`/projects/${project.id}`}
                                         className={`flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${isActive ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
                                     >
-                                        <span className={`w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold text-white mr-3 ${isActive ? 'bg-blue-600' : 'bg-gray-400 dark:bg-gray-600'}`}>
+                                        <span className={`w-7 h-6 rounded flex items-center justify-center text-[10px] font-bold text-white mr-3 ${isActive ? 'bg-blue-600' : 'bg-gray-400 dark:bg-gray-600'}`}>
                                             {project.key}
                                         </span>
                                         <span className="truncate">{project.name}</span>

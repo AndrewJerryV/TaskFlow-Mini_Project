@@ -58,12 +58,46 @@ CREATE TABLE IF NOT EXISTS messages (
   timestamp TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Comments table
+CREATE TABLE IF NOT EXISTS comments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
+  user_id TEXT,
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Forms table
+CREATE TABLE IF NOT EXISTS forms (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  fields JSONB DEFAULT '[]',
+  status TEXT NOT NULL CHECK (status IN ('draft', 'active', 'closed')) DEFAULT 'draft',
+  created_by TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Form responses table
+CREATE TABLE IF NOT EXISTS form_responses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  form_id UUID REFERENCES forms(id) ON DELETE CASCADE,
+  respondent_id TEXT,
+  answers JSONB DEFAULT '{}',
+  submitted_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Enable Row Level Security (RLS) - optional but recommended
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE forms ENABLE ROW LEVEL SECURITY;
+ALTER TABLE form_responses ENABLE ROW LEVEL SECURITY;
 
 -- Create policies to allow all operations (for development)
 -- In production, you should create more restrictive policies
@@ -72,6 +106,9 @@ CREATE POLICY "Allow all for projects" ON projects FOR ALL USING (true) WITH CHE
 CREATE POLICY "Allow all for tasks" ON tasks FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for activity_logs" ON activity_logs FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for messages" ON messages FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all for comments" ON comments FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all for forms" ON forms FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all for form_responses" ON form_responses FOR ALL USING (true) WITH CHECK (true);
 
 -- Seed initial users (using fixed UUIDs for compatibility)
 INSERT INTO users (id, name, email, role, avatar_url) VALUES

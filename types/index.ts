@@ -61,10 +61,49 @@ export interface ActivityLog {
   timestamp: string;
 }
 
+export type FormFieldType = 'text' | 'textarea' | 'select' | 'checkbox' | 'radio' | 'date' | 'number';
+
+export interface FormFieldOption {
+  id: string;
+  label: string;
+  value: string;
+}
+
+export interface FormField {
+  id: string;
+  type: FormFieldType;
+  label: string;
+  placeholder?: string;
+  required: boolean;
+  options?: FormFieldOption[]; // For select, checkbox, radio
+}
+
+export interface Form {
+  id: string;
+  projectId: string;
+  title: string;
+  description?: string;
+  fields: FormField[];
+  status: 'draft' | 'active' | 'closed';
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FormResponse {
+  id: string;
+  formId: string;
+  respondentId: string;
+  answers: Record<string, any>; // fieldId -> answer value
+  submittedAt: string;
+}
+
 export interface DbSchema {
   users: User[];
   projects: Project[];
   tasks: Task[];
   activityLogs: ActivityLog[];
   messages: Message[];
+  forms: Form[];
+  formResponses: FormResponse[];
 }

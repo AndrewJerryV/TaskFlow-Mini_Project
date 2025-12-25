@@ -153,7 +153,10 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
                 {/* Top Navbar */}
                 <div className="h-12 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between px-4">
                     <div className="flex items-center space-x-4">
-                        <h1 className="text-xl font-semibold text-gray-900 dark:text-white">TaskFlow</h1>
+                        <div className="flex items-center gap-2">
+                            <img src="/icon.svg" alt="TaskFlow" className="h-4 w-auto" />
+                            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">TaskFlow</h1>
+                        </div>
                         <div className="relative" ref={searchRef}>
                             <input
                                 type="text"

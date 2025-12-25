@@ -13,6 +13,7 @@ import DeploymentsView from '@/components/DeploymentsView';
 import CalendarView from '@/components/CalendarView';
 import ReportsView from '@/components/ReportsView';
 import ShortcutsView from '@/components/ShortcutsView';
+import FormsView from '@/components/FormsView';
 import { CreateTaskDialog } from '@/components/forms/CreateTaskDialog';
 import { Modal } from '@/components/ui/Modal';
 import VideoRoom from '@/components/VideoRoom';
@@ -20,7 +21,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Video, Folder, FileText, BarChart3, Plus, UserPlus, Check, Rocket, Calendar, PieChart } from 'lucide-react';
 
 // Nav Items definition
-const NAV_ITEMS = ['Summary', 'Backlog', 'Board', 'Timeline', 'Code', 'Pages', 'Chat', 'Deployments', 'Calendar', 'Reports', 'Shortcuts'] as const;
+const NAV_ITEMS = ['Summary', 'Backlog', 'Board', 'Timeline', 'Code', 'Pages', 'Deployments', 'Calendar', 'Reports', 'Chat', 'Forms', 'Shortcuts'] as const;
 type Tab = typeof NAV_ITEMS[number];
 
 export default function ProjectPage() {
@@ -144,13 +145,8 @@ export default function ProjectPage() {
             {/* Header */}
             <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-between items-center bg-white dark:bg-gray-800 z-10">
                 <div>
-                    <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
-                        <span>Projects</span>
-                        <span>/</span>
-                        <span>{project.name}</span>
-                    </div>
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-                        <span className="w-8 h-8 flex items-center justify-center bg-blue-600 text-white rounded text-sm">{project.key}</span>
+                        <span className="w-9 h-8 flex items-center justify-center bg-blue-600 text-white rounded text-sm">{project.key}</span>
                         {project.name}
                     </h1>
                 </div>
@@ -281,6 +277,10 @@ export default function ProjectPage() {
 
                 {activeTab === 'Reports' && (
                     <ReportsView projectId={id} tasks={tasks} />
+                )}
+
+                {activeTab === 'Forms' && (
+                    <FormsView projectId={id} />
                 )}
 
                 {activeTab === 'Shortcuts' && (

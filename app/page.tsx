@@ -80,7 +80,7 @@ export default function Home() {
               <Link key={project.id} href={`/projects/${project.id}`} className="block group">
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-all cursor-pointer h-36 flex flex-col justify-between relative overflow-hidden">
                   <div className="flex items-start space-x-3 z-10">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded flex items-center justify-center text-white text-sm font-bold shadow-sm">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-green-600 rounded flex items-center justify-center text-white text-sm font-bold shadow-sm">
                       {project.key}
                     </div>
                     <div className="flex-1 min-w-0">

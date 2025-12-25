@@ -1,5 +1,5 @@
-import { getSupabase, DbUser, DbProject, DbTask, DbActivityLog, DbMessage, DbComment } from './supabase';
-import { Project, Task, User, ActivityLog, Message, Comment } from '@/types';
+import { getSupabase, DbUser, DbProject, DbTask, DbActivityLog, DbMessage, DbComment, DbForm, DbFormResponse } from './supabase';
+import { Project, Task, User, ActivityLog, Message, Comment, Form, FormResponse } from '@/types';
 
 // Helper functions to convert between snake_case DB and camelCase TS
 function toUser(dbUser: DbUser): User {
@@ -71,6 +71,30 @@ function toComment(dbComment: DbComment): Comment {
         userId: dbComment.user_id,
         content: dbComment.content,
         createdAt: dbComment.created_at,
+    };
+}
+
+function toForm(dbForm: DbForm): Form {
+    return {
+        id: dbForm.id,
+        projectId: dbForm.project_id,
+        title: dbForm.title,
+        description: dbForm.description,
+        fields: JSON.parse(dbForm.fields || '[]'),
+        status: dbForm.status,
+        createdBy: dbForm.created_by,
+        createdAt: dbForm.created_at,
+        updatedAt: dbForm.updated_at,
+    };
+}
+
+function toFormResponse(dbResponse: DbFormResponse): FormResponse {
+    return {
+        id: dbResponse.id,
+        formId: dbResponse.form_id,
+        respondentId: dbResponse.respondent_id,
+        answers: JSON.parse(dbResponse.answers || '{}'),
+        submittedAt: dbResponse.submitted_at,
     };
 }
 
@@ -404,6 +428,129 @@ class Database {
             userId: comment.userId,
             timestamp: new Date().toISOString()
         });
+    }
+
+    // Forms
+    async getForms(projectId: string): Promise<Form[]> {
+        const { data, error } = await getSupabase()
+            .from('forms')
+            .select('*')
+            .eq('project_id', projectId)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching forms:', error);
+            return [];
+        }
+        return (data || []).map(toForm);
+    }
+
+    async getFormById(id: string): Promise<Form | null> {
+        const { data, error } = await getSupabase()
+            .from('forms')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error || !data) {
+            console.error('Error fetching form:', error);
+            return null;
+        }
+        return toForm(data);
+    }
+
+    async addForm(form: Form): Promise<void> {
+        const { error } = await getSupabase()
+            .from('forms')
+            .insert({
+                id: form.id,
+                project_id: form.projectId,
+                title: form.title,
+                description: form.description,
+                fields: JSON.stringify(form.fields),
+                status: form.status,
+                created_by: form.createdBy,
+                created_at: form.createdAt,
+                updated_at: form.updatedAt,
+            });
+
+        if (error) {
+            console.error('Error adding form:', error);
+        }
+    }
+
+    async updateForm(id: string, updates: Partial<Form>): Promise<Form | null> {
+        const dbUpdates: Record<string, unknown> = {
+            updated_at: new Date().toISOString(),
+        };
+
+        if (updates.title !== undefined) dbUpdates.title = updates.title;
+        if (updates.description !== undefined) dbUpdates.description = updates.description;
+        if (updates.fields !== undefined) dbUpdates.fields = JSON.stringify(updates.fields);
+        if (updates.status !== undefined) dbUpdates.status = updates.status;
+
+        const { data, error } = await getSupabase()
+            .from('forms')
+            .update(dbUpdates)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error updating form:', error);
+            return null;
+        }
+        return toForm(data);
+    }
+
+    async deleteForm(id: string): Promise<boolean> {
+        // Delete all responses first
+        await getSupabase()
+            .from('form_responses')
+            .delete()
+            .eq('form_id', id);
+
+        const { error } = await getSupabase()
+            .from('forms')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error deleting form:', error);
+            return false;
+        }
+        return true;
+    }
+
+    // Form Responses
+    async getFormResponses(formId: string): Promise<FormResponse[]> {
+        const { data, error } = await getSupabase()
+            .from('form_responses')
+            .select('*')
+            .eq('form_id', formId)
+            .order('submitted_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching form responses:', error);
+            return [];
+        }
+        return (data || []).map(toFormResponse);
+    }
+
+    async addFormResponse(response: FormResponse): Promise<void> {
+        const { error } = await getSupabase()
+            .from('form_responses')
+            .insert({
+                id: response.id,
+                form_id: response.formId,
+                respondent_id: response.respondentId,
+                answers: JSON.stringify(response.answers),
+                submitted_at: response.submittedAt,
+            });
+
+        if (error) {
+            console.error('Error adding form response:', error);
+        }
     }
 }
 

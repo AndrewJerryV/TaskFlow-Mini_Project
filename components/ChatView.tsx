@@ -225,7 +225,7 @@ export default function ChatView({ projectId }: ChatViewProps) {
                 <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2">
                         <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                        <span className="text-blue-200 text-xs">{Math.min(users.length, 3)} online</span>
+                        <span className="text-blue-200 text-xs">{Math.min(users.length, 1)} online</span>
                     </div>
                     {/* Date Jump */}
                     <div className="relative">
