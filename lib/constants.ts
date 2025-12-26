@@ -2,7 +2,7 @@ import { Priority, Status } from '@/types';
 
 // Priority color classes for badges
 export const PRIORITY_COLORS: Record<Priority, string> = {
-    Low: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
+    Low: 'bg-gray-100 text-gray-600 dark:bg-gray-300 dark:text-gray-800',
     Medium: 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300',
     High: 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300',
     Critical: 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300',
@@ -26,10 +26,10 @@ export const STATUS_COLORS: Record<Status, string> = {
 
 // Status color classes for BacklogView (with uppercase bold style)
 export const STATUS_COLORS_BACKLOG: Record<Status, string> = {
-    'To Do': 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-200',
-    'In Progress': 'bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-200',
-    'Review': 'bg-purple-100 text-purple-700 dark:bg-purple-800 dark:text-purple-200',
-    'Done': 'bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-200',
+    'To Do': 'bg-gray-100 text-gray-600 dark:bg-gray-300 dark:text-gray-800',
+    'In Progress': 'bg-blue-100 text-blue-700 dark:bg-blue-300 dark:text-blue-900',
+    'Review': 'bg-purple-100 text-purple-700 dark:bg-purple-300 dark:text-purple-900',
+    'Done': 'bg-green-100 text-green-700 dark:bg-green-300 dark:text-green-900',
 };
 
 // Role color classes

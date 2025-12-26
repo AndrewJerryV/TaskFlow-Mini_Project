@@ -127,7 +127,7 @@ export default function FormsView({ projectId }: FormsViewProps) {
     };
 
     return (
-        <div className="max-w-5xl mx-auto">
+        <div className={`max-w-5xl mx-auto p-6 ${forms.length === 0 ? 'overflow-hidden' : ''}`}>
             {/* Header */}
             <div className="flex justify-between items-center mb-6">
                 <div>
@@ -163,11 +163,11 @@ export default function FormsView({ projectId }: FormsViewProps) {
 
             {/* Forms List */}
             {forms.length === 0 ? (
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
-                    <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/40 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center">
+                    <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/40 rounded-full flex items-center justify-center mx-auto mb-1">
                         <FileText size={32} className="text-blue-500" />
                     </div>
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No forms added yet</h3>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">No forms added yet</h3>
                     <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-sm mx-auto">
                         Add Google Forms, Typeform, or any survey links for your team to access
                     </p>

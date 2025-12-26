@@ -84,7 +84,7 @@ const TaskItem = ({
       </div>
 
       <div className="flex items-center space-x-4">
-        <span className={`px-2 py-0.5 text-xs font-bold uppercase rounded ${getStatusColorBacklog(item.status)}`}>
+        <span className={`px-2 py-0.5 text-xs font-bold capitalize rounded ${getStatusColorBacklog(item.status)}`}>
           {item.status}
         </span>
 
@@ -186,7 +186,7 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskD
   };
 
   return (
-    <div className="space-y-4 max-w-5xl">
+    <div className="space-y-4">
       {/* Task Detail Modal */}
       <TaskDetailModal
         task={selectedTask}
