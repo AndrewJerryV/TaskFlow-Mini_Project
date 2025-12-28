@@ -61,6 +61,7 @@ function toMessage(dbMessage: DbMessage): Message {
         userId: dbMessage.user_id,
         content: dbMessage.content,
         timestamp: dbMessage.timestamp,
+        attachment: dbMessage.attachment ? JSON.parse(dbMessage.attachment) : undefined,
     };
 }
 
@@ -334,10 +335,12 @@ class Database {
                 user_id: message.userId,
                 content: message.content,
                 timestamp: message.timestamp,
+                attachment: message.attachment ? JSON.stringify(message.attachment) : null,
             });
 
         if (error) {
             console.error('Error adding message:', error);
+            throw new Error(`Failed to add message: ${error.message}`);
         }
     }
 

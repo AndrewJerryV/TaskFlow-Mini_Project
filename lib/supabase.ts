@@ -69,6 +69,7 @@ export interface DbMessage {
     user_id: string;
     content: string;
     timestamp: string;
+    attachment?: string; // JSON string of Attachment
 }
 
 export interface DbComment {

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Message } from '@/types';
+import { Message, Attachment } from '@/types';
 import { Send, MessageCircle, Paperclip, Image, FileText, X, Download, Calendar } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUserName } from '@/lib/utils';
@@ -10,18 +10,8 @@ interface ChatViewProps {
     projectId: string;
 }
 
-interface Attachment {
-    name: string;
-    type: 'image' | 'video' | 'document';
-    url: string;
-    size?: string;
-}
-
-// Extended Message type for local use (with optional attachment)
-interface ChatMessage extends Omit<Message, 'content'> {
-    content: string;
-    attachment?: Attachment;
-}
+// Message type alias for local use
+type ChatMessage = Message;
 
 export default function ChatView({ projectId }: ChatViewProps) {
     const { currentUser, users } = useAuth();
@@ -35,6 +25,7 @@ export default function ChatView({ projectId }: ChatViewProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [jumpToDate, setJumpToDate] = useState('');
+    const [viewingImage, setViewingImage] = useState<Attachment | null>(null);
 
     // Poll for messages
     useEffect(() => {
@@ -106,28 +97,51 @@ export default function ChatView({ projectId }: ChatViewProps) {
         return (bytes / 1048576).toFixed(1) + ' MB';
     };
 
+    // Convert file to base64 data URL
+    const fileToBase64 = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = error => reject(error);
+        });
+    };
+
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
         if ((!newMessage.trim() && !selectedFile) || !currentUser) return;
 
         // Create attachment info if file selected
         let attachment: Attachment | undefined;
+        let attachmentUrl: string | undefined;
+
         if (selectedFile) {
+            // Convert file to base64 for storage
+            try {
+                attachmentUrl = await fileToBase64(selectedFile);
+            } catch (err) {
+                console.error('Error converting file to base64:', err);
+                return;
+            }
+
             const type = selectedFile.type.startsWith('image/') ? 'image'
                 : selectedFile.type.startsWith('video/') ? 'video' : 'document';
             attachment = {
                 name: selectedFile.name,
                 type,
-                url: previewUrl || '#', // In real app, would upload to storage
+                url: attachmentUrl,
                 size: formatFileSize(selectedFile.size)
             };
         }
+
+        // Determine message content
+        const messageContent = newMessage || (attachment ? `Shared ${attachment.type}: ${attachment.name}` : '');
 
         // Optimistic update
         const tempMessage: ChatMessage = {
             id: `temp-${Date.now()}`,
             projectId,
-            content: newMessage || (attachment ? `Shared ${attachment.type}: ${attachment.name}` : ''),
+            content: messageContent,
             userId: currentUser.id,
             timestamp: new Date().toISOString(),
             attachment
@@ -142,8 +156,9 @@ export default function ChatView({ projectId }: ChatViewProps) {
                 method: 'POST',
                 body: JSON.stringify({
                     projectId,
-                    content: tempMessage.content,
-                    userId: currentUser.id
+                    content: messageContent,
+                    userId: currentUser.id,
+                    attachment
                 }),
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -184,11 +199,29 @@ export default function ChatView({ projectId }: ChatViewProps) {
 
     const isCurrentUser = (userId: string) => currentUser?.id === userId;
 
+    // Download attachment function
+    const downloadAttachment = (attachment: Attachment) => {
+        const link = document.createElement('a');
+        link.href = attachment.url;
+        link.download = attachment.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    // Open image in lightbox modal
+    const openImage = (attachment: Attachment) => {
+        setViewingImage(attachment);
+    };
+
     const renderAttachment = (attachment: Attachment) => {
         if (attachment.type === 'image') {
             return (
-                <div className="mt-2 rounded-lg overflow-hidden max-w-[240px]">
+                <div className="mt-2 rounded-lg overflow-hidden max-w-[240px] cursor-pointer group relative" onClick={() => openImage(attachment)}>
                     <img src={attachment.url} alt={attachment.name} className="w-full h-auto" />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                        <span className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity">Click to view</span>
+                    </div>
                 </div>
             );
         }
@@ -206,7 +239,11 @@ export default function ChatView({ projectId }: ChatViewProps) {
                     <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{attachment.name}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">{attachment.size}</p>
                 </div>
-                <button className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded">
+                <button
+                    onClick={() => downloadAttachment(attachment)}
+                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                    title="Download file"
+                >
                     <Download size={16} className="text-gray-600 dark:text-gray-400" />
                 </button>
             </div>
@@ -215,6 +252,30 @@ export default function ChatView({ projectId }: ChatViewProps) {
 
     return (
         <div className="h-full flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-900">
+            {/* Image Lightbox Modal */}
+            {viewingImage && (
+                <div
+                    className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
+                    onClick={() => setViewingImage(null)}
+                >
+                    <button
+                        className="absolute top-4 right-4 text-white hover:text-gray-300 p-2"
+                        onClick={() => setViewingImage(null)}
+                    >
+                        <X size={32} />
+                    </button>
+                    <img
+                        src={viewingImage.url}
+                        alt={viewingImage.name}
+                        className="max-w-[90vw] max-h-[90vh] object-contain"
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                    <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white text-sm bg-black/50 px-3 py-1 rounded">
+                        {viewingImage.name}
+                    </p>
+                </div>
+            )}
+
             {/* Thin Header Banner */}
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 flex items-center justify-between flex-shrink-0">
                 <div className="flex items-center gap-3">

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { Message } from '@/types';
+import { Message, Attachment } from '@/types';
 
 export async function GET(request: Request) {
     try {
@@ -22,17 +22,25 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        // Basic validation
-        if (!body.projectId || !body.content) {
-            return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+
+        // Parse attachment if provided
+        let attachment: Attachment | undefined;
+        if (body.attachment) {
+            attachment = body.attachment as Attachment;
+        }
+
+        // Validation: need projectId and either content or attachment
+        if (!body.projectId || (!body.content && !attachment)) {
+            return NextResponse.json({ error: 'Missing fields: need projectId and either content or attachment' }, { status: 400 });
         }
 
         const newMessage: Message = {
             id: crypto.randomUUID(),
             projectId: body.projectId,
             userId: body.userId || 'u1',
-            content: body.content,
-            timestamp: new Date().toISOString()
+            content: body.content || '',
+            timestamp: new Date().toISOString(),
+            attachment,
         };
 
         await db.addMessage(newMessage);

@@ -10,12 +10,20 @@ export interface User {
   role: 'Admin' | 'Manager' | 'Member';
 }
 
+export interface Attachment {
+  name: string;
+  type: 'image' | 'video' | 'document';
+  url: string;
+  size?: string;
+}
+
 export interface Message {
   id: string;
   projectId: string;
   userId: string;
   content: string;
   timestamp: string;
+  attachment?: Attachment;
 }
 
 export interface Comment {
