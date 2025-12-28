@@ -29,6 +29,7 @@ export default function ProjectPage() {
     const params = useParams();
     const id = params?.id as string;
     const router = useRouter();
+    const [tabLoaded, setTabLoaded] = React.useState(false);
 
     const [activeTab, setActiveTab] = useState<Tab>('Board');
     const [tasks, setTasks] = useState<Task[]>([]);
@@ -39,6 +40,25 @@ export default function ProjectPage() {
     const [isInviteOpen, setIsInviteOpen] = useState(false);
     const [projectMembers, setProjectMembers] = useState<string[]>([]);
     const { users, currentUser } = useAuth();
+
+    // Load saved tab from localStorage on mount (client-side only)
+    useEffect(() => {
+        if (id && typeof window !== 'undefined') {
+            const stored = localStorage.getItem(`project-${id}-activeTab`);
+            if (stored && NAV_ITEMS.includes(stored as Tab)) {
+                setActiveTab(stored as Tab);
+            }
+            setTabLoaded(true);
+        }
+    }, [id]);
+
+    // Custom handler to change tab and save to localStorage
+    const handleTabChange = (tab: Tab) => {
+        setActiveTab(tab);
+        if (id && typeof window !== 'undefined') {
+            localStorage.setItem(`project-${id}-activeTab`, tab);
+        }
+    };
 
     useEffect(() => {
         if (id) {
@@ -210,7 +230,7 @@ export default function ProjectPage() {
                     {NAV_ITEMS.map((item) => (
                         <button
                             key={item}
-                            onClick={() => setActiveTab(item)}
+                            onClick={() => handleTabChange(item)}
                             className={`py-3 text-sm font-medium transition-colors border-b-2 ${activeTab === item
                                 ? 'border-blue-600 text-blue-600 dark:text-blue-400'
                                 : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { Message, Attachment } from '@/types';
-import { Send, MessageCircle, Paperclip, Image, FileText, X, Download, Calendar } from 'lucide-react';
+import { Send, MessageCircle, Paperclip, Image, FileText, X, Download, Calendar, PlayCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUserName } from '@/lib/utils';
 
@@ -28,6 +28,8 @@ export default function ChatView({ projectId }: ChatViewProps) {
     const [viewingImage, setViewingImage] = useState<Attachment | null>(null);
 
     // Poll for messages
+    const isFirstLoad = useRef(true);
+
     useEffect(() => {
         if (projectId) {
             fetchMessages();
@@ -36,13 +38,30 @@ export default function ChatView({ projectId }: ChatViewProps) {
         }
     }, [projectId]);
 
+    // Check if user is near bottom of chat
+    const isNearBottom = () => {
+        if (!scrollRef.current) return true;
+        const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+        // Consider "near bottom" if within 100px of the bottom
+        return scrollHeight - scrollTop - clientHeight < 100;
+    };
+
     const fetchMessages = async () => {
         try {
             const res = await fetch(`/api/messages?projectId=${projectId}`);
             if (res.ok) {
                 const data = await res.json();
+                const wasNearBottom = isNearBottom();
+                const hadMessages = messages.length > 0;
                 setMessages(data);
-                scrollToBottom();
+
+                // Only auto-scroll if:
+                // 1. It's the first load, or
+                // 2. User was already near the bottom
+                if (isFirstLoad.current || wasNearBottom) {
+                    scrollToBottom();
+                }
+                isFirstLoad.current = false;
             }
         } catch (e) {
             console.error(e);
@@ -459,7 +478,7 @@ export default function ChatView({ projectId }: ChatViewProps) {
                                 className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                                 onClick={() => handleFileSelect('image')}
                             >
-                                <Image size={18} className="text-green-500" />
+                                <Image size={18} className="text-gray-500 dark:text-gray-400" />
                                 Photos
                             </button>
                             <button
@@ -467,9 +486,7 @@ export default function ChatView({ projectId }: ChatViewProps) {
                                 className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                                 onClick={() => handleFileSelect('video')}
                             >
-                                <div className="w-[18px] h-[18px] bg-red-500 rounded flex items-center justify-center">
-                                    <div className="w-0 h-0 border-l-[6px] border-l-white border-y-[4px] border-y-transparent ml-0.5" />
-                                </div>
+                                <PlayCircle size={18} className="text-gray-500 dark:text-gray-400" />
                                 Videos
                             </button>
                             <button
@@ -477,7 +494,7 @@ export default function ChatView({ projectId }: ChatViewProps) {
                                 className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                                 onClick={() => handleFileSelect('document')}
                             >
-                                <FileText size={18} className="text-blue-500" />
+                                <FileText size={18} className="text-gray-500 dark:text-gray-400" />
                                 Documents
                             </button>
                         </div>
