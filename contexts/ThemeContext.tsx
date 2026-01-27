@@ -8,6 +8,10 @@ interface ThemeContextType {
     theme: Theme;
     setTheme: (theme: Theme) => void;
     isDark: boolean;
+    reduceMotion: boolean;
+    setReduceMotion: (reduce: boolean) => void;
+    highContrast: boolean;
+    setHighContrast: (contrast: boolean) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -15,13 +19,21 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: ReactNode }) {
     const [theme, setThemeState] = useState<Theme>('Light');
     const [isDark, setIsDark] = useState(false);
+    const [reduceMotion, setReduceMotionState] = useState(false);
+    const [highContrast, setHighContrastState] = useState(false);
 
-    // Load theme from localStorage on mount
+    // Load theme and accessibility settings from localStorage on mount
     useEffect(() => {
         const savedTheme = localStorage.getItem('theme') as Theme;
         if (savedTheme) {
             setThemeState(savedTheme);
         }
+
+        const savedReduceMotion = localStorage.getItem('reduceMotion') === 'true';
+        setReduceMotionState(savedReduceMotion);
+
+        const savedHighContrast = localStorage.getItem('highContrast') === 'true';
+        setHighContrastState(savedHighContrast);
     }, []);
 
     // Apply theme whenever it changes
@@ -47,6 +59,26 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('theme', theme);
     }, [theme]);
 
+    // Apply reduce motion
+    useEffect(() => {
+        if (reduceMotion) {
+            document.documentElement.classList.add('reduce-motion');
+        } else {
+            document.documentElement.classList.remove('reduce-motion');
+        }
+        localStorage.setItem('reduceMotion', String(reduceMotion));
+    }, [reduceMotion]);
+
+    // Apply high contrast
+    useEffect(() => {
+        if (highContrast) {
+            document.documentElement.classList.add('high-contrast');
+        } else {
+            document.documentElement.classList.remove('high-contrast');
+        }
+        localStorage.setItem('highContrast', String(highContrast));
+    }, [highContrast]);
+
     // Listen for system theme changes
     useEffect(() => {
         if (theme !== 'System') return;
@@ -69,8 +101,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         setThemeState(newTheme);
     };
 
+    const setReduceMotion = (reduce: boolean) => {
+        setReduceMotionState(reduce);
+    };
+
+    const setHighContrast = (contrast: boolean) => {
+        setHighContrastState(contrast);
+    };
+
     return (
-        <ThemeContext.Provider value={{ theme, setTheme, isDark }}>
+        <ThemeContext.Provider value={{ theme, setTheme, isDark, reduceMotion, setReduceMotion, highContrast, setHighContrast }}>
             {children}
         </ThemeContext.Provider>
     );

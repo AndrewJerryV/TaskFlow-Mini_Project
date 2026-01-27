@@ -26,6 +26,41 @@ export interface DbUser {
     avatar_url?: string;
     role: 'Admin' | 'Manager' | 'Member';
     created_at?: string;
+    skills?: string[];
+    wellness_score?: number;
+    max_workload?: number;
+    phone?: string;
+    office_address?: string;
+    // Settings
+    timezone?: string;
+    quiet_hours_start?: string;
+    quiet_hours_end?: string;
+    quiet_hours_weekends?: boolean;
+    two_factor_enabled?: boolean;
+    // AI Settings
+    burnout_sensitivity?: number;
+    auto_assign?: boolean;
+    skill_match_priority?: boolean;
+    ai_deadlines?: boolean;
+    // Notification Settings
+    email_digest_frequency?: string;
+    push_notifications?: boolean;
+    sound_alerts?: boolean;
+}
+
+
+export interface DbDocument {
+    id: string;
+    project_id: string;
+    title: string;
+    type: string;
+    content?: string;
+    file_path?: string;
+    file_type?: string;
+    size?: number;
+    created_by: string;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface DbProject {

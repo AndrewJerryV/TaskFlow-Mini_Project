@@ -12,3 +12,72 @@ body {
   color: rgb(var(--foreground-rgb));
   background: rgb(var(--background-start-rgb));
 }
+
+/* Accessibility: Reduce Motion */
+.reduce-motion,
+.reduce-motion * {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Accessibility: High Contrast Mode */
+.high-contrast {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 255, 255, 255;
+}
+
+.high-contrast body {
+  color: #000 !important;
+  background: #fff !important;
+}
+
+.high-contrast.dark body {
+  color: #fff !important;
+  background: #000 !important;
+}
+
+.high-contrast * {
+  border-color: currentColor !important;
+}
+
+.high-contrast .text-gray-400,
+.high-contrast .text-gray-500,
+.high-contrast .text-gray-600 {
+  color: #374151 !important;
+}
+
+.high-contrast.dark .text-gray-400,
+.high-contrast.dark .text-gray-500,
+.high-contrast.dark .text-gray-600 {
+  color: #d1d5db !important;
+}
+
+.high-contrast button,
+.high-contrast a,
+.high-contrast input,
+.high-contrast select,
+.high-contrast textarea {
+  font-weight: 600 !important;
+}
+
+.high-contrast .bg-gray-50,
+.high-contrast .bg-gray-100 {
+  background-color: #e5e7eb !important;
+}
+
+.high-contrast.dark .bg-gray-700,
+.high-contrast.dark .bg-gray-800 {
+  background-color: #1f2937 !important;
+}
+
+.high-contrast .border-gray-200,
+.high-contrast .border-gray-300 {
+  border-color: #6b7280 !important;
+}
+
+.high-contrast.dark .border-gray-600,
+.high-contrast.dark .border-gray-700 {
+  border-color: #9ca3af !important;
+}

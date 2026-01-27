@@ -8,6 +8,29 @@ export interface User {
   avatarUrl?: string; // Optional
   createdAt?: string; // Optional for now
   role: 'Admin' | 'Manager' | 'Member';
+  // AI/Health Extensions
+  skills: string[];
+  wellnessScore: number; // 0-100
+  maxWorkload: number;
+  burnoutRisk?: 'Low' | 'Medium' | 'High'; // Derived
+  // Contact Info
+  phone?: string;
+  officeAddress?: string;
+  // Settings
+  timezone?: string;
+  quietHoursStart?: string;
+  quietHoursEnd?: string;
+  quietHoursWeekends?: boolean;
+  twoFactorEnabled?: boolean;
+  // AI Settings
+  burnoutSensitivity?: number;
+  autoAssign?: boolean;
+  skillMatchPriority?: boolean;
+  aiDeadlines?: boolean;
+  // Notification Settings
+  emailDigestFrequency?: string;
+  pushNotifications?: boolean;
+  soundAlerts?: boolean;
 }
 
 export interface Attachment {
@@ -47,6 +70,21 @@ export interface Task {
   createdAt: string; // ISO Date
   updatedAt: string; // ISO Date
   tags: string[];
+}
+
+
+export interface Document {
+  id: string;
+  projectId: string;
+  title: string;
+  type: 'page' | 'file';
+  content?: string;
+  filePath?: string;
+  fileType?: string;
+  size?: number;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Project {

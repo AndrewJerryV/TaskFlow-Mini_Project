@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
-import { FileText, BarChart3, Plus, X, Edit3, Calendar, User, ArrowLeft, Save, Trash2, Download } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { FileText, BarChart3, Plus, X, Edit3, Calendar, User, ArrowLeft, Save, Trash2, Download, Presentation, FileSpreadsheet } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Page {
     id: string;
     title: string;
-    icon: 'document' | 'chart';
+    icon: 'document' | 'chart' | 'word' | 'ppt' | 'excel';
     content: string;
     updatedAt: string;
     updatedBy: string;
@@ -16,11 +17,13 @@ interface PagesViewProps {
     projectId: string;
 }
 
+
+
 const INITIAL_PAGES: Page[] = [
     {
         id: 'page-1',
-        title: 'Project Requirements',
-        icon: 'document',
+        title: 'Project Requirements.docx',
+        icon: 'word',
         content: `# Project Requirements
 
 ## Overview
@@ -70,8 +73,8 @@ This document outlines the core requirements for the TaskFlow project management
     },
     {
         id: 'page-2',
-        title: 'Q1 Marketing Strategy',
-        icon: 'chart',
+        title: 'Q1 Marketing Strategy.pptx',
+        icon: 'ppt',
         content: `# Q1 Marketing Strategy
 
 ## Goals
@@ -119,18 +122,50 @@ This document outlines the core requirements for the TaskFlow project management
     }
 ];
 
+
 export default function PagesView({ projectId }: PagesViewProps) {
-    const [pages, setPages] = useState<Page[]>(INITIAL_PAGES);
-    const [selectedPage, setSelectedPage] = useState<Page | null>(null);
+    const [pages, setPages] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [selectedPage, setSelectedPage] = useState<any | null>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [editContent, setEditContent] = useState('');
     const [editTitle, setEditTitle] = useState('');
     const [isCreating, setIsCreating] = useState(false);
     const [newPageTitle, setNewPageTitle] = useState('');
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
+    const { currentUser } = useAuth();
 
-    const handlePageClick = (page: Page) => {
+    // Fetch documents
+    useEffect(() => {
+        fetchDocuments();
+    }, [projectId]);
+
+    const fetchDocuments = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch(`/api/documents?projectId=${projectId}`);
+            if (res.ok) {
+                const data = await res.json();
+                setPages(data);
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handlePageClick = (page: any) => {
+        if (page.type === 'file') {
+            // Setup download/view link
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+            const publicUrl = `${supabaseUrl}/storage/v1/object/public/project-files/${page.filePath}`;
+            window.open(publicUrl, '_blank');
+            return;
+        }
         setSelectedPage(page);
-        setEditContent(page.content);
+        setEditContent(page.content || '');
         setEditTitle(page.title);
         setIsEditing(false);
     };
@@ -144,45 +179,92 @@ export default function PagesView({ projectId }: PagesViewProps) {
         setIsEditing(true);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (selectedPage) {
+            // Optimistic Update
+            // TODO: Implement PATCH API for updates
+            alert("Update API implementation is pending. This is a local update only.");
             const updatedPages = pages.map(p =>
                 p.id === selectedPage.id
-                    ? { ...p, title: editTitle, content: editContent, updatedAt: 'Just now', updatedBy: 'You' }
+                    ? { ...p, title: editTitle, content: editContent, updatedAt: new Date().toISOString(), updatedBy: currentUser?.name || 'You' }
                     : p
             );
             setPages(updatedPages);
-            setSelectedPage({ ...selectedPage, title: editTitle, content: editContent, updatedAt: 'Just now', updatedBy: 'You' });
+            setSelectedPage({ ...selectedPage, title: editTitle, content: editContent, updatedAt: new Date().toISOString(), updatedBy: currentUser?.name || 'You' });
             setIsEditing(false);
         }
     };
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (selectedPage && confirm('Are you sure you want to delete this page?')) {
+            // TODO: API Delete
             setPages(pages.filter(p => p.id !== selectedPage.id));
             setSelectedPage(null);
         }
     };
 
-    const handleCreatePage = () => {
+    const handleCreatePage = async () => {
         if (newPageTitle.trim()) {
-            const newPage: Page = {
-                id: `page-${Date.now()}`,
-                title: newPageTitle.trim(),
-                icon: 'document',
-                content: `# ${newPageTitle.trim()}\n\nStart writing your content here...`,
-                updatedAt: 'Just now',
-                updatedBy: 'You'
-            };
-            setPages([...pages, newPage]);
-            setNewPageTitle('');
-            setIsCreating(false);
-            handlePageClick(newPage);
+            const formData = new FormData();
+            formData.append('type', 'page');
+            formData.append('projectId', projectId);
+            formData.append('userId', currentUser?.id || 'u1');
+            formData.append('title', newPageTitle.trim());
+            formData.append('content', `# ${newPageTitle.trim()}\n\nStart writing your content here...`);
+
+            try {
+                const res = await fetch('/api/documents', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (res.ok) {
+                    const newDoc = await res.json();
+                    setPages([newDoc, ...pages]);
+                    setNewPageTitle('');
+                    setIsCreating(false);
+                    // handlePageClick(newDoc); // Don't auto open to keep flow simple
+                }
+            } catch (err) {
+                alert('Failed to create page');
+            }
+        }
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploading(true);
+        const formData = new FormData();
+        formData.append('type', 'file');
+        formData.append('projectId', projectId);
+        formData.append('userId', currentUser?.id || 'u1');
+        formData.append('file', file);
+
+        try {
+            const res = await fetch('/api/documents', {
+                method: 'POST',
+                body: formData
+            });
+            if (res.ok) {
+                const newDoc = await res.json();
+                setPages([newDoc, ...pages]);
+            } else {
+                const err = await res.json();
+                alert(err.error || 'Upload failed');
+            }
+        } catch (error) {
+            console.error(error);
+            alert('Upload error');
+        } finally {
+            setUploading(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
 
     // Render markdown-like content (basic)
     const renderContent = (content: string) => {
+        if (!content) return null;
         const lines = content.split('\n');
         const elements: React.ReactNode[] = [];
         let tableRows: { key: number; cells: string[] }[] = [];
@@ -317,22 +399,6 @@ export default function PagesView({ projectId }: PagesViewProps) {
                                     <Edit3 size={16} /> Edit
                                 </button>
                                 <button
-                                    onClick={() => {
-                                        const blob = new Blob([selectedPage.content], { type: 'text/markdown' });
-                                        const url = URL.createObjectURL(blob);
-                                        const a = document.createElement('a');
-                                        a.href = url;
-                                        a.download = `${selectedPage.title.replace(/[^a-z0-9]/gi, '_')}.md`;
-                                        document.body.appendChild(a);
-                                        a.click();
-                                        document.body.removeChild(a);
-                                        URL.revokeObjectURL(url);
-                                    }}
-                                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                                >
-                                    <Download size={16} /> Download
-                                </button>
-                                <button
                                     onClick={handleDelete}
                                     className="flex items-center gap-2 px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                 >
@@ -346,10 +412,10 @@ export default function PagesView({ projectId }: PagesViewProps) {
                 {/* Meta info */}
                 <div className="px-6 py-2 flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
                     <span className="flex items-center gap-1">
-                        <Calendar size={12} /> Updated {selectedPage.updatedAt}
+                        <Calendar size={12} /> Updated {new Date(selectedPage.updatedAt).toLocaleDateString()}
                     </span>
                     <span className="flex items-center gap-1">
-                        <User size={12} /> by {selectedPage.updatedBy}
+                        <User size={12} /> by {selectedPage.createdBy || 'Unknown'}
                     </span>
                 </div>
 
@@ -372,65 +438,120 @@ export default function PagesView({ projectId }: PagesViewProps) {
         );
     }
 
-    // Pages grid view
     return (
         <div className="space-y-4 p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {pages.map((page) => (
-                    <div
-                        key={page.id}
-                        onClick={() => handlePageClick(page)}
-                        className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-md cursor-pointer group transition-all"
-                    >
-                        <div className="h-32 bg-gray-100 dark:bg-gray-700 rounded-md mb-3 flex items-center justify-center group-hover:bg-blue-50 dark:group-hover:bg-blue-900/30 transition-colors">
-                            {page.icon === 'document' ? (
-                                <FileText size={48} className="text-gray-400 dark:text-gray-500" />
-                            ) : (
-                                <BarChart3 size={48} className="text-gray-400 dark:text-gray-500" />
-                            )}
-                        </div>
-                        <h3 className="font-semibold text-gray-800 dark:text-white">{page.title}</h3>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Updated {page.updatedAt} by {page.updatedBy}</p>
-                    </div>
-                ))}
+            <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                onChange={handleFileUpload}
+            />
+            {loading ? (
+                <div className="text-center py-10 text-gray-500">Loading documents...</div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {pages.map((page) => {
+                        // Determine icon
+                        let IconComponent = FileText;
+                        let iconColor = "text-gray-400 dark:text-gray-500";
 
-                {/* Create new page */}
-                {isCreating ? (
-                    <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border-2 border-blue-400 dark:border-blue-500">
-                        <input
-                            type="text"
-                            value={newPageTitle}
-                            onChange={(e) => setNewPageTitle(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleCreatePage()}
-                            placeholder="Page title..."
-                            autoFocus
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none mb-3"
-                        />
-                        <div className="flex gap-2">
-                            <button
-                                onClick={handleCreatePage}
-                                className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                        if (page.type === 'file') {
+                            const ext = page.title.split('.').pop()?.toLowerCase();
+                            if (['doc', 'docx'].includes(ext || '')) {
+                                IconComponent = FileText; // Or bespoke Word icon if available
+                                iconColor = "text-blue-600 dark:text-blue-400";
+                            } else if (['ppt', 'pptx'].includes(ext || '')) {
+                                IconComponent = Presentation;
+                                iconColor = "text-orange-500 dark:text-orange-400";
+                            } else if (['xls', 'xlsx', 'csv'].includes(ext || '')) {
+                                IconComponent = FileSpreadsheet;
+                                iconColor = "text-green-600 dark:text-green-400";
+                            }
+                        } else if (page.icon === 'chart') {
+                            // Legacy support or specific page type
+                            IconComponent = BarChart3;
+                            iconColor = "text-purple-500 dark:text-purple-400";
+                        } else if (typeof page.icon === 'string' && page.icon === 'word') {
+                            IconComponent = FileText;
+                            iconColor = "text-blue-600 dark:text-blue-400";
+                        } else if (typeof page.icon === 'string' && page.icon === 'ppt') {
+                            IconComponent = Presentation;
+                            iconColor = "text-orange-500 dark:text-orange-400";
+                        }
+
+                        return (
+                            <div
+                                key={page.id}
+                                onClick={() => handlePageClick(page)}
+                                className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-md cursor-pointer group transition-all"
                             >
-                                Create
-                            </button>
-                            <button
-                                onClick={() => { setIsCreating(false); setNewPageTitle(''); }}
-                                className="px-3 py-2 text-gray-600 dark:text-gray-400 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                            >
-                                Cancel
-                            </button>
+                                <div className="h-32 bg-gray-100 dark:bg-gray-700 rounded-md mb-3 flex items-center justify-center group-hover:bg-blue-50 dark:group-hover:bg-blue-900/30 transition-colors">
+                                    <IconComponent size={48} className={iconColor} />
+                                </div>
+                                <h3 className="font-semibold text-gray-800 dark:text-white truncate" title={page.title}>{page.title}</h3>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    Updated {new Date(page.updatedAt || new Date()).toLocaleDateString()}
+                                </p>
+                            </div>
+                        );
+                    })}
+
+                    {/* Create new page */}
+                    {isCreating ? (
+                        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border-2 border-blue-400 dark:border-blue-500">
+                            <input
+                                type="text"
+                                value={newPageTitle}
+                                onChange={(e) => setNewPageTitle(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleCreatePage()}
+                                placeholder="Page title..."
+                                autoFocus
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none mb-3"
+                            />
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={handleCreatePage}
+                                    className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                                >
+                                    Create
+                                </button>
+                                <button
+                                    onClick={() => { setIsCreating(false); setNewPageTitle(''); }}
+                                    className="px-3 py-2 text-gray-600 dark:text-gray-400 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                ) : (
-                    <div
-                        onClick={() => setIsCreating(true)}
-                        className="bg-white dark:bg-gray-800 p-4 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-600 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 cursor-pointer transition-colors min-h-[180px]"
-                    >
-                        <Plus size={32} className="mb-1" />
-                        <span>Create Page</span>
-                    </div>
-                )}
-            </div>
+                    ) : (
+                        <div className="flex gap-4">
+                            {/* Create Page Button */}
+                            <div
+                                onClick={() => setIsCreating(true)}
+                                className="flex-1 bg-white dark:bg-gray-800 p-4 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-600 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 cursor-pointer transition-colors min-h-[180px]"
+                            >
+                                <Plus size={32} className="mb-1" />
+                                <span>Create Page</span>
+                            </div>
+
+                            {/* Upload File Button */}
+                            <div
+                                onClick={() => fileInputRef.current?.click()}
+                                className="flex-1 bg-white dark:bg-gray-800 p-4 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-600 hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 cursor-pointer transition-colors min-h-[180px]"
+                            >
+                                {uploading ? (
+                                    <span>Uploading...</span>
+                                ) : (
+                                    <>
+                                        <Download size={32} className="mb-1 rotate-180" /> {/* Upload icon substitute */}
+                                        <span>Upload File</span>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 }

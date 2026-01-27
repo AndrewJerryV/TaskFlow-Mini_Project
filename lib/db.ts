@@ -1,5 +1,5 @@
-import { getSupabase, DbUser, DbProject, DbTask, DbActivityLog, DbMessage, DbComment, DbForm, DbFormResponse } from './supabase';
-import { Project, Task, User, ActivityLog, Message, Comment, Form, FormResponse } from '@/types';
+import { getSupabase, DbUser, DbProject, DbTask, DbActivityLog, DbMessage, DbComment, DbForm, DbFormResponse, DbDocument } from './supabase';
+import { Project, Task, User, ActivityLog, Message, Comment, Form, FormResponse, Document } from '@/types';
 
 // Helper functions to convert between snake_case DB and camelCase TS
 function toUser(dbUser: DbUser): User {
@@ -10,7 +10,31 @@ function toUser(dbUser: DbUser): User {
         avatarUrl: dbUser.avatar_url,
         role: dbUser.role,
         createdAt: dbUser.created_at,
-    };
+        // Mock data for prototype - Deterministic based on ID
+        skills: dbUser.id === 'u1'
+            ? ['Frontend', 'Design', 'React', 'Product']
+            : ['Backend', 'AI', 'Machine Learning', 'Python', 'Database'],
+        wellnessScore: dbUser.wellness_score || 85,
+        maxWorkload: dbUser.max_workload || 5,
+        burnoutRisk: 'Low',
+        phone: dbUser.phone,
+        officeAddress: dbUser.office_address,
+        // Settings
+        timezone: dbUser.timezone,
+        quietHoursStart: dbUser.quiet_hours_start,
+        quietHoursEnd: dbUser.quiet_hours_end,
+        quietHoursWeekends: dbUser.quiet_hours_weekends,
+        twoFactorEnabled: dbUser.two_factor_enabled,
+        // AI Settings
+        burnoutSensitivity: dbUser.burnout_sensitivity,
+        autoAssign: dbUser.auto_assign,
+        skillMatchPriority: dbUser.skill_match_priority,
+        aiDeadlines: dbUser.ai_deadlines,
+        // Notification Settings
+        emailDigestFrequency: dbUser.email_digest_frequency,
+        pushNotifications: dbUser.push_notifications,
+        soundAlerts: dbUser.sound_alerts,
+    } as User;
 }
 
 function toProject(dbProject: DbProject): Project {
@@ -99,6 +123,23 @@ function toFormResponse(dbResponse: DbFormResponse): FormResponse {
     };
 }
 
+
+function toDocument(dbDoc: DbDocument): Document {
+    return {
+        id: dbDoc.id,
+        projectId: dbDoc.project_id,
+        title: dbDoc.title,
+        type: dbDoc.type as 'page' | 'file',
+        content: dbDoc.content,
+        filePath: dbDoc.file_path,
+        fileType: dbDoc.file_type,
+        size: dbDoc.size,
+        createdBy: dbDoc.created_by,
+        createdAt: dbDoc.created_at,
+        updatedAt: dbDoc.updated_at,
+    };
+}
+
 // Database class with async Supabase operations
 class Database {
     // Users
@@ -112,6 +153,53 @@ class Database {
             return [];
         }
         return (data || []).map(toUser);
+    }
+
+    async updateUserSettings(userId: string, settings: Partial<{
+        phone: string;
+        officeAddress: string;
+        timezone: string;
+        quietHoursStart: string;
+        quietHoursEnd: string;
+        quietHoursWeekends: boolean;
+        twoFactorEnabled: boolean;
+        maxWorkload: number;
+        burnoutSensitivity: number;
+        autoAssign: boolean;
+        skillMatchPriority: boolean;
+        aiDeadlines: boolean;
+        emailDigestFrequency: string;
+        pushNotifications: boolean;
+        soundAlerts: boolean;
+    }>): Promise<User | null> {
+        const { data, error } = await getSupabase()
+            .from('users')
+            .update({
+                phone: settings.phone,
+                office_address: settings.officeAddress,
+                timezone: settings.timezone,
+                quiet_hours_start: settings.quietHoursStart,
+                quiet_hours_end: settings.quietHoursEnd,
+                quiet_hours_weekends: settings.quietHoursWeekends,
+                two_factor_enabled: settings.twoFactorEnabled,
+                max_workload: settings.maxWorkload,
+                burnout_sensitivity: settings.burnoutSensitivity,
+                auto_assign: settings.autoAssign,
+                skill_match_priority: settings.skillMatchPriority,
+                ai_deadlines: settings.aiDeadlines,
+                email_digest_frequency: settings.emailDigestFrequency,
+                push_notifications: settings.pushNotifications,
+                sound_alerts: settings.soundAlerts,
+            })
+            .eq('id', userId)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error updating user settings:', error);
+            return null;
+        }
+        return toUser(data);
     }
 
     // Projects
@@ -171,11 +259,14 @@ class Database {
     }
 
     // Tasks
-    async getTasks(projectId?: string): Promise<Task[]> {
+    async getTasks(projectId?: string, assigneeId?: string): Promise<Task[]> {
         let query = getSupabase().from('tasks').select('*');
 
         if (projectId) {
             query = query.eq('project_id', projectId);
+        }
+        if (assigneeId) {
+            query = query.eq('assignee_id', assigneeId);
         }
 
         const { data, error } = await query.order('created_at', { ascending: false });
@@ -288,6 +379,20 @@ class Database {
 
         if (error) {
             console.error('Error fetching activity logs:', error);
+            return [];
+        }
+        return (data || []).map(toActivityLog);
+    }
+
+    async getUserActivityLogs(userId: string): Promise<ActivityLog[]> {
+        const { data, error } = await getSupabase()
+            .from('activity_logs')
+            .select('*')
+            .eq('user_id', userId)
+            .order('timestamp', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching user activity logs:', error);
             return [];
         }
         return (data || []).map(toActivityLog);
@@ -555,6 +660,46 @@ class Database {
             console.error('Error adding form response:', error);
         }
     }
+
+    // Documents
+    async getDocuments(projectId: string): Promise<Document[]> {
+        const { data, error } = await getSupabase()
+            .from('documents')
+            .select('*')
+            .eq('project_id', projectId)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching documents:', error);
+            return [];
+        }
+        return (data || []).map(toDocument);
+    }
+
+    async createDocument(doc: Document): Promise<Document | null> {
+        const { data, error } = await getSupabase()
+            .from('documents')
+            .insert({
+                id: doc.id,
+                project_id: doc.projectId,
+                title: doc.title,
+                type: doc.type,
+                content: doc.content,
+                file_path: doc.filePath,
+                file_type: doc.fileType,
+                size: doc.size,
+                created_by: doc.createdBy,
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error creating document:', error);
+            return null;
+        }
+        return toDocument(data);
+    }
+
 }
 
 export const db = new Database();

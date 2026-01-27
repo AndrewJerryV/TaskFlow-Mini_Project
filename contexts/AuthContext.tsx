@@ -9,6 +9,7 @@ interface AuthContextType {
     isLoading: boolean;
     login: (user: User) => void;
     logout: () => void;
+    setCurrentUser: (user: User | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,18 +26,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const init = async () => {
             try {
                 // Fetch available users
+                // Fetch available users
                 const res = await fetch('/api/users');
+                let data: User[] = [];
                 if (res.ok) {
-                    const data = await res.json();
+                    data = await res.json();
                     setUsers(Array.isArray(data) ? data : []);
                 }
 
-                // Restore session from localStorage
+                // Restore session from localStorage but prefer fresh data
                 const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
                 if (stored) {
                     try {
-                        const user = JSON.parse(stored);
-                        setCurrentUser(user);
+                        const storedUser = JSON.parse(stored);
+                        // Find the updated user object from the fresh API response
+                        const freshUser = Array.isArray(data) ? data.find((u: User) => u.id === storedUser.id) : null;
+
+                        if (freshUser) {
+                            setCurrentUser(freshUser);
+                            // Update local storage to match fresh data
+                            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(freshUser));
+                        } else {
+                            setCurrentUser(storedUser);
+                        }
                     } catch {
                         localStorage.removeItem(LOCAL_STORAGE_KEY);
                     }
@@ -62,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ currentUser, users, isLoading, login, logout }}>
+        <AuthContext.Provider value={{ currentUser, users, isLoading, login, logout, setCurrentUser }}>
             {children}
         </AuthContext.Provider>
     );

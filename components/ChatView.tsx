@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Message, Attachment } from '@/types';
 import { Send, MessageCircle, Paperclip, Image, FileText, X, Download, Calendar, PlayCircle } from 'lucide-react';
+import { MiniCalendar } from '@/components/ui/MiniCalendar';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUserName } from '@/lib/utils';
 
@@ -317,15 +318,13 @@ export default function ChatView({ projectId }: ChatViewProps) {
                             <Calendar size={16} />
                         </button>
                         {showDatePicker && (
-                            <div className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 z-20">
-                                <input
-                                    type="date"
-                                    value={jumpToDate}
-                                    onChange={(e) => {
-                                        setJumpToDate(e.target.value);
+                            <div className="absolute right-0 top-full mt-1 z-20">
+                                <MiniCalendar
+                                    onSelect={(dateStr) => {
+                                        setJumpToDate(dateStr);
                                         // Find the date separator for this date and scroll to it
                                         if (scrollRef.current) {
-                                            const targetDate = e.target.value;
+                                            const targetDate = dateStr;
                                             const dateSeparator = scrollRef.current.querySelector(`[data-date="${targetDate}"]`);
                                             if (dateSeparator) {
                                                 dateSeparator.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -343,7 +342,7 @@ export default function ChatView({ projectId }: ChatViewProps) {
                                         }
                                         setShowDatePicker(false);
                                     }}
-                                    className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                    currentDate={jumpToDate}
                                 />
                             </div>
                         )}

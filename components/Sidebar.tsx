@@ -34,12 +34,15 @@ export function Sidebar() {
                                 Dashboards
                             </Link>
                         </li>
-                        <li>
-                            <Link href="/people" className={`flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${pathname === '/people' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
-                                <Users size={18} className="mr-3 text-gray-400 dark:text-gray-500" />
-                                People
-                            </Link>
-                        </li>
+
+                        {(currentUser?.role === 'Admin' || currentUser?.role === 'Manager') && (
+                            <li>
+                                <Link href="/team" className={`flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${pathname === '/team' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+                                    <Users size={18} className="mr-3 text-gray-400 dark:text-gray-500" />
+                                    Team
+                                </Link>
+                            </li>
+                        )}
                         <li>
                             <Link href="/settings" className={`flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${pathname === '/settings' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
                                 <Settings size={18} className="mr-3 text-gray-400 dark:text-gray-500" />

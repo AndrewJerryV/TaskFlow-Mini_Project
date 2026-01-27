@@ -20,48 +20,46 @@ interface CalendarEvent {
 }
 
 const eventColors = {
+    // Map priorities to colors
+    High: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-700',
+    Medium: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-700',
+    Low: 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 border-green-200 dark:border-green-700',
+    Critical: 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-700',
+};
+
+const eventTypeColors = {
     task: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-700',
     meeting: 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-700',
     deadline: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-700',
     milestone: 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 border-green-200 dark:border-green-700',
 };
 
-const generateMockEvents = (): CalendarEvent[] => {
-    const today = new Date();
-    const events: CalendarEvent[] = [];
-
-    // Generate events for the current month
-    for (let i = -5; i < 15; i++) {
-        const date = new Date(today);
-        date.setDate(date.getDate() + i);
-        const dateStr = date.toISOString().split('T')[0];
-
-        if (Math.random() > 0.6) {
-            const types: CalendarEvent['type'][] = ['task', 'meeting', 'deadline', 'milestone'];
-            const type = types[Math.floor(Math.random() * types.length)];
-
-            events.push({
-                id: `event-${i}-${Math.random()}`,
-                title: type === 'task' ? `Task ${Math.abs(i) + 1}` :
-                    type === 'meeting' ? 'Team Sync' :
-                        type === 'deadline' ? 'Sprint End' :
-                            'Release v2.5',
-                date: dateStr,
-                type,
-                color: eventColors[type],
-                time: type === 'meeting' ? '10:00 AM' : undefined,
-                attendees: type === 'meeting' ? ['John', 'Jane', 'Bob'] : undefined,
-            });
-        }
-    }
-
-    return events;
+const toLocalISOString = (date: Date): string => {
+    const offset = date.getTimezoneOffset();
+    const localDate = new Date(date.getTime() - (offset * 60 * 1000));
+    return localDate.toISOString().split('T')[0];
 };
 
 export default function CalendarView({ projectId, tasks = [] }: CalendarViewProps) {
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [selectedDate, setSelectedDate] = useState<string | null>(null);
-    const [events, setEvents] = useState<CalendarEvent[]>(generateMockEvents);
+    const [selectedDate, setSelectedDate] = useState<string | null>(toLocalISOString(new Date()));
+
+    // Convert DB tasks to CalendarEvents
+    const [customEvents, setCustomEvents] = useState<CalendarEvent[]>([]);
+
+    // Convert DB tasks to CalendarEvents
+    const events: CalendarEvent[] = useMemo(() => {
+        const taskEvents: CalendarEvent[] = tasks.filter(t => t.dueDate).map(task => ({
+            id: task.id,
+            title: task.title,
+            date: task.dueDate?.split('T')[0] || '',
+            type: 'task',
+            color: eventColors[task.priority as keyof typeof eventColors] || eventColors.Medium,
+            time: task.dueDate?.includes('T') ? new Date(task.dueDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : undefined,
+        }));
+        return [...taskEvents, ...customEvents];
+    }, [tasks, customEvents]);
+
     const [showEventForm, setShowEventForm] = useState(false);
     const [newEvent, setNewEvent] = useState({ title: '', type: 'task' as CalendarEvent['type'], time: '' });
 
@@ -88,7 +86,10 @@ export default function CalendarView({ projectId, tasks = [] }: CalendarViewProp
         }
 
         // Next month days
-        const remainingDays = 42 - days.length;
+        // Only fill the remaining days of the current week (7 columns)
+        // If we end on a Saturday (idx 6, length % 7 == 0), we add 0 days.
+        const remainingDays = (7 - (days.length % 7)) % 7;
+
         for (let i = 1; i <= remainingDays; i++) {
             days.push({ date: new Date(year, month + 1, i), isCurrentMonth: false });
         }
@@ -111,7 +112,7 @@ export default function CalendarView({ projectId, tasks = [] }: CalendarViewProp
     };
 
     const getEventsForDate = (date: Date) => {
-        const dateStr = date.toISOString().split('T')[0];
+        const dateStr = toLocalISOString(date);
         return events.filter(e => e.date === dateStr);
     };
 
@@ -128,21 +129,28 @@ export default function CalendarView({ projectId, tasks = [] }: CalendarViewProp
             title: newEvent.title,
             date: selectedDate,
             type: newEvent.type,
-            color: eventColors[newEvent.type],
+            color: eventTypeColors[newEvent.type],
             time: newEvent.time || undefined,
         };
 
-        setEvents([...events, event]);
+        setCustomEvents([...customEvents, event]);
         setNewEvent({ title: '', type: 'task', time: '' });
         setShowEventForm(false);
     };
 
     const selectedDateEvents = selectedDate ? events.filter(e => e.date === selectedDate) : [];
 
+    const formattedSelectedDate = useMemo(() => {
+        if (!selectedDate) return '';
+        const [year, month, day] = selectedDate.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    }, [selectedDate]);
+
     return (
-        <div className="flex gap-6 h-full">
+        <div className="flex gap-6 h-full p-6">
             {/* Calendar Grid */}
-            <div className="flex-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="flex-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
                 {/* Header */}
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
                     <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
@@ -174,9 +182,9 @@ export default function CalendarView({ projectId, tasks = [] }: CalendarViewProp
                 </div>
 
                 {/* Calendar Grid */}
-                <div className="grid grid-cols-7 grid-rows-6">
+                <div className="flex-1 grid grid-cols-7 auto-rows-fr">
                     {daysInMonth.map(({ date, isCurrentMonth }, idx) => {
-                        const dateStr = date.toISOString().split('T')[0];
+                        const dateStr = toLocalISOString(date);
                         const dayEvents = getEventsForDate(date);
                         const isSelected = selectedDate === dateStr;
 
@@ -184,7 +192,7 @@ export default function CalendarView({ projectId, tasks = [] }: CalendarViewProp
                             <div
                                 key={idx}
                                 onClick={() => setSelectedDate(dateStr)}
-                                className={`min-h-[100px] p-2 border-r border-b border-gray-100 dark:border-gray-700 cursor-pointer transition-colors
+                                className={`p-1 border-r border-b border-gray-100 dark:border-gray-700 cursor-pointer transition-colors overflow-hidden
                                     ${isToday(date) ? 'bg-blue-50 dark:bg-blue-900/30' : !isCurrentMonth ? 'bg-gray-50 dark:bg-gray-900/50' : 'hover:bg-gray-50 dark:hover:bg-gray-700/30'}
                                     ${isSelected ? 'ring-2 ring-blue-500 ring-inset' : ''}
                                 `}
@@ -220,9 +228,7 @@ export default function CalendarView({ projectId, tasks = [] }: CalendarViewProp
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                     <div className="flex items-center justify-between mb-2">
                         <h3 className="font-semibold text-gray-900 dark:text-white">
-                            {selectedDate
-                                ? new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
-                                : 'Select a date'}
+                            {formattedSelectedDate}
                         </h3>
                         {selectedDate && (
                             <button
