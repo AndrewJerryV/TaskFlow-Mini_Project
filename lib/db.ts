@@ -10,10 +10,8 @@ function toUser(dbUser: DbUser): User {
         avatarUrl: dbUser.avatar_url,
         role: dbUser.role,
         createdAt: dbUser.created_at,
-        // Mock data for prototype - Deterministic based on ID
-        skills: dbUser.id === 'u1'
-            ? ['Frontend', 'Design', 'React', 'Product']
-            : ['Backend', 'AI', 'Machine Learning', 'Python', 'Database'],
+        // Use actual skills from database
+        skills: dbUser.skills || [],
         wellnessScore: dbUser.wellness_score || 85,
         maxWorkload: dbUser.max_workload || 5,
         burnoutRisk: 'Low',
@@ -698,6 +696,43 @@ class Database {
             return null;
         }
         return toDocument(data);
+    }
+
+    async deleteDocument(docId: string): Promise<boolean> {
+        const { error } = await getSupabase()
+            .from('documents')
+            .delete()
+            .eq('id', docId);
+
+        if (error) {
+            console.error('Error deleting document:', error);
+            return false;
+        }
+        return true;
+    }
+
+    async updateDocument(docId: string, updates: { title?: string; content?: string }): Promise<boolean> {
+        const updateData: Record<string, unknown> = {
+            updated_at: new Date().toISOString()
+        };
+
+        if (updates.title !== undefined) {
+            updateData.title = updates.title;
+        }
+        if (updates.content !== undefined) {
+            updateData.content = updates.content;
+        }
+
+        const { error } = await getSupabase()
+            .from('documents')
+            .update(updateData)
+            .eq('id', docId);
+
+        if (error) {
+            console.error('Error updating document:', error);
+            return false;
+        }
+        return true;
     }
 
 }

@@ -40,7 +40,10 @@ export default function PeoplePage() {
             email: inviteEmail,
             avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(inviteEmail.split('@')[0])}&background=random`,
             createdAt: new Date().toISOString(),
-            role: 'Member'
+            role: 'Member',
+            skills: [],
+            wellnessScore: 85,
+            maxWorkload: 5
         };
         setUsers([...users, newUser]);
         setInviteEmail('');

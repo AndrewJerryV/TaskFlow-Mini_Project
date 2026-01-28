@@ -187,19 +187,141 @@ CREATE POLICY "Allow all for comments" ON comments FOR ALL USING (true) WITH CHE
 CREATE POLICY "Allow all for forms" ON forms FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for form_responses" ON form_responses FOR ALL USING (true) WITH CHECK (true);
 
--- Seed initial users (using fixed UUIDs for compatibility)
-INSERT INTO users (id, name, email, role, avatar_url, skills, wellness_score, max_workload) VALUES
-  ('00000000-0000-0000-0000-000000000001', 'Andrew User', 'andrew@example.com', 'Admin', 'https://ui-avatars.com/api/?name=Andrew+User&background=0D8ABC&color=fff', ARRAY['Frontend', 'Design', 'React', 'Product'], 95, 5),
-  ('00000000-0000-0000-0000-000000000002', 'Jane Doe', 'jane@example.com', 'Manager', 'https://ui-avatars.com/api/?name=Jane+Doe&background=random', ARRAY['Backend', 'AI', 'Machine Learning', 'Python', 'Database'], 78, 5)
-ON CONFLICT (id) DO NOTHING;
+-- Seed initial users with realistic Indian details (using fixed UUIDs for compatibility)
+INSERT INTO users (id, name, email, role, avatar_url, skills, wellness_score, max_workload, phone, office_address, timezone, burnout_sensitivity, auto_assign, skill_match_priority) VALUES
+  (
+    '00000000-0000-0000-0000-000000000001',
+    'Andrew Jerry',
+    'andrew.jerry@taskflow.in',
+    'Admin',
+    'https://ui-avatars.com/api/?name=Andrew+Jerry&background=0066CC&color=fff&size=128',
+    ARRAY['React', 'Next.js', 'TypeScript', 'UI/UX Design', 'Product Management', 'Figma'],
+    92, 6,
+    '+91 98451 23456',
+    '42, Indiranagar 100 Feet Road, HAL 2nd Stage, Bangalore, Karnataka 560038',
+    'Asia/Kolkata', 2, true, true
+  ),
+  (
+    '00000000-0000-0000-0000-000000000002',
+    'Jane Sharma',
+    'jane.sharma@taskflow.in',
+    'Manager',
+    'https://ui-avatars.com/api/?name=Jane+Sharma&background=9C27B0&color=fff&size=128',
+    ARRAY['Python', 'Machine Learning', 'TensorFlow', 'Data Science', 'PostgreSQL', 'FastAPI'],
+    85, 5,
+    '+91 99001 54321',
+    'Tower B, Floor 12, DLF Cyber City, Sector 24, Gurgaon, Haryana 122002',
+    'Asia/Kolkata', 3, true, true
+  ),
+  (
+    '00000000-0000-0000-0000-000000000003',
+    'Jishnu Vijayan',
+    'jishnu.vijayan@taskflow.in',
+    'Member',
+    'https://ui-avatars.com/api/?name=Jishnu+Vijayan&background=4CAF50&color=fff&size=128',
+    ARRAY['Node.js', 'Express.js', 'MongoDB', 'Docker', 'AWS', 'Microservices', 'Redis'],
+    88, 5,
+    '+91 94461 78923',
+    'Technopark Campus, Phase 3, Kazhakkoottam, Thiruvananthapuram, Kerala 695581',
+    'Asia/Kolkata', 2, true, true
+  ),
+  (
+    '00000000-0000-0000-0000-000000000004',
+    'Felvin Jose',
+    'felvin.jose@taskflow.in',
+    'Member',
+    'https://ui-avatars.com/api/?name=Felvin+Jose&background=FF5722&color=fff&size=128',
+    ARRAY['Vue.js', 'Nuxt.js', 'GraphQL', 'Tailwind CSS', 'Firebase', 'Flutter', 'Dart'],
+    78, 4,
+    '+91 90724 56789',
+    '5th Floor, Kakkanad IT Park, Infopark SEZ, Kochi, Kerala 682030',
+    'Asia/Kolkata', 3, true, false
+  ),
+  (
+    '00000000-0000-0000-0000-000000000005',
+    'Milan Nair',
+    'milan.nair@taskflow.in',
+    'Member',
+    'https://ui-avatars.com/api/?name=Milan+Nair&background=2196F3&color=fff&size=128',
+    ARRAY['Kubernetes', 'Terraform', 'CI/CD', 'Jenkins', 'Azure', 'Linux', 'Shell Scripting', 'Prometheus'],
+    95, 6,
+    '+91 98254 32109',
+    'GIFT City Tower 2, Floor 8, Gandhinagar, Gujarat 382355',
+    'Asia/Kolkata', 1, true, true
+  ),
+  (
+    '00000000-0000-0000-0000-000000000006',
+    'Priya Menon',
+    'priya.menon@taskflow.in',
+    'Member',
+    'https://ui-avatars.com/api/?name=Priya+Menon&background=E91E63&color=fff&size=128',
+    ARRAY['Java', 'Spring Boot', 'MySQL', 'Hibernate', 'REST API', 'JUnit', 'Maven'],
+    90, 5,
+    '+91 94478 12345',
+    'Prestige Tech Park, Building 7, Marathahalli, Bangalore, Karnataka 560103',
+    'Asia/Kolkata', 2, true, true
+  ),
+  (
+    '00000000-0000-0000-0000-000000000007',
+    'Rahul Krishnan',
+    'rahul.krishnan@taskflow.in',
+    'Member',
+    'https://ui-avatars.com/api/?name=Rahul+Krishnan&background=673AB7&color=fff&size=128',
+    ARRAY['Angular', 'RxJS', 'NgRx', 'TypeScript', 'SCSS', 'Jest', 'Cypress'],
+    82, 5,
+    '+91 98765 09876',
+    'Embassy Golf Links, Block C, Koramangala, Bangalore, Karnataka 560071',
+    'Asia/Kolkata', 2, true, true
+  ),
+  (
+    '00000000-0000-0000-0000-000000000008',
+    'Sneha Gupta',
+    'sneha.gupta@taskflow.in',
+    'Manager',
+    'https://ui-avatars.com/api/?name=Sneha+Gupta&background=00BCD4&color=fff&size=128',
+    ARRAY['Agile', 'Scrum', 'JIRA', 'Confluence', 'Project Management', 'Stakeholder Management', 'Risk Analysis'],
+    88, 4,
+    '+91 99100 88776',
+    'WeWork Galaxy, Residency Road, Ashok Nagar, Bangalore, Karnataka 560025',
+    'Asia/Kolkata', 3, false, true
+  ),
+  (
+    '00000000-0000-0000-0000-000000000009',
+    'Arun Pillai',
+    'arun.pillai@taskflow.in',
+    'Member',
+    'https://ui-avatars.com/api/?name=Arun+Pillai&background=009688&color=fff&size=128',
+    ARRAY['iOS', 'Swift', 'SwiftUI', 'Objective-C', 'Xcode', 'Core Data', 'ARKit'],
+    86, 5,
+    '+91 94955 67890',
+    'SmartCity Kochi, Tower 3, Kakkanad, Kochi, Kerala 682042',
+    'Asia/Kolkata', 2, true, true
+  ),
+  (
+    '00000000-0000-0000-0000-000000000010',
+    'Divya Reddy',
+    'divya.reddy@taskflow.in',
+    'Member',
+    'https://ui-avatars.com/api/?name=Divya+Reddy&background=FF9800&color=fff&size=128',
+    ARRAY['QA', 'Selenium', 'Appium', 'Postman', 'API Testing', 'Performance Testing', 'JMeter'],
+    91, 5,
+    '+91 90001 23456',
+    'Raheja Mindspace, Tower 2, HITEC City, Hyderabad, Telangana 500081',
+    'Asia/Kolkata', 1, true, true
+  )
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  email = EXCLUDED.email,
+  role = EXCLUDED.role,
+  avatar_url = EXCLUDED.avatar_url,
+  skills = EXCLUDED.skills,
+  wellness_score = EXCLUDED.wellness_score,
+  max_workload = EXCLUDED.max_workload,
+  phone = EXCLUDED.phone,
+  office_address = EXCLUDED.office_address,
+  timezone = EXCLUDED.timezone,
+  burnout_sensitivity = EXCLUDED.burnout_sensitivity,
+  auto_assign = EXCLUDED.auto_assign,
+  skill_match_priority = EXCLUDED.skill_match_priority;
 
--- Generic update for any other users
-UPDATE users SET skills = ARRAY['Frontend', 'Backend', 'Design', 'DevOps', 'Testing', 'Database', 'API', 'AI', 'Machine Learning', 'Python'], wellness_score = 80, max_workload = 5 WHERE skills = '{}' OR skills IS NULL;
 
--- Add contact columns if missing
-ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS office_address TEXT;
-
--- Seed Indian Contact Info
-UPDATE users SET phone = '+91 98765 43210', office_address = '123, Tech Park, Whitefield, Bangalore, KA' WHERE email = 'andrew@example.com';
-UPDATE users SET phone = '+91 99887 76655', office_address = '456, Cyber City, Gurgaon, HR' WHERE email = 'jane@example.com';

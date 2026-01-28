@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, TrendingDown, Users, CheckCircle, Clock, AlertTriangle, Download, Filter, Calendar } from 'lucide-react';
-import { Task } from '@/types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { BarChart3, Users, CheckCircle, Clock, AlertTriangle, Download, Filter, X } from 'lucide-react';
+import { Task, User } from '@/types';
 
 interface ReportsViewProps {
     projectId: string;
@@ -12,15 +12,26 @@ interface ReportsViewProps {
 interface MetricCard {
     title: string;
     value: string | number;
-    change: number;
     icon: React.ReactNode;
     color: string;
 }
 
+interface FilterState {
+    status: string[];
+    priority: string[];
+    assignee: string;
+}
+
 export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps) {
-    const [timeRange, setTimeRange] = useState('month');
-    const [reportType, setReportType] = useState('overview');
+    const [timeRange, setTimeRange] = useState('all');
     const [projectTasks, setProjectTasks] = useState<Task[]>(tasks);
+    const [users, setUsers] = useState<User[]>([]);
+    const [showFilters, setShowFilters] = useState(false);
+    const [filters, setFilters] = useState<FilterState>({
+        status: [],
+        priority: [],
+        assignee: ''
+    });
 
     // Fetch tasks if not provided
     useEffect(() => {
@@ -32,15 +43,70 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
         }
     }, [projectId, tasks]);
 
-    // Calculate metrics
-    const totalTasks = projectTasks.length;
-    const completedTasks = projectTasks.filter(t => t.status === 'Done').length;
-    const inProgressTasks = projectTasks.filter(t => t.status === 'In Progress').length;
-    const todoTasks = projectTasks.filter(t => t.status === 'To Do').length;
+    // Fetch users for assignee filter
+    useEffect(() => {
+        fetch('/api/users')
+            .then(res => res.json())
+            .then(data => setUsers(Array.isArray(data) ? data : []))
+            .catch(console.error);
+    }, []);
+
+    // Filter tasks by time range
+    const getTimeRangeDate = () => {
+        const now = new Date();
+        switch (timeRange) {
+            case 'week':
+                return new Date(now.setDate(now.getDate() - 7));
+            case 'month':
+                return new Date(now.setDate(now.getDate() - 30));
+            case 'quarter':
+                return new Date(now.setDate(now.getDate() - 90));
+            case 'year':
+                return new Date(now.setFullYear(now.getFullYear() - 1));
+            default:
+                return new Date(0); // All time
+        }
+    };
+
+    // Apply all filters
+    const filteredTasks = useMemo(() => {
+        const timeRangeDate = getTimeRangeDate();
+
+        return projectTasks.filter(task => {
+            // Time range filter (only if not "all")
+            if (timeRange !== 'all') {
+                const taskDate = new Date(task.createdAt || task.updatedAt || new Date());
+                if (taskDate < timeRangeDate) return false;
+            }
+
+            // Status filter
+            if (filters.status.length > 0 && !filters.status.includes(task.status)) {
+                return false;
+            }
+
+            // Priority filter
+            if (filters.priority.length > 0 && !filters.priority.includes(task.priority)) {
+                return false;
+            }
+
+            // Assignee filter
+            if (filters.assignee && task.assigneeId !== filters.assignee) {
+                return false;
+            }
+
+            return true;
+        });
+    }, [projectTasks, timeRange, filters]);
+
+    // Calculate metrics from filtered tasks (100% real data)
+    const totalTasks = filteredTasks.length;
+    const completedTasks = filteredTasks.filter(t => t.status === 'Done').length;
+    const inProgressTasks = filteredTasks.filter(t => t.status === 'In Progress').length;
+    const todoTasks = filteredTasks.filter(t => t.status === 'To Do').length;
+    const reviewTasks = filteredTasks.filter(t => t.status === 'Review').length;
     const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-    const highPriorityTasks = projectTasks.filter(t => t.priority === 'High' || t.priority === 'Critical').length;
-    const overdueTasks = projectTasks.filter(t => {
+    const overdueTasks = filteredTasks.filter(t => {
         if (!t.dueDate) return false;
         return new Date(t.dueDate) < new Date() && t.status !== 'Done';
     }).length;
@@ -49,61 +115,113 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
         {
             title: 'Total Tasks',
             value: totalTasks,
-            change: 12,
             icon: <BarChart3 size={20} />,
             color: 'bg-blue-500'
         },
         {
             title: 'Completed',
             value: completedTasks,
-            change: 8,
             icon: <CheckCircle size={20} />,
             color: 'bg-green-500'
         },
         {
             title: 'In Progress',
             value: inProgressTasks,
-            change: -2,
             icon: <Clock size={20} />,
             color: 'bg-yellow-500'
         },
         {
             title: 'Overdue',
             value: overdueTasks,
-            change: 1,
             icon: <AlertTriangle size={20} />,
             color: 'bg-red-500'
         }
     ];
 
-    // Status distribution for chart
+    // Status distribution (real data)
     const statusDistribution = [
         { status: 'To Do', count: todoTasks, color: 'bg-gray-400' },
         { status: 'In Progress', count: inProgressTasks, color: 'bg-blue-500' },
-        { status: 'Review', count: projectTasks.filter(t => t.status === 'Review').length, color: 'bg-purple-500' },
+        { status: 'Review', count: reviewTasks, color: 'bg-purple-500' },
         { status: 'Done', count: completedTasks, color: 'bg-green-500' }
     ];
 
-    // Priority distribution
+    // Priority distribution (real data)
     const priorityDistribution = [
-        { priority: 'Critical', count: projectTasks.filter(t => t.priority === 'Critical').length, color: 'bg-red-600' },
-        { priority: 'High', count: projectTasks.filter(t => t.priority === 'High').length, color: 'bg-orange-500' },
-        { priority: 'Medium', count: projectTasks.filter(t => t.priority === 'Medium').length, color: 'bg-yellow-500' },
-        { priority: 'Low', count: projectTasks.filter(t => t.priority === 'Low').length, color: 'bg-green-500' }
+        { priority: 'Critical', count: filteredTasks.filter(t => t.priority === 'Critical').length, color: 'bg-red-600' },
+        { priority: 'High', count: filteredTasks.filter(t => t.priority === 'High').length, color: 'bg-orange-500' },
+        { priority: 'Medium', count: filteredTasks.filter(t => t.priority === 'Medium').length, color: 'bg-yellow-500' },
+        { priority: 'Low', count: filteredTasks.filter(t => t.priority === 'Low').length, color: 'bg-green-500' }
     ];
 
-    // Weekly progress simulation
-    const weeklyProgress = [
-        { day: 'Mon', completed: 3, created: 5 },
-        { day: 'Tue', completed: 5, created: 2 },
-        { day: 'Wed', completed: 4, created: 4 },
-        { day: 'Thu', completed: 6, created: 3 },
-        { day: 'Fri', completed: 8, created: 6 },
-        { day: 'Sat', completed: 2, created: 1 },
-        { day: 'Sun', completed: 1, created: 0 }
-    ];
+    // Team performance from actual database (real data)
+    const getTeamPerformance = () => {
+        const userMap = new Map<string, { name: string; assigned: number; completed: number; inProgress: number }>();
 
-    const maxWeeklyValue = Math.max(...weeklyProgress.flatMap(d => [d.completed, d.created]), 1);
+        users.forEach(user => {
+            userMap.set(user.id, { name: user.name, assigned: 0, completed: 0, inProgress: 0 });
+        });
+
+        filteredTasks.forEach(task => {
+            if (task.assigneeId && userMap.has(task.assigneeId)) {
+                const user = userMap.get(task.assigneeId)!;
+                user.assigned++;
+                if (task.status === 'Done') user.completed++;
+                if (task.status === 'In Progress') user.inProgress++;
+            }
+        });
+
+        return Array.from(userMap.values()).filter(u => u.assigned > 0);
+    };
+
+    const teamPerformance = getTeamPerformance();
+
+    // Unassigned tasks count (real data)
+    const unassignedTasks = filteredTasks.filter(t => !t.assigneeId).length;
+
+    // Export to CSV
+    const handleExport = () => {
+        const headers = ['Title', 'Status', 'Priority', 'Assignee', 'Due Date', 'Created At'];
+        const rows = filteredTasks.map(task => {
+            const assignee = users.find(u => u.id === task.assigneeId);
+            return [
+                task.title,
+                task.status,
+                task.priority,
+                assignee?.name || 'Unassigned',
+                task.dueDate ? new Date(task.dueDate).toLocaleDateString() : '',
+                task.createdAt ? new Date(task.createdAt).toLocaleDateString() : ''
+            ];
+        });
+
+        const csv = [headers.join(','), ...rows.map(row => row.map(cell => `"${cell}"`).join(','))].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `report-${projectId}-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    // Toggle filter value
+    const toggleFilter = (type: 'status' | 'priority', value: string) => {
+        setFilters(prev => {
+            const current = prev[type];
+            if (current.includes(value)) {
+                return { ...prev, [type]: current.filter(v => v !== value) };
+            } else {
+                return { ...prev, [type]: [...current, value] };
+            }
+        });
+    };
+
+    // Clear all filters
+    const clearFilters = () => {
+        setFilters({ status: [], priority: [], assignee: '' });
+    };
+
+    const activeFilterCount = filters.status.length + filters.priority.length + (filters.assignee ? 1 : 0);
 
     return (
         <div className="space-y-6">
@@ -115,7 +233,7 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
                         Project Reports
                     </h2>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        Analytics and insights for your project
+                        Analytics based on {totalTasks} task{totalTasks !== 1 ? 's' : ''} from database
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -124,33 +242,124 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
                         onChange={(e) => setTimeRange(e.target.value)}
                         className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                     >
+                        <option value="all">All Time</option>
                         <option value="week">Last 7 days</option>
                         <option value="month">Last 30 days</option>
                         <option value="quarter">Last 90 days</option>
                         <option value="year">Last year</option>
                     </select>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                    <button
+                        onClick={() => setShowFilters(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors relative"
+                    >
                         <Filter size={16} />
                         Filters
+                        {activeFilterCount > 0 && (
+                            <span className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 text-white text-xs rounded-full flex items-center justify-center">
+                                {activeFilterCount}
+                            </span>
+                        )}
                     </button>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <button
+                        onClick={handleExport}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
                         <Download size={16} />
-                        Export
+                        Export CSV
                     </button>
                 </div>
             </div>
 
-            {/* Metric Cards */}
+            {/* Filters Modal */}
+            {showFilters && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowFilters(false)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Filter Reports</h3>
+                            <button onClick={() => setShowFilters(false)} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Status Filter */}
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
+                            <div className="flex flex-wrap gap-2">
+                                {['To Do', 'In Progress', 'Review', 'Done'].map(status => (
+                                    <button
+                                        key={status}
+                                        onClick={() => toggleFilter('status', status)}
+                                        className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${filters.status.includes(status)
+                                                ? 'bg-blue-500 text-white'
+                                                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                                            }`}
+                                    >
+                                        {status}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Priority Filter */}
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Priority</label>
+                            <div className="flex flex-wrap gap-2">
+                                {['Critical', 'High', 'Medium', 'Low'].map(priority => (
+                                    <button
+                                        key={priority}
+                                        onClick={() => toggleFilter('priority', priority)}
+                                        className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${filters.priority.includes(priority)
+                                                ? 'bg-blue-500 text-white'
+                                                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                                            }`}
+                                    >
+                                        {priority}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Assignee Filter */}
+                        <div className="mb-6">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Assignee</label>
+                            <select
+                                value={filters.assignee}
+                                onChange={(e) => setFilters(prev => ({ ...prev, assignee: e.target.value }))}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            >
+                                <option value="">All Team Members</option>
+                                {users.map(user => (
+                                    <option key={user.id} value={user.id}>{user.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-3">
+                            <button
+                                onClick={clearFilters}
+                                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                            >
+                                Clear All
+                            </button>
+                            <button
+                                onClick={() => setShowFilters(false)}
+                                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                                Apply Filters
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Metric Cards - All Real Data */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {metrics.map((metric, idx) => (
                     <div key={idx} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
                         <div className="flex items-center justify-between mb-3">
                             <div className={`w-10 h-10 ${metric.color} rounded-lg flex items-center justify-center text-white`}>
                                 {metric.icon}
-                            </div>
-                            <div className={`flex items-center gap-1 text-sm ${metric.change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                {metric.change >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
-                                {Math.abs(metric.change)}%
                             </div>
                         </div>
                         <p className="text-2xl font-bold text-gray-900 dark:text-white">{metric.value}</p>
@@ -160,7 +369,7 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Completion Rate */}
+                {/* Completion Rate - Real Data */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
                     <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Completion Rate</h3>
                     <div className="flex items-center justify-center">
@@ -203,7 +412,7 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
                     </div>
                 </div>
 
-                {/* Status Distribution */}
+                {/* Status Distribution - Real Data */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
                     <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Status Distribution</h3>
                     <div className="space-y-4">
@@ -226,32 +435,7 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Weekly Progress Chart */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-                    <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Weekly Progress</h3>
-                    <div className="flex items-end justify-between h-48 gap-2">
-                        {weeklyProgress.map((day, idx) => (
-                            <div key={idx} className="flex-1 flex flex-col items-center gap-1">
-                                <div className="w-full flex flex-col items-center gap-1 h-40 justify-end">
-                                    <div
-                                        className="w-full bg-green-500 rounded-t transition-all duration-500"
-                                        style={{ height: `${(day.completed / maxWeeklyValue) * 100}%` }}
-                                        title={`Completed: ${day.completed}`}
-                                    />
-                                </div>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">{day.day}</span>
-                            </div>
-                        ))}
-                    </div>
-                    <div className="flex items-center justify-center gap-6 mt-4">
-                        <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-green-500 rounded" />
-                            <span className="text-xs text-gray-500 dark:text-gray-400">Completed</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Priority Distribution */}
+                {/* Priority Distribution - Real Data */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
                     <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Priority Breakdown</h3>
                     <div className="space-y-3">
@@ -279,13 +463,32 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
                         ))}
                     </div>
                 </div>
+
+                {/* Assignment Overview - Real Data */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                    <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Assignment Overview</h3>
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Assigned Tasks</span>
+                            <span className="text-lg font-semibold text-gray-900 dark:text-white">{totalTasks - unassignedTasks}</span>
+                        </div>
+                        <div className="flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                            <span className="text-sm text-orange-600 dark:text-orange-400">Unassigned Tasks</span>
+                            <span className="text-lg font-semibold text-orange-600 dark:text-orange-400">{unassignedTasks}</span>
+                        </div>
+                        <div className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                            <span className="text-sm text-red-600 dark:text-red-400">Overdue Tasks</span>
+                            <span className="text-lg font-semibold text-red-600 dark:text-red-400">{overdueTasks}</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            {/* Team Performance (Simulated) */}
+            {/* Team Performance - Real Data from Database */}
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
                 <h3 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                     <Users size={20} className="text-blue-500" />
-                    Team Performance
+                    Team Performance (From Database)
                 </h3>
                 <div className="overflow-x-auto">
                     <table className="w-full">
@@ -299,12 +502,7 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                            {[
-                                { name: 'John Doe', assigned: 12, completed: 8, inProgress: 3 },
-                                { name: 'Jane Smith', assigned: 15, completed: 12, inProgress: 2 },
-                                { name: 'Bob Wilson', assigned: 8, completed: 5, inProgress: 2 },
-                                { name: 'Alice Brown', assigned: 10, completed: 7, inProgress: 2 }
-                            ].map((member, idx) => (
+                            {teamPerformance.length > 0 ? teamPerformance.map((member, idx) => (
                                 <tr key={idx} className="text-sm">
                                     <td className="py-3">
                                         <div className="flex items-center gap-3">
@@ -322,18 +520,63 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
                                             <div className="w-24 bg-gray-100 dark:bg-gray-700 rounded-full h-2">
                                                 <div
                                                     className="bg-green-500 h-2 rounded-full"
-                                                    style={{ width: `${Math.round((member.completed / member.assigned) * 100)}%` }}
+                                                    style={{ width: `${member.assigned > 0 ? Math.round((member.completed / member.assigned) * 100) : 0}%` }}
                                                 />
                                             </div>
                                             <span className="text-gray-600 dark:text-gray-400">
-                                                {Math.round((member.completed / member.assigned) * 100)}%
+                                                {member.assigned > 0 ? Math.round((member.completed / member.assigned) * 100) : 0}%
                                             </span>
                                         </div>
                                     </td>
                                 </tr>
-                            ))}
+                            )) : (
+                                <tr>
+                                    <td colSpan={5} className="py-6 text-center text-gray-500 dark:text-gray-400">
+                                        No team members with assigned tasks found
+                                    </td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            {/* Task List Preview - Real Data */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
+                    Recent Tasks ({filteredTasks.length} total)
+                </h3>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {filteredTasks.slice(0, 10).map((task, idx) => {
+                        const assignee = users.find(u => u.id === task.assigneeId);
+                        return (
+                            <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-2 h-2 rounded-full ${task.priority === 'Critical' ? 'bg-red-500' :
+                                            task.priority === 'High' ? 'bg-orange-500' :
+                                                task.priority === 'Medium' ? 'bg-yellow-500' : 'bg-green-500'
+                                        }`} />
+                                    <span className="text-sm text-gray-900 dark:text-white">{task.title}</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <span className={`text-xs px-2 py-1 rounded ${task.status === 'Done' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                                            task.status === 'In Progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                                                'bg-gray-100 text-gray-700 dark:bg-gray-600 dark:text-gray-300'
+                                        }`}>
+                                        {task.status}
+                                    </span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                        {assignee?.name || 'Unassigned'}
+                                    </span>
+                                </div>
+                            </div>
+                        );
+                    })}
+                    {filteredTasks.length === 0 && (
+                        <p className="text-center text-gray-500 dark:text-gray-400 py-4">
+                            No tasks found with current filters
+                        </p>
+                    )}
                 </div>
             </div>
         </div>

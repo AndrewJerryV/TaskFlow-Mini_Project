@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
-import { Priority, Status, Task } from '@/types';
+import { Priority, Status, Task, User } from '@/types';
 
 interface CreateTaskDialogProps {
     isOpen: boolean;
@@ -18,13 +18,35 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
     const [priority, setPriority] = useState<Priority>('Medium');
     const [startDate, setStartDate] = useState('');
     const [dueDate, setDueDate] = useState('');
-    const [assigneeId, setAssigneeId] = useState('u1'); // Default to current user for prototype
+    const [assigneeId, setAssigneeId] = useState('');
+
+    // Users list from API
+    const [users, setUsers] = useState<User[]>([]);
+    const [loadingUsers, setLoadingUsers] = useState(false);
 
     // AI State
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [aiReasoning, setAiReasoning] = useState<string | null>(null);
     const [aiRisk, setAiRisk] = useState<'Low' | 'Medium' | 'High'>('Low');
     const dataRef = React.useRef<any>(null); // Store full response for debug
+
+    // Fetch users when dialog opens
+    useEffect(() => {
+        if (isOpen) {
+            setLoadingUsers(true);
+            fetch('/api/users')
+                .then(res => res.json())
+                .then(data => {
+                    setUsers(data);
+                    // Set default assignee to first user if available
+                    if (data.length > 0 && !assigneeId) {
+                        setAssigneeId(data[0].id);
+                    }
+                })
+                .catch(console.error)
+                .finally(() => setLoadingUsers(false));
+        }
+    }, [isOpen]);
 
     const handleSmartAssign = async () => {
         if (!title) {
@@ -88,7 +110,11 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
         setStatus('To Do');
         setStartDate('');
         setDueDate('');
+        setAiReasoning(null);
     };
+
+    // Get selected user's skills for display
+    const selectedUser = users.find(u => u.id === assigneeId);
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Create Issue">
@@ -124,12 +150,35 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
                             className="w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 text-sm bg-white dark:bg-gray-800 dark:text-white"
                             value={assigneeId}
                             onChange={e => setAssigneeId(e.target.value)}
+                            disabled={loadingUsers}
                         >
-                            <option value="u1">Andrew User (Admin)</option>
-                            <option value="u2">Jane Doe (Manager)</option>
-                            {/* In real app, map other users here */}
+                            {loadingUsers ? (
+                                <option>Loading users...</option>
+                            ) : users.length === 0 ? (
+                                <option>No users available</option>
+                            ) : (
+                                users.map(user => (
+                                    <option key={user.id} value={user.id}>
+                                        {user.name} ({user.role}) - {user.skills?.slice(0, 3).join(', ') || 'No skills'}
+                                    </option>
+                                ))
+                            )}
                         </select>
                     </div>
+
+                    {/* Show selected user's skills */}
+                    {selectedUser && selectedUser.skills && selectedUser.skills.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-2">
+                            {selectedUser.skills.map((skill, idx) => (
+                                <span
+                                    key={idx}
+                                    className="text-[10px] px-1.5 py-0.5 bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200 rounded"
+                                >
+                                    {skill}
+                                </span>
+                            ))}
+                        </div>
+                    )}
 
                     {aiReasoning && (
                         <div className="space-y-2">
@@ -146,7 +195,10 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
                                 {(dataRef.current?.allCandidates || []).map((c: any) => (
                                     <div key={c.name} className="flex justify-between">
                                         <span>{c.name}</span>
-                                        <span>Score: {Math.round(c.score)} ({c.risk})</span>
+                                        <span>
+                                            Score: {c.score} ({c.risk})
+                                            {c.matchingSkills?.length > 0 && ` • Skills: ${c.matchingSkills.join(', ')}`}
+                                        </span>
                                     </div>
                                 ))}
                             </div>

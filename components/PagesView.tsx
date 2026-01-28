@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { FileText, BarChart3, Plus, X, Edit3, Calendar, User, ArrowLeft, Save, Trash2, Download, Presentation, FileSpreadsheet } from 'lucide-react';
+import { FileText, BarChart3, Plus, X, Edit3, Calendar, User, ArrowLeft, Save, Trash2, Download, Presentation, FileSpreadsheet, MoreVertical, Pencil } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface Page {
@@ -133,6 +133,9 @@ export default function PagesView({ projectId }: PagesViewProps) {
     const [isCreating, setIsCreating] = useState(false);
     const [newPageTitle, setNewPageTitle] = useState('');
     const [uploading, setUploading] = useState(false);
+    const [renamingPageId, setRenamingPageId] = useState<string | null>(null);
+    const [renameValue, setRenameValue] = useState('');
+    const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
     const { currentUser } = useAuth();
 
@@ -182,8 +185,6 @@ export default function PagesView({ projectId }: PagesViewProps) {
     const handleSave = async () => {
         if (selectedPage) {
             // Optimistic Update
-            // TODO: Implement PATCH API for updates
-            alert("Update API implementation is pending. This is a local update only.");
             const updatedPages = pages.map(p =>
                 p.id === selectedPage.id
                     ? { ...p, title: editTitle, content: editContent, updatedAt: new Date().toISOString(), updatedBy: currentUser?.name || 'You' }
@@ -192,14 +193,72 @@ export default function PagesView({ projectId }: PagesViewProps) {
             setPages(updatedPages);
             setSelectedPage({ ...selectedPage, title: editTitle, content: editContent, updatedAt: new Date().toISOString(), updatedBy: currentUser?.name || 'You' });
             setIsEditing(false);
+
+            // Persist to database
+            try {
+                const response = await fetch(`/api/documents/${selectedPage.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: editTitle, content: editContent })
+                });
+                if (!response.ok) {
+                    console.error('Failed to save page');
+                }
+            } catch (error) {
+                console.error('Save error:', error);
+            }
         }
     };
 
     const handleDelete = async () => {
         if (selectedPage && confirm('Are you sure you want to delete this page?')) {
-            // TODO: API Delete
+            await deleteDocument(selectedPage.id);
             setPages(pages.filter(p => p.id !== selectedPage.id));
             setSelectedPage(null);
+        }
+    };
+
+    const deleteDocument = async (docId: string) => {
+        try {
+            await fetch(`/api/documents/${docId}`, { method: 'DELETE' });
+        } catch (error) {
+            console.error('Delete error:', error);
+        }
+    };
+
+    const handleDeleteFromList = async (e: React.MouseEvent, pageId: string) => {
+        e.stopPropagation();
+        setMenuOpenId(null);
+        if (confirm('Are you sure you want to delete this document?')) {
+            await deleteDocument(pageId);
+            setPages(pages.filter(p => p.id !== pageId));
+        }
+    };
+
+    const handleStartRename = (e: React.MouseEvent, page: any) => {
+        e.stopPropagation();
+        setMenuOpenId(null);
+        setRenamingPageId(page.id);
+        setRenameValue(page.title);
+    };
+
+    const handleRenameSubmit = async (e: React.FormEvent, pageId: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (renameValue.trim()) {
+            // Optimistic update
+            setPages(pages.map(p => p.id === pageId ? { ...p, title: renameValue.trim() } : p));
+            setRenamingPageId(null);
+            // API call to rename
+            try {
+                await fetch(`/api/documents/${pageId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: renameValue.trim() })
+                });
+            } catch (error) {
+                console.error('Rename error:', error);
+            }
         }
     };
 
@@ -208,7 +267,7 @@ export default function PagesView({ projectId }: PagesViewProps) {
             const formData = new FormData();
             formData.append('type', 'page');
             formData.append('projectId', projectId);
-            formData.append('userId', currentUser?.id || 'u1');
+            formData.append('userId', currentUser?.id || '00000000-0000-0000-0000-000000000001');
             formData.append('title', newPageTitle.trim());
             formData.append('content', `# ${newPageTitle.trim()}\n\nStart writing your content here...`);
 
@@ -238,7 +297,7 @@ export default function PagesView({ projectId }: PagesViewProps) {
         const formData = new FormData();
         formData.append('type', 'file');
         formData.append('projectId', projectId);
-        formData.append('userId', currentUser?.id || 'u1');
+        formData.append('userId', currentUser?.id || '00000000-0000-0000-0000-000000000001');
         formData.append('file', file);
 
         try {
@@ -449,8 +508,8 @@ export default function PagesView({ projectId }: PagesViewProps) {
             {loading ? (
                 <div className="text-center py-10 text-gray-500">Loading documents...</div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {pages.map((page) => {
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    {pages.filter(page => page != null).map((page) => {
                         // Determine icon
                         let IconComponent = FileText;
                         let iconColor = "text-gray-400 dark:text-gray-500";
@@ -482,15 +541,56 @@ export default function PagesView({ projectId }: PagesViewProps) {
                         return (
                             <div
                                 key={page.id}
-                                onClick={() => handlePageClick(page)}
-                                className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-md cursor-pointer group transition-all"
+                                onClick={() => !renamingPageId && handlePageClick(page)}
+                                className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-md cursor-pointer group transition-all relative"
                             >
-                                <div className="h-32 bg-gray-100 dark:bg-gray-700 rounded-md mb-3 flex items-center justify-center group-hover:bg-blue-50 dark:group-hover:bg-blue-900/30 transition-colors">
-                                    <IconComponent size={48} className={iconColor} />
+                                {/* Action Menu Button - Bottom Right */}
+                                <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === page.id ? null : page.id); }}
+                                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                                    >
+                                        <MoreVertical size={16} className="text-gray-500 dark:text-gray-400" />
+                                    </button>
+                                    {/* Dropdown Menu - Opens upward */}
+                                    {menuOpenId === page.id && (
+                                        <div className="absolute right-0 bottom-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg py-1 min-w-[120px] z-20">
+                                            <button
+                                                onClick={(e) => handleStartRename(e, page)}
+                                                className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                                            >
+                                                <Pencil size={14} /> Rename
+                                            </button>
+                                            <button
+                                                onClick={(e) => handleDeleteFromList(e, page.id)}
+                                                className="w-full px-3 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+                                            >
+                                                <Trash2 size={14} /> Delete
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
-                                <h3 className="font-semibold text-gray-800 dark:text-white truncate" title={page.title}>{page.title}</h3>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    Updated {new Date(page.updatedAt || new Date()).toLocaleDateString()}
+
+                                <div className="h-24 bg-gray-100 dark:bg-gray-700 rounded-md mb-2 flex items-center justify-center group-hover:bg-blue-50 dark:group-hover:bg-blue-900/30 transition-colors">
+                                    <IconComponent size={36} className={iconColor} />
+                                </div>
+
+                                {renamingPageId === page.id ? (
+                                    <form onSubmit={(e) => handleRenameSubmit(e, page.id)} onClick={(e) => e.stopPropagation()}>
+                                        <input
+                                            type="text"
+                                            value={renameValue}
+                                            onChange={(e) => setRenameValue(e.target.value)}
+                                            onBlur={() => setRenamingPageId(null)}
+                                            autoFocus
+                                            className="w-full px-2 py-1 text-sm border border-blue-400 rounded bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none"
+                                        />
+                                    </form>
+                                ) : (
+                                    <h3 className="font-medium text-sm text-gray-800 dark:text-white truncate" title={page.title}>{page.title}</h3>
+                                )}
+                                <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                                    {new Date(page.updatedAt || new Date()).toLocaleDateString()}
                                 </p>
                             </div>
                         );
@@ -524,31 +624,35 @@ export default function PagesView({ projectId }: PagesViewProps) {
                             </div>
                         </div>
                     ) : (
-                        <div className="flex gap-4">
+                        <>
                             {/* Create Page Button */}
                             <div
                                 onClick={() => setIsCreating(true)}
-                                className="flex-1 bg-white dark:bg-gray-800 p-4 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-600 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 cursor-pointer transition-colors min-h-[180px]"
+                                className="bg-white dark:bg-gray-800 p-3 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-600 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex flex-col items-center text-gray-400 dark:text-gray-500 cursor-pointer transition-colors"
                             >
-                                <Plus size={32} className="mb-1" />
-                                <span>Create Page</span>
+                                <div className="h-24 flex items-center justify-center">
+                                    <Plus size={36} />
+                                </div>
+                                <h3 className="font-medium text-sm">Create Page</h3>
+                                <p className="text-[10px]">&nbsp;</p>
                             </div>
 
                             {/* Upload File Button */}
                             <div
                                 onClick={() => fileInputRef.current?.click()}
-                                className="flex-1 bg-white dark:bg-gray-800 p-4 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-600 hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 cursor-pointer transition-colors min-h-[180px]"
+                                className="bg-white dark:bg-gray-800 p-3 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-600 hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 flex flex-col items-center text-gray-400 dark:text-gray-500 cursor-pointer transition-colors"
                             >
-                                {uploading ? (
-                                    <span>Uploading...</span>
-                                ) : (
-                                    <>
-                                        <Download size={32} className="mb-1 rotate-180" /> {/* Upload icon substitute */}
-                                        <span>Upload File</span>
-                                    </>
-                                )}
+                                <div className="h-24 flex items-center justify-center">
+                                    {uploading ? (
+                                        <span>Uploading...</span>
+                                    ) : (
+                                        <Download size={36} className="rotate-180" />
+                                    )}
+                                </div>
+                                <h3 className="font-medium text-sm">Upload File</h3>
+                                <p className="text-[10px]">&nbsp;</p>
                             </div>
-                        </div>
+                        </>
                     )}
                 </div>
             )}
