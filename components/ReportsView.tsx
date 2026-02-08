@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { BarChart3, Users, CheckCircle, Clock, AlertTriangle, Download, Filter, X } from 'lucide-react';
 import { Task, User } from '@/types';
+import { getTimeRangeDate, isOverdue } from '@/lib/utils';
 
 interface ReportsViewProps {
     projectId: string;
@@ -51,26 +52,11 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
             .catch(console.error);
     }, []);
 
-    // Filter tasks by time range
-    const getTimeRangeDate = () => {
-        const now = new Date();
-        switch (timeRange) {
-            case 'week':
-                return new Date(now.setDate(now.getDate() - 7));
-            case 'month':
-                return new Date(now.setDate(now.getDate() - 30));
-            case 'quarter':
-                return new Date(now.setDate(now.getDate() - 90));
-            case 'year':
-                return new Date(now.setFullYear(now.getFullYear() - 1));
-            default:
-                return new Date(0); // All time
-        }
-    };
+    // getTimeRangeDate is now imported from lib/utils
 
     // Apply all filters
     const filteredTasks = useMemo(() => {
-        const timeRangeDate = getTimeRangeDate();
+        const timeRangeDate = getTimeRangeDate(timeRange as 'week' | 'month' | 'quarter' | 'year' | 'all');
 
         return projectTasks.filter(task => {
             // Time range filter (only if not "all")
@@ -108,7 +94,7 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
 
     const overdueTasks = filteredTasks.filter(t => {
         if (!t.dueDate) return false;
-        return new Date(t.dueDate) < new Date() && t.status !== 'Done';
+        return isOverdue(t.dueDate) && t.status !== 'Done';
     }).length;
 
     const metrics: MetricCard[] = [
@@ -290,8 +276,8 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
                                         key={status}
                                         onClick={() => toggleFilter('status', status)}
                                         className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${filters.status.includes(status)
-                                                ? 'bg-blue-500 text-white'
-                                                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                                            ? 'bg-blue-500 text-white'
+                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                                             }`}
                                     >
                                         {status}
@@ -309,8 +295,8 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
                                         key={priority}
                                         onClick={() => toggleFilter('priority', priority)}
                                         className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${filters.priority.includes(priority)
-                                                ? 'bg-blue-500 text-white'
-                                                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                                            ? 'bg-blue-500 text-white'
+                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                                             }`}
                                     >
                                         {priority}
@@ -553,15 +539,15 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
                             <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                                 <div className="flex items-center gap-3">
                                     <div className={`w-2 h-2 rounded-full ${task.priority === 'Critical' ? 'bg-red-500' :
-                                            task.priority === 'High' ? 'bg-orange-500' :
-                                                task.priority === 'Medium' ? 'bg-yellow-500' : 'bg-green-500'
+                                        task.priority === 'High' ? 'bg-orange-500' :
+                                            task.priority === 'Medium' ? 'bg-yellow-500' : 'bg-green-500'
                                         }`} />
                                     <span className="text-sm text-gray-900 dark:text-white">{task.title}</span>
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <span className={`text-xs px-2 py-1 rounded ${task.status === 'Done' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                                            task.status === 'In Progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-                                                'bg-gray-100 text-gray-700 dark:bg-gray-600 dark:text-gray-300'
+                                        task.status === 'In Progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                                            'bg-gray-100 text-gray-700 dark:bg-gray-600 dark:text-gray-300'
                                         }`}>
                                         {task.status}
                                     </span>

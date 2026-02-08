@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Task, ActivityLog, User } from '@/types';
 import { Activity, PieChart, Info, TrendingUp, Clock, AlertTriangle, CheckCircle2, Target } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { getUserName, formatRelativeTime, isOverdue, isDueWithinDays } from '@/lib/utils';
 
 interface SummaryViewProps {
   tasks: Task[];
@@ -172,18 +172,15 @@ export default function SummaryView({ tasks, projectId }: SummaryViewProps) {
   const review = tasks.filter(t => t.status === 'Review').length;
   const todo = tasks.filter(t => t.status === 'To Do').length;
 
-  // Calculate overdue and upcoming
-  const now = new Date();
+  // Calculate overdue and upcoming using centralized utilities
   const overdue = tasks.filter(t => {
     if (!t.dueDate || t.status === 'Done') return false;
-    return new Date(t.dueDate) < now;
+    return isOverdue(t.dueDate);
   }).length;
 
   const dueThisWeek = tasks.filter(t => {
     if (!t.dueDate || t.status === 'Done') return false;
-    const dueDate = new Date(t.dueDate);
-    const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    return dueDate >= now && dueDate <= weekFromNow;
+    return isDueWithinDays(t.dueDate, 7);
   }).length;
 
   // Fetch activity logs
@@ -215,17 +212,10 @@ export default function SummaryView({ tasks, projectId }: SummaryViewProps) {
     fetchData();
   }, [tasks, projectId]);
 
-  const getUserName = (userId: string) => {
-    const user = users.find(u => u.id === userId);
-    return user?.name || 'Someone';
-  };
+  // getUserName is now imported from lib/utils and used as getUserName(users, userId)
 
   const formatActivityTime = (timestamp: string) => {
-    try {
-      return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
-    } catch {
-      return 'recently';
-    }
+    return formatRelativeTime(timestamp);
   };
 
   return (
@@ -331,7 +321,7 @@ export default function SummaryView({ tasks, projectId }: SummaryViewProps) {
               activityLogs.map((log) => (
                 <ActivityItem
                   key={log.id}
-                  description={`${getUserName(log.userId)} ${log.action.toLowerCase()} a ${log.entityType.toLowerCase()}`}
+                  description={`${getUserName(users, log.userId)} ${log.action.toLowerCase()} a ${log.entityType.toLowerCase()}`}
                   time={formatActivityTime(log.timestamp)}
                 />
               ))

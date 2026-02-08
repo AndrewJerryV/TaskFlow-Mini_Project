@@ -7,6 +7,7 @@ import {
     Plus, FileText, Trash2, ExternalLink, Link2,
     ClipboardCopy, Check, Calendar, Lightbulb
 } from 'lucide-react';
+import { formatDate } from '@/lib/utils';
 
 interface FormsViewProps {
     projectId: string;
@@ -118,13 +119,7 @@ export default function FormsView({ projectId }: FormsViewProps) {
         }
     };
 
-    const formatDate = (dateStr: string) => {
-        return new Date(dateStr).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric'
-        });
-    };
+    // formatDate is now imported from lib/utils
 
     return (
         <div className={`max-w-5xl mx-auto p-6 ${forms.length === 0 ? 'overflow-hidden' : ''}`}>

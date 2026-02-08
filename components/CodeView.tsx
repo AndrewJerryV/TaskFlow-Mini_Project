@@ -6,6 +6,7 @@ import {
     GitBranch, Clock, FolderGit2, Copy, Check
 } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
+import { formatDate } from '@/lib/utils';
 
 interface CodeViewProps {
     projectId: string;
@@ -150,13 +151,7 @@ export default function CodeView({ projectId }: CodeViewProps) {
         }
     };
 
-    const formatDate = (dateStr: string) => {
-        return new Date(dateStr).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric'
-        });
-    };
+    // formatDate is now imported from lib/utils
 
     return (
         <div className="max-w-5xl mx-auto">

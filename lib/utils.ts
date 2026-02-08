@@ -7,6 +7,108 @@ import {
     ROLE_COLORS,
     ACTION_DISPLAY
 } from './constants';
+import { format, formatDistanceToNow, subDays, subMonths, subYears, addDays, isAfter, isBefore } from 'date-fns';
+
+// ============================================
+// Date Formatting Utilities (using date-fns)
+// ============================================
+
+/**
+ * Format a date string for display (e.g., "Feb 8, 2026")
+ */
+export function formatDate(dateStr: string): string {
+    try {
+        return format(new Date(dateStr), 'MMM d, yyyy');
+    } catch {
+        return 'Unknown date';
+    }
+}
+
+/**
+ * Format a date string with time (e.g., "Feb 8, 2026, 10:30 PM")
+ */
+export function formatDateTime(dateStr: string): string {
+    try {
+        return format(new Date(dateStr), 'MMM d, yyyy, h:mm a');
+    } catch {
+        return 'Unknown date';
+    }
+}
+
+/**
+ * Format a date as relative time (e.g., "2 hours ago")
+ */
+export function formatRelativeTime(dateStr: string): string {
+    try {
+        return formatDistanceToNow(new Date(dateStr), { addSuffix: true });
+    } catch {
+        return 'recently';
+    }
+}
+
+/**
+ * Get the start date for a time range filter
+ */
+export function getTimeRangeDate(range: 'week' | 'month' | 'quarter' | 'year' | 'all'): Date {
+    const now = new Date();
+    switch (range) {
+        case 'week':
+            return subDays(now, 7);
+        case 'month':
+            return subDays(now, 30);
+        case 'quarter':
+            return subDays(now, 90);
+        case 'year':
+            return subYears(now, 1);
+        case 'all':
+        default:
+            return new Date(0);
+    }
+}
+
+/**
+ * Check if a date is within the next N days
+ */
+export function isDueWithinDays(dateStr: string, days: number): boolean {
+    try {
+        const dueDate = new Date(dateStr);
+        const now = new Date();
+        const futureDate = addDays(now, days);
+        return isAfter(dueDate, now) && isBefore(dueDate, futureDate);
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Check if a date is overdue
+ */
+export function isOverdue(dateStr: string): boolean {
+    try {
+        return isBefore(new Date(dateStr), new Date());
+    } catch {
+        return false;
+    }
+}
+
+// ============================================
+// File Utilities
+// ============================================
+
+/**
+ * Format file size in human readable format
+ */
+export function formatFileSize(bytes: number): string {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+}
+
+// ============================================
+// User Utilities
+// ============================================
 
 /**
  * Get user name by ID from a list of users

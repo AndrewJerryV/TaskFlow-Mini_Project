@@ -5,7 +5,7 @@ import { Message, Attachment } from '@/types';
 import { Send, MessageCircle, Paperclip, Image, FileText, X, Download, Calendar, PlayCircle } from 'lucide-react';
 import { MiniCalendar } from '@/components/ui/MiniCalendar';
 import { useAuth } from '@/contexts/AuthContext';
-import { getUserName } from '@/lib/utils';
+import { getUserName, formatFileSize } from '@/lib/utils';
 
 interface ChatViewProps {
     projectId: string;
@@ -111,11 +111,7 @@ export default function ChatView({ projectId }: ChatViewProps) {
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
-    const formatFileSize = (bytes: number) => {
-        if (bytes < 1024) return bytes + ' B';
-        if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-        return (bytes / 1048576).toFixed(1) + ' MB';
-    };
+    // formatFileSize is now imported from lib/utils
 
     // Convert file to base64 data URL
     const fileToBase64 = (file: File): Promise<string> => {
@@ -193,7 +189,8 @@ export default function ChatView({ projectId }: ChatViewProps) {
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
-    const formatDate = (dateStr: string) => {
+    // Format date for chat with special Today/Yesterday handling
+    const formatChatDate = (dateStr: string) => {
         const date = new Date(dateStr);
         const today = new Date();
         const yesterday = new Date(today);
@@ -208,7 +205,7 @@ export default function ChatView({ projectId }: ChatViewProps) {
     const groupedMessages: { date: string; messages: ChatMessage[] }[] = [];
     let currentDate = '';
     messages.forEach(msg => {
-        const msgDate = formatDate(msg.timestamp);
+        const msgDate = formatChatDate(msg.timestamp);
         if (msgDate !== currentDate) {
             currentDate = msgDate;
             groupedMessages.push({ date: msgDate, messages: [msg] });
@@ -371,7 +368,7 @@ export default function ChatView({ projectId }: ChatViewProps) {
                             {/* Date Separator */}
                             <div
                                 className="flex justify-center my-4"
-                                data-date={messages.find(m => formatDate(m.timestamp) === group.date)?.timestamp.split('T')[0]}
+                                data-date={messages.find(m => formatChatDate(m.timestamp) === group.date)?.timestamp.split('T')[0]}
                             >
                                 <span className="bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded-full text-xs font-medium text-gray-600 dark:text-gray-400">
                                     {group.date}
