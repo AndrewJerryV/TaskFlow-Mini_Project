@@ -22,8 +22,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Video, Folder, FileText, BarChart3, Plus, UserPlus, Check, Rocket, Calendar, PieChart } from 'lucide-react';
 
 // Nav Items definition
-const NAV_ITEMS = ['Summary', 'Backlog', 'Board', 'Timeline', 'Code', 'Pages', 'Deployments', 'Calendar', 'Reports', 'Chat', 'Forms', 'Shortcuts'] as const;
+const NAV_ITEMS = ['Recommendations', 'Summary', 'Backlog', 'Board', 'Timeline', 'Code', 'Pages', 'Deployments', 'Calendar', 'Reports', 'Chat', 'Forms', 'Shortcuts'] as const;
 type Tab = typeof NAV_ITEMS[number];
+
+import MLTaskRecommendations from '@/components/MLTaskRecommendations';
 
 export default function ProjectPage() {
     const params = useParams();
@@ -40,6 +42,7 @@ export default function ProjectPage() {
     const [isInviteOpen, setIsInviteOpen] = useState(false);
     const [projectMembers, setProjectMembers] = useState<string[]>([]);
     const { users, currentUser } = useAuth();
+    // ... (rest of the component state and effects remain the same until the return statement)
 
     // Load saved tab from localStorage on mount (client-side only)
     useEffect(() => {
@@ -227,18 +230,20 @@ export default function ProjectPage() {
             {/* Tabs */}
             <div className="border-b border-gray-200 dark:border-gray-700 px-6 bg-gray-50/50 dark:bg-gray-800/50">
                 <nav className="flex space-x-6 -mb-px">
-                    {NAV_ITEMS.map((item) => (
-                        <button
-                            key={item}
-                            onClick={() => handleTabChange(item)}
-                            className={`py-3 text-sm font-medium transition-colors border-b-2 ${activeTab === item
-                                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
-                                }`}
-                        >
-                            {item}
-                        </button>
-                    ))}
+                    <div className="flex space-x-6 overflow-x-auto no-scrollbar">
+                        {NAV_ITEMS.map((item) => (
+                            <button
+                                key={item}
+                                onClick={() => handleTabChange(item)}
+                                className={`py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${activeTab === item
+                                    ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                                    }`}
+                            >
+                                {item}
+                            </button>
+                        ))}
+                    </div>
                 </nav>
             </div>
 
@@ -251,6 +256,7 @@ export default function ProjectPage() {
                     onSubmit={handleTaskCreateSubmit}
                 />
 
+                {activeTab === 'Recommendations' && <MLTaskRecommendations tasks={tasks} projectId={id} users={users} currentUser={currentUser} onTaskUpdate={handleTaskUpdate} />}
                 {activeTab === 'Summary' && <SummaryView tasks={tasks} projectId={id} />}
                 {activeTab === 'Backlog' && <BacklogView tasks={tasks} onTaskCreate={() => setIsCreateTaskOpen(true)} onTaskUpdate={handleTaskUpdate} onTaskDelete={handleTaskDelete} />}
 
