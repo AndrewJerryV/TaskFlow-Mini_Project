@@ -31,6 +31,8 @@ export async function POST(request: Request) {
             status: 'To Do',
             priority: body.priority || 'Medium',
             assigneeId: body.assigneeId,
+            dueDate: body.dueDate,
+            startDate: body.startDate,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             tags: body.tags || [],

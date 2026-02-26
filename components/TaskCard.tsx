@@ -4,7 +4,7 @@ import React from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Task } from '@/types';
-import { User, Tag } from 'lucide-react';
+import { User, Tag ,CalendarClock } from 'lucide-react';
 import { getPriorityColorBordered } from '@/lib/utils';
 
 interface TaskCardProps {
@@ -54,6 +54,20 @@ export function TaskCard({ task, isOverlay, onClick }: TaskCardProps) {
 }
 
 function CardContent({ task }: { task: Task }) {
+
+    const formattedDate = task.dueDate
+  ? new Date(task.dueDate).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "long",
+      year:"numeric"
+  })
+  : "No deadline";
+
+    const isOverdue =
+    task.dueDate &&
+    new Date(task.dueDate) < new Date() &&
+    task.status !== "Done";
+
     return (
         <>
             <div className="flex justify-between items-start mb-2">
@@ -67,6 +81,14 @@ function CardContent({ task }: { task: Task }) {
                 )}
             </div>
             <h4 className="font-medium text-gray-900 dark:text-white text-sm mb-1">{task.title}</h4>
+            <div className='flex gap-1'>
+                <CalendarClock size={15} color='grey' > </CalendarClock>
+                <p className={`text-xs font-medium ${isOverdue ? "text-red-600" : "text-gray-500"}`}>
+                    Due: {formattedDate}
+                </p>
+            </div>
+
+
             <div className="flex flex-wrap gap-1 mt-2">
                 {task.tags.map(tag => (
                     <span key={tag} className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-300 border border-gray-100 dark:border-gray-500">
