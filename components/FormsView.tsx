@@ -13,23 +13,14 @@ interface FormsViewProps {
     projectId: string;
 }
 
-// Generate unique ID (fallback for browsers without crypto.randomUUID)
-function generateId(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-        const r = Math.random() * 16 | 0;
-        const v = c === 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
-    });
-}
-
 interface FormLink {
     id: string;
-    projectId: string;
+    project_id: string;
     title: string;
     description?: string;
-    formUrl: string;
-    createdBy: string;
-    createdAt: string;
+    form_url: string;
+    created_by?: string;
+    created_at: string;
 }
 
 export default function FormsView({ projectId }: FormsViewProps) {
@@ -37,51 +28,70 @@ export default function FormsView({ projectId }: FormsViewProps) {
     const [forms, setForms] = useState<FormLink[]>([]);
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [copiedId, setCopiedId] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
 
     // Add form state
     const [formTitle, setFormTitle] = useState('');
     const [formDescription, setFormDescription] = useState('');
     const [formUrl, setFormUrl] = useState('');
 
-    // Load forms from localStorage
+    // Load forms from the database via API
     useEffect(() => {
-        const stored = localStorage.getItem(`taskflow-forms-${projectId}`);
-        if (stored) {
+        async function fetchForms() {
             try {
-                setForms(JSON.parse(stored));
-            } catch (e) {
-                console.error('Error parsing forms:', e);
+                setLoading(true);
+                const res = await fetch(`/api/form-links?projectId=${projectId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setForms(data);
+                }
+            } catch (error) {
+                console.error('Error fetching form links:', error);
+            } finally {
+                setLoading(false);
             }
         }
+        fetchForms();
     }, [projectId]);
 
-    // Save forms to localStorage
-    const saveForms = (newForms: FormLink[]) => {
-        localStorage.setItem(`taskflow-forms-${projectId}`, JSON.stringify(newForms));
-        setForms(newForms);
-    };
-
-    const handleAddForm = () => {
+    const handleAddForm = async () => {
         if (!formTitle.trim() || !formUrl.trim() || !currentUser) return;
 
-        const newForm: FormLink = {
-            id: generateId(),
-            projectId,
-            title: formTitle,
-            description: formDescription,
-            formUrl: formUrl.trim(),
-            createdBy: currentUser.id,
-            createdAt: new Date().toISOString(),
-        };
+        try {
+            const res = await fetch('/api/form-links', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    project_id: projectId,
+                    title: formTitle,
+                    description: formDescription,
+                    form_url: formUrl.trim(),
+                    created_by: currentUser.id,
+                }),
+            });
 
-        saveForms([newForm, ...forms]);
+            if (res.ok) {
+                const created = await res.json();
+                setForms(prev => [created, ...prev]);
+            }
+        } catch (error) {
+            console.error('Error adding form link:', error);
+        }
+
         resetForm();
         setIsAddOpen(false);
     };
 
-    const handleDeleteForm = (formId: string) => {
+    const handleDeleteForm = async (formId: string) => {
         if (!confirm('Are you sure you want to remove this form?')) return;
-        saveForms(forms.filter(f => f.id !== formId));
+        try {
+            const res = await fetch(`/api/form-links?id=${formId}`, { method: 'DELETE' });
+            if (res.ok) {
+                setForms(prev => prev.filter(f => f.id !== formId));
+            }
+        } catch (error) {
+            console.error('Error deleting form link:', error);
+        }
     };
 
     const resetForm = () => {
@@ -119,7 +129,13 @@ export default function FormsView({ projectId }: FormsViewProps) {
         }
     };
 
-    // formatDate is now imported from lib/utils
+    if (loading) {
+        return (
+            <div className="max-w-5xl mx-auto p-6 flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            </div>
+        );
+    }
 
     return (
         <div className={`max-w-5xl mx-auto p-6 ${forms.length === 0 ? 'overflow-hidden' : ''}`}>
@@ -191,18 +207,18 @@ export default function FormsView({ projectId }: FormsViewProps) {
                                 <div className="flex-1 min-w-0">
                                     <h3 className="font-semibold text-gray-900 dark:text-white truncate">{form.title}</h3>
                                     <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                                        {form.description || form.formUrl}
+                                        {form.description || form.form_url}
                                     </p>
                                     <div className="flex items-center gap-2 mt-1 text-xs text-gray-400 dark:text-gray-500">
                                         <Calendar size={12} />
-                                        Added {formatDate(form.createdAt)}
+                                        Added {formatDate(form.created_at)}
                                     </div>
                                 </div>
 
                                 {/* Actions */}
                                 <div className="flex items-center gap-2 flex-shrink-0">
                                     <button
-                                        onClick={() => copyLink(form.id, form.formUrl)}
+                                        onClick={() => copyLink(form.id, form.form_url)}
                                         className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                                         title="Copy link"
                                     >
@@ -219,7 +235,7 @@ export default function FormsView({ projectId }: FormsViewProps) {
                                         )}
                                     </button>
                                     <button
-                                        onClick={() => openInNewTab(form.formUrl)}
+                                        onClick={() => openInNewTab(form.form_url)}
                                         className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
                                     >
                                         <ExternalLink size={14} />

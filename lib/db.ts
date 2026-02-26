@@ -1,4 +1,4 @@
-import { getSupabase, DbUser, DbProject, DbTask, DbActivityLog, DbMessage, DbComment, DbForm, DbFormResponse, DbDocument } from './supabase';
+import { getSupabase, DbUser, DbProject, DbTask, DbActivityLog, DbMessage, DbComment, DbForm, DbFormResponse, DbDocument, DbShortcut, DbRepoLink, DbFormLink } from './supabase';
 import { Project, Task, User, ActivityLog, Message, Comment, Form, FormResponse, Document } from '@/types';
 
 // Helper functions to convert between snake_case DB and camelCase TS
@@ -730,6 +730,178 @@ class Database {
 
         if (error) {
             console.error('Error updating document:', error);
+            return false;
+        }
+        return true;
+    }
+
+    // Shortcuts
+    async getShortcuts(projectId: string): Promise<DbShortcut[]> {
+        const { data, error } = await getSupabase()
+            .from('shortcuts')
+            .select('*')
+            .eq('project_id', projectId)
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching shortcuts:', error);
+            return [];
+        }
+        return data || [];
+    }
+
+    async addShortcut(shortcut: { id: string; project_id: string; name: string; url: string; type: 'link' | 'repository' }): Promise<DbShortcut | null> {
+        const { data, error } = await getSupabase()
+            .from('shortcuts')
+            .insert({
+                id: shortcut.id,
+                project_id: shortcut.project_id,
+                name: shortcut.name,
+                url: shortcut.url,
+                type: shortcut.type,
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error adding shortcut:', error);
+            return null;
+        }
+        return data;
+    }
+
+    async deleteShortcut(id: string): Promise<boolean> {
+        const { error } = await getSupabase()
+            .from('shortcuts')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error deleting shortcut:', error);
+            return false;
+        }
+        return true;
+    }
+
+    // Repo Links
+    async getRepoLinks(projectId: string): Promise<DbRepoLink[]> {
+        const { data, error } = await getSupabase()
+            .from('repo_links')
+            .select('*')
+            .eq('project_id', projectId)
+            .order('added_at', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching repo links:', error);
+            return [];
+        }
+        return data || [];
+    }
+
+    async addRepoLink(repoLink: { id: string; project_id: string; name: string; url: string; owner: string; repo: string; description?: string }): Promise<DbRepoLink | null> {
+        const { data, error } = await getSupabase()
+            .from('repo_links')
+            .insert({
+                id: repoLink.id,
+                project_id: repoLink.project_id,
+                name: repoLink.name,
+                url: repoLink.url,
+                owner: repoLink.owner,
+                repo: repoLink.repo,
+                description: repoLink.description || null,
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error adding repo link:', error);
+            return null;
+        }
+        return data;
+    }
+
+    async deleteRepoLink(id: string): Promise<boolean> {
+        const { error } = await getSupabase()
+            .from('repo_links')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error deleting repo link:', error);
+            return false;
+        }
+        return true;
+    }
+
+    // Form Links
+    async getFormLinks(projectId: string): Promise<DbFormLink[]> {
+        const { data, error } = await getSupabase()
+            .from('form_links')
+            .select('*')
+            .eq('project_id', projectId)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching form links:', error);
+            return [];
+        }
+        return data || [];
+    }
+
+    async addFormLink(formLink: { id: string; project_id: string; title: string; description?: string; form_url: string; created_by?: string }): Promise<DbFormLink | null> {
+        const { data, error } = await getSupabase()
+            .from('form_links')
+            .insert({
+                id: formLink.id,
+                project_id: formLink.project_id,
+                title: formLink.title,
+                description: formLink.description || null,
+                form_url: formLink.form_url,
+                created_by: formLink.created_by || null,
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error adding form link:', error);
+            return null;
+        }
+        return data;
+    }
+
+    async deleteFormLink(id: string): Promise<boolean> {
+        const { error } = await getSupabase()
+            .from('form_links')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error deleting form link:', error);
+            return false;
+        }
+        return true;
+    }
+
+    // Meeting URL
+    async getMeetingUrl(projectId: string): Promise<string | null> {
+        const { data, error } = await getSupabase()
+            .from('projects')
+            .select('meeting_url')
+            .eq('id', projectId)
+            .single();
+
+        if (error || !data) return null;
+        return data.meeting_url || null;
+    }
+
+    async setMeetingUrl(projectId: string, meetingUrl: string | null): Promise<boolean> {
+        const { error } = await getSupabase()
+            .from('projects')
+            .update({ meeting_url: meetingUrl })
+            .eq('id', projectId);
+
+        if (error) {
+            console.error('Error updating meeting URL:', error);
             return false;
         }
         return true;

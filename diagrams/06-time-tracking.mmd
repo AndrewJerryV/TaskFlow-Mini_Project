@@ -1,0 +1,47 @@
+%%{init: {"sequence": {"mirrorActors": false}}}%%
+sequenceDiagram
+    actor User
+    participant UI as Time Tracker
+    participant API as Time API
+    participant DB as Database
+    participant Analytics as Analytics
+
+    User->>UI: Open task
+    UI->>UI: Show time tracking widget
+
+    User->>UI: Click "Start Timer"
+    UI->>API: POST /api/time/start {taskId}
+    API->>DB: INSERT time_entry {status: active, startedAt}
+    API-->>UI: Timer running
+
+    User->>UI: Click "Stop Timer"
+    UI->>API: PATCH /api/time/{entryId}/stop
+    API->>DB: UPDATE time_entry SET endedAt, duration
+    API-->>UI: Logged: 2h 15m
+
+    User->>UI: Add manual entry
+    UI->>API: POST /api/time {taskId, hours, date, description}
+    API->>DB: INSERT time_entry
+    API-->>UI: Time logged
+
+    UI->>API: GET /api/tasks/{id}/time-analysis
+    API->>DB: Fetch task.estimatedHours
+    API->>DB: SUM(time_entries.duration) as actualHours
+    API->>Analytics: Calculate variance
+
+    alt actualHours <= estimatedHours
+        Analytics-->>API: Under estimate
+        API-->>UI: ✓ Completed ahead of estimate
+    else actualHours > estimatedHours * 1.2
+        Analytics-->>API: Significantly over (>20%)
+        API-->>UI: ⚠ Task took 37% longer than estimated
+        API->>DB: Flag for retrospective
+    else actualHours > estimatedHours
+        Analytics-->>API: Slightly over
+        API-->>UI: Task slightly over estimate
+    end
+
+    Manager->>UI: View team time report
+    UI->>API: GET /api/reports/time?projectId=X
+    API->>DB: Aggregate hours by user, task
+    API-->>UI: Comparison chart (estimated vs actual)

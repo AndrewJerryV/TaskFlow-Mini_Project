@@ -1,0 +1,63 @@
+---
+config:
+  theme: base
+  themeVariables:
+    primaryColor: "#4f46e5"
+    primaryTextColor: "#ffffff"
+    primaryBorderColor: "#3730a3"
+    secondaryColor: "#06b6d4"
+    secondaryTextColor: "#ffffff"
+    secondaryBorderColor: "#0891b2"
+    tertiaryColor: "#f59e0b"
+    tertiaryTextColor: "#1e1e1e"
+    tertiaryBorderColor: "#d97706"
+    lineColor: "#6366f1"
+    textColor: "#1e293b"
+    sectionBkgColor: "#e0e7ff"
+    sectionBkgColor2: "#dbeafe"
+    altSectionBkgColor: "#f0fdf4"
+    taskBkgColor: "#818cf8"
+    taskTextColor: "#ffffff"
+    taskBorderColor: "#6366f1"
+    activeTaskBkgColor: "#f97316"
+    activeTaskBorderColor: "#ea580c"
+    doneTaskBkgColor: "#22c55e"
+    doneTaskBorderColor: "#16a34a"
+    gridColor: "#cbd5e1"
+    todayLineColor: "#ef4444"
+    fontFamily: "Segoe UI, Roboto, sans-serif"
+    fontSize: "14px"
+---
+gantt
+    title TaskFlow - Project Development Timeline
+    dateFormat  YYYY-MM-DD
+    axisFormat  Week %W
+    tickInterval 1week
+
+    section Planning
+    Requirement Analysis             :done, p1, 2026-01-05, 5d
+    Feasibility Study                :done, p2, after p1, 3d
+    Project Proposal & Approval      :done, p3, after p2, 2d
+
+    section Design
+    System Architecture Design       :done, d1, 2026-01-15, 4d
+    Database Schema Design (ER)      :done, d2, after d1, 3d
+    UI/UX Wireframes & Mockups       :done, d3, after d2, 4d
+    API & Module Design              :done, d4, after d3, 3d
+
+    section Implementation
+    Project Setup (Next.js + Supabase)           :done, i1, 2026-01-29, 3d
+    Authentication & User Management             :done, i2, after i1, 5d
+    Project & Task Management (Kanban, Calendar) :done, i3, after i2, 7d
+    Collaboration (Chat, Comments, Documents)    :done, i4, after i3, 6d
+    Forms Module                                 :done, i5, after i4, 4d
+    Analytics & Reports Dashboard                :done, i6, after i4, 5d
+    ML Engine (Priority, Urgency, Assignment)    :done, i7, after i5, 7d
+    UI Polish & Responsive Design                :done, i8, after i7, 3d
+
+    section Testing & Closure
+    Unit & Integration Testing       :done, t1, 2026-03-02, 4d
+    Bug Fixes & Optimization         :done, t2, after t1, 3d
+    Deployment (Vercel)              :done, t3, after t2, 2d
+    Documentation & Diagrams         :active, t4, after t3, 3d
+    Final Review & Submission        :t5, after t4, 2d

@@ -14,21 +14,13 @@ interface CodeViewProps {
 
 interface RepoLink {
     id: string;
+    project_id: string;
     name: string;
     url: string;
     owner: string;
     repo: string;
     description?: string;
-    addedAt: string;
-}
-
-// Generate unique ID
-function generateId(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-        const r = Math.random() * 16 | 0;
-        const v = c === 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
-    });
+    added_at: string;
 }
 
 // Validate GitHub URL
@@ -62,26 +54,28 @@ export default function CodeView({ projectId }: CodeViewProps) {
     const [newDescription, setNewDescription] = useState('');
     const [urlError, setUrlError] = useState('');
     const [copiedId, setCopiedId] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
 
-    // Load repos from localStorage
+    // Load repos from the database via API
     useEffect(() => {
-        const stored = localStorage.getItem(`taskflow-repos-${projectId}`);
-        if (stored) {
+        async function fetchRepos() {
             try {
-                setRepos(JSON.parse(stored));
-            } catch (e) {
-                console.error('Error parsing repos:', e);
+                setLoading(true);
+                const res = await fetch(`/api/repos?projectId=${projectId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setRepos(data);
+                }
+            } catch (error) {
+                console.error('Error fetching repos:', error);
+            } finally {
+                setLoading(false);
             }
         }
+        fetchRepos();
     }, [projectId]);
 
-    // Save repos to localStorage
-    const saveRepos = (newRepos: RepoLink[]) => {
-        localStorage.setItem(`taskflow-repos-${projectId}`, JSON.stringify(newRepos));
-        setRepos(newRepos);
-    };
-
-    const handleAddRepo = () => {
+    const handleAddRepo = async () => {
         if (!newUrl.trim()) {
             setUrlError('Please enter a URL');
             return;
@@ -104,26 +98,44 @@ export default function CodeView({ projectId }: CodeViewProps) {
             return;
         }
 
-        const newRepo: RepoLink = {
-            id: generateId(),
-            name: `${parsed.owner}/${parsed.repo}`,
-            url: url,
-            owner: parsed.owner,
-            repo: parsed.repo,
-            description: newDescription.trim() || undefined,
-            addedAt: new Date().toISOString(),
-        };
+        try {
+            const res = await fetch('/api/repos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    project_id: projectId,
+                    name: `${parsed.owner}/${parsed.repo}`,
+                    url: url,
+                    owner: parsed.owner,
+                    repo: parsed.repo,
+                    description: newDescription.trim() || undefined,
+                }),
+            });
 
-        saveRepos([...repos, newRepo]);
+            if (res.ok) {
+                const created = await res.json();
+                setRepos(prev => [...prev, created]);
+            }
+        } catch (error) {
+            console.error('Error adding repo:', error);
+        }
+
         setNewUrl('');
         setNewDescription('');
         setUrlError('');
         setIsAddOpen(false);
     };
 
-    const handleDeleteRepo = (repoId: string) => {
+    const handleDeleteRepo = async (repoId: string) => {
         if (!confirm('Remove this repository?')) return;
-        saveRepos(repos.filter(r => r.id !== repoId));
+        try {
+            const res = await fetch(`/api/repos?id=${repoId}`, { method: 'DELETE' });
+            if (res.ok) {
+                setRepos(prev => prev.filter(r => r.id !== repoId));
+            }
+        } catch (error) {
+            console.error('Error deleting repo:', error);
+        }
     };
 
     const openInNewTab = (url: string) => {
@@ -151,7 +163,13 @@ export default function CodeView({ projectId }: CodeViewProps) {
         }
     };
 
-    // formatDate is now imported from lib/utils
+    if (loading) {
+        return (
+            <div className="max-w-5xl mx-auto flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-500"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-5xl mx-auto">
@@ -234,7 +252,7 @@ export default function CodeView({ projectId }: CodeViewProps) {
                             <div className="flex items-center gap-4 text-xs text-gray-400 dark:text-gray-500 mb-4">
                                 <span className="flex items-center gap-1">
                                     <Clock size={12} />
-                                    Added {formatDate(repo.addedAt)}
+                                    Added {formatDate(repo.added_at)}
                                 </span>
                             </div>
 

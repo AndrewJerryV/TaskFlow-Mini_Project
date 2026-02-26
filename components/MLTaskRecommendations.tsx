@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Task, User } from '@/types';
-import { Sparkles, ArrowRight, BrainCircuit, TrendingUp, Calendar, AlertCircle, ArrowDown } from 'lucide-react';
+import { Sparkles, ArrowRight, BrainCircuit, TrendingUp, Calendar, AlertCircle, ArrowDown, Loader2, Zap } from 'lucide-react';
 import { BottleneckAlert } from '@/components/BottleneckAlert';
 
 interface MLTaskRecommendationsProps {
@@ -19,7 +19,7 @@ interface Recommendation {
   type: 'focus' | 'bottleneck' | 'quick_win' | 'overdue_risk';
   title: string;
   description: string;
-  score: number; // 0-100 relevance score
+  score: number;
   reason: string;
   suggestedAction?: string;
 }
@@ -27,19 +27,39 @@ interface Recommendation {
 export default function MLTaskRecommendations({ tasks, projectId, users, currentUser, onTaskUpdate }: MLTaskRecommendationsProps) {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mlPowered, setMlPowered] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const bottlenecksRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const generateRecommendations = () => {
+    const fetchRecommendations = async () => {
       setLoading(true);
+      setError(null);
+
+      try {
+        const params = new URLSearchParams({ projectId });
+        if (currentUser?.id) params.set('userId', currentUser.id);
+
+        const res = await fetch(`/api/ml/recommendations?${params.toString()}`);
+        if (!res.ok) throw new Error('Failed to fetch recommendations');
+
+        const data = await res.json();
+        setRecommendations(data.recommendations || []);
+        setMlPowered(data.mlPowered || false);
+      } catch (err) {
+        console.error('Failed to fetch ML recommendations:', err);
+        setError('Failed to load recommendations');
+        // Fallback: generate client-side (original logic)
+        generateFallbackRecommendations();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Client-side fallback (original heuristic logic)
+    const generateFallbackRecommendations = () => {
       const generated: Recommendation[] = [];
       const now = new Date();
-
-      // Helper to calculate days difference
-      const getDaysDiff = (dateStr: string) => {
-        const d = new Date(dateStr);
-        return Math.floor((now.getTime() - d.getTime()) / (1000 * 3600 * 24));
-      };
 
       const getDueInDays = (dateStr?: string) => {
         if (!dateStr) return 999;
@@ -48,18 +68,16 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
       };
 
       tasks.forEach(task => {
+        if (task.status === 'Done') return;
+
         let score = 0;
         let reasons: string[] = [];
         let type: Recommendation['type'] | null = null;
         let suggestedAction = 'View Details';
 
-        // 1. Scoring Logic
-
-        // Priority Weight
         if (task.priority === 'Critical') { score += 40; reasons.push('Critical priority'); }
         else if (task.priority === 'High') { score += 25; reasons.push('High priority'); }
 
-        // Due Date Weight
         const dueIn = getDueInDays(task.dueDate);
         if (task.dueDate) {
           if (dueIn < 0) { score += 50; reasons.push(`Overdue by ${Math.abs(dueIn)} days`); }
@@ -67,39 +85,25 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
           else if (dueIn <= 2) { score += 25; reasons.push(`Due in ${dueIn} days`); }
         }
 
-        // Assignee Weight
         const isAssignedToMe = task.assigneeId === currentUser?.id;
         if (isAssignedToMe) { score += 20; }
 
-        // Stagnation Weight (for In Progress)
-        const daysSinceUpdate = getDaysDiff(task.updatedAt);
+        const daysSinceUpdate = Math.floor((now.getTime() - new Date(task.updatedAt).getTime()) / (1000 * 3600 * 24));
         if (task.status === 'In Progress' && daysSinceUpdate > 3) {
-          score += 15 + daysSinceUpdate; // Higher score the longer it's stale
+          score += 15 + daysSinceUpdate;
           reasons.push(`No updates for ${daysSinceUpdate} days`);
         }
 
-        // 2. Classification Logic
-
-        // Type: Overdue Risk
-        if (task.status !== 'Done' && task.dueDate && dueIn <= 1) {
+        if (task.dueDate && dueIn <= 1) {
           type = 'overdue_risk';
           suggestedAction = dueIn < 0 ? 'Reschedule' : 'Prioritize';
-        }
-
-        // Type: Bottleneck (Stale In Progress)
-        else if (task.status === 'In Progress' && daysSinceUpdate > 3) {
+        } else if (task.status === 'In Progress' && daysSinceUpdate > 3) {
           type = 'bottleneck';
           suggestedAction = isAssignedToMe ? 'Update Status' : 'Follow Up';
-        }
-
-        // Type: Focus (High Score + Assigned to Me)
-        else if (isAssignedToMe && score > 60 && task.status !== 'Done') {
+        } else if (isAssignedToMe && score > 60) {
           type = 'focus';
           suggestedAction = task.status === 'To Do' ? 'Start Task' : 'Continue';
-        }
-
-        // Type: Quick Win (Low Priority, To Do, No meaningful description or short)
-        else if (task.status === 'To Do' && task.priority === 'Low' && (!task.dueDate || dueIn > 7)) {
+        } else if (task.status === 'To Do' && task.priority === 'Low' && (!task.dueDate || dueIn > 7)) {
           type = 'quick_win';
           score = 40;
           reasons = ['Low effort estimate', 'Clear backlog'];
@@ -113,20 +117,19 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
             type,
             title: task.title,
             description: task.description || 'No description provided',
-            score: Math.min(score, 100), // Cap at 100
+            score: Math.min(score, 100),
             reason: reasons.join(' • '),
             suggestedAction
           });
         }
       });
 
-      // Sort by score descending and take top 6
       setRecommendations(generated.sort((a, b) => b.score - a.score).slice(0, 6));
-      setLoading(false);
+      setMlPowered(false);
     };
 
-    generateRecommendations();
-  }, [tasks, currentUser]);
+    fetchRecommendations();
+  }, [tasks, currentUser, projectId]);
 
   const handleAction = (rec: Recommendation) => {
     if (!onTaskUpdate) return;
@@ -139,7 +142,6 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
     } else if (rec.suggestedAction === 'Start Task') {
       onTaskUpdate({ ...task, status: 'In Progress' });
     } else {
-      // For other actions, simply alert for now or navigation if specific routing was enabled
       alert(`Action: ${rec.suggestedAction}\nTask: ${task.title}`);
     }
   };
@@ -149,7 +151,12 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
   };
 
   if (loading) {
-    return <div className="p-10 text-center text-gray-500 text-sm">Generating insights...</div>;
+    return (
+      <div className="p-10 text-center text-gray-500 text-sm flex flex-col items-center gap-3">
+        <Loader2 size={24} className="animate-spin text-indigo-500" />
+        <span>Analyzing your project with AI...</span>
+      </div>
+    );
   }
 
   return (
@@ -169,8 +176,24 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
               Jump to Bottlenecks
             </button>
           </div>
-          <span className="text-xs text-gray-500 dark:text-gray-400">AI-driven prioritization</span>
+          <div className="flex items-center gap-2">
+            {mlPowered && (
+              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700">
+                <Zap size={10} />
+                ML Insights
+              </span>
+            )}
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {mlPowered ? 'Powered by Local ML' : 'Heuristic analysis'}
+            </span>
+          </div>
         </div>
+
+        {error && (
+          <div className="p-3 text-sm text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+            {error} — showing fallback recommendations.
+          </div>
+        )}
 
         {recommendations.length === 0 ? (
           <div className="p-8 text-center bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
@@ -183,9 +206,9 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
               <div key={rec.id} className="group bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex items-center justify-between hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-sm transition-all">
                 <div className="flex items-start gap-4 overflow-hidden">
                   <div className={`mt-1 p-2 rounded-md flex-shrink-0 ${rec.type === 'focus' ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' :
-                      rec.type === 'bottleneck' ? 'bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400' :
-                        rec.type === 'overdue_risk' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' :
-                          'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400'
+                    rec.type === 'bottleneck' ? 'bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400' :
+                      rec.type === 'overdue_risk' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' :
+                        'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400'
                     }`}>
                     {rec.type === 'focus' && <TrendingUp size={18} />}
                     {rec.type === 'bottleneck' && <AlertCircle size={18} />}
@@ -196,9 +219,9 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className={`text-xs font-bold uppercase tracking-wider ${rec.type === 'focus' ? 'text-blue-700 dark:text-blue-300' :
-                          rec.type === 'bottleneck' ? 'text-orange-700 dark:text-orange-300' :
-                            rec.type === 'overdue_risk' ? 'text-red-700 dark:text-red-300' :
-                              'text-green-700 dark:text-green-300'
+                        rec.type === 'bottleneck' ? 'text-orange-700 dark:text-orange-300' :
+                          rec.type === 'overdue_risk' ? 'text-red-700 dark:text-red-300' :
+                            'text-green-700 dark:text-green-300'
                         }`}>
                         {rec.type.replace('_', ' ')}
                       </span>
@@ -207,7 +230,12 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
                     </div>
 
                     <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate pr-4">{rec.title}</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 truncate">{rec.reason}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{rec.reason}</p>
+                    {mlPowered && rec.description && rec.description !== 'No description provided' && (
+                      <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1 italic line-clamp-2">
+                        💡 {rec.description}
+                      </p>
+                    )}
                   </div>
                 </div>
 

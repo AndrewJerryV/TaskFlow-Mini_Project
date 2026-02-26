@@ -325,3 +325,44 @@ ON CONFLICT (id) DO UPDATE SET
   skill_match_priority = EXCLUDED.skill_match_priority;
 
 
+-- Shortcuts table
+CREATE TABLE IF NOT EXISTS shortcuts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  url TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('link', 'repository')) DEFAULT 'link',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE shortcuts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all for shortcuts" ON shortcuts FOR ALL USING (true) WITH CHECK (true);
+
+-- Repo links table
+CREATE TABLE IF NOT EXISTS repo_links (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  url TEXT NOT NULL,
+  owner TEXT NOT NULL,
+  repo TEXT NOT NULL,
+  description TEXT,
+  added_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE repo_links ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all for repo_links" ON repo_links FOR ALL USING (true) WITH CHECK (true);
+
+-- Form links table
+CREATE TABLE IF NOT EXISTS form_links (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  form_url TEXT NOT NULL,
+  created_by TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE form_links ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all for form_links" ON form_links FOR ALL USING (true) WITH CHECK (true);

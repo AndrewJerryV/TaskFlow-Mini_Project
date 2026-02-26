@@ -1,0 +1,47 @@
+%%{init: {"sequence": {"mirrorActors": false}}}%%
+sequenceDiagram
+    actor Manager
+    participant UI as Project Dashboard
+    participant API as Project API
+    participant DB as Database
+    participant Notify as Notifications
+
+    Manager->>UI: Create project
+    UI->>API: POST /api/projects {name, key, description}
+    API->>DB: Check key uniqueness
+    alt Key Exists
+        API-->>UI: Error: Project key taken
+    else Key Available
+        API->>DB: INSERT project
+        API->>DB: Create default columns (Todo, In Progress, Review, Done)
+        API->>DB: Set WIP limits per column
+        API-->>UI: Project created
+    end
+
+    Manager->>UI: Add team members
+    UI->>API: POST /api/projects/{id}/members {userIds[], role}
+    par For each user
+        API->>DB: Link user to project
+        API->>Notify: Send project invite
+    end
+    API-->>UI: Members added
+
+    Manager->>UI: Create milestone
+    UI->>API: POST /api/projects/{id}/milestones {name, targetDate}
+    API->>DB: INSERT milestone
+    API-->>UI: Milestone created
+
+    Manager->>UI: Link tasks to milestone
+    UI->>API: PATCH /api/tasks/{id} {milestoneId}
+    API->>DB: UPDATE task.milestoneId
+    API-->>UI: Task linked
+
+    UI->>API: GET /api/milestones/{id}/progress
+    API->>DB: Count tasks (completed vs total)
+    DB-->>API: {completed: 8, total: 12}
+    API-->>UI: 66.7% complete
+
+    alt Progress < 50% AND Deadline < 7 days
+        API->>Notify: Alert: Milestone at risk
+        Notify-->>Manager: Email + push notification
+    end

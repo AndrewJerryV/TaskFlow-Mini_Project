@@ -1,0 +1,40 @@
+%%{init: {"sequence": {"mirrorActors": false}}}%%
+sequenceDiagram
+    actor User
+    participant UI as Dashboard
+    participant API as Backend API
+    participant ML as Python ML Server
+    participant DB as Database
+    
+    ML->>ML: Load SetFit Priority Model
+    ML->>ML: Load SentenceTransformer (Skills)
+    ML->>ML: Load Urgency Logic
+
+    User->>UI: Open Dashboard
+    UI->>API: GET /api/tasks/recommendations
+
+    API->>DB: Fetch candidate tasks (To Do / In Progress)
+    DB-->>API: List of Tasks
+    
+    loop For each candidate task
+        API->>ML: POST /analyze_task
+        ML->>ML: Calculate Priority & Urgency
+        ML->>ML: Match Skills (Task vs User Skills)
+        ML-->>API: { urgency_score, detected_skills, predicted_priority }
+    end
+
+    API->>API: Filter tasks where User is a top match
+    API->>API: Sort by Urgency Score
+
+    alt High Urgency Items
+        API-->>UI: "Critical Attention Needed" List
+    else Standard Queue
+        API-->>UI: Ranked Task List
+    end
+
+    UI-->>User: Display prioritized recommendations
+    
+    User->>UI: Accept/Start Task
+    UI->>API: Update Status
+    API->>DB: Save Change
+

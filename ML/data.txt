@@ -1,0 +1,130 @@
+Production API returning 500 errors for payment endpoint; investigate logs and restore service immediately | High
+Customer data exposure reported in audit; initiate incident response and patch vulnerability | High
+Primary database replication lag causing data inconsistency in dashboard metrics | High
+Critical memory leak in authentication service crashing pods in Kubernetes cluster | High
+Client escalation: enterprise tenant unable to access live environment before contract deadline | High
+Ransomware alert triggered on shared DevOps server; isolate affected machines | High
+Broken CI/CD pipeline blocking hotfix deployment for mobile app | High
+Security team detected unauthorized access attempts from suspicious IP range | High
+Release candidate failing regression tests hours before scheduled production rollout | High
+Payment gateway integration failing for all EU transactions | High
+SSL certificate expired on production domain causing site outage | High
+Corrupted backup discovered during restore test; verify data integrity immediately | High
+SaaS platform experiencing latency spikes above SLA thresholds | High
+HR system payroll export generating incorrect salary calculations | High
+Mobile app crash rate exceeds acceptable threshold after latest update | High
+Firewall misconfiguration preventing internal services from communicating | High
+Legal escalation from key client regarding missing compliance documentation | High
+Cloud billing anomaly showing 300% unexpected cost surge | High
+Admin panel access control allowing non-admin users elevated permissions | High
+Production Redis cache eviction causing session loss for active users | High
+Implement user profile editing feature as per Q3 roadmap | Medium
+Conduct UI redesign workshop with Design and Frontend teams | Medium
+Prepare sprint retrospective summary and action items | Medium
+Optimize SQL queries for reporting dashboard performance improvement | Medium
+Draft API documentation for new microservice endpoints | Medium
+Schedule stakeholder demo for beta analytics module | Medium
+Integrate third-party CRM with internal lead tracking system | Medium
+Set up staging environment for performance testing | Medium
+Refactor legacy authentication module for maintainability | Medium
+Create onboarding checklist for new backend engineers | Medium
+Implement feature flag system for gradual rollout | Medium
+Design email templates for marketing automation campaign | Medium
+Conduct accessibility audit for public website | Medium
+Prepare monthly KPI report for executive leadership | Medium
+Upgrade Node.js runtime version across services | Medium
+Review pull requests for payment reconciliation feature | Medium
+Coordinate cross-team planning session for next quarter | Medium
+Implement dark mode support in web application | Medium
+Create automated test cases for cart checkout flow | Medium
+Draft technical architecture diagram for new data warehouse | Medium
+Set up monitoring alerts for CPU and memory thresholds | Medium
+Run load testing against search microservice | Medium
+Organize client feedback session for feature prioritization | Medium
+Implement OAuth integration with enterprise SSO provider | Medium
+Prepare marketing collateral for upcoming product launch | Medium
+Migrate static assets to CDN for improved performance | Medium
+Update privacy policy documentation on website | Medium
+Conduct code quality audit using static analysis tools | Medium
+Implement caching layer for frequently accessed endpoints | Medium
+Develop internal dashboard for sales performance metrics | Medium
+Coordinate recruitment interviews for DevOps engineer role | Medium
+Plan Q3 product roadmap alignment meeting | Medium
+Update Terraform scripts for infrastructure provisioning | Medium
+Perform routine database index optimization | Medium
+Document disaster recovery procedures | Medium
+Prepare training material for new CRM rollout | Medium
+Improve search relevance algorithm accuracy | Medium
+Integrate analytics tracking for new landing pages | Medium
+Review vendor contract for cloud storage services | Medium
+Implement audit logging for admin activities | Medium
+Conduct competitor feature analysis for strategy planning | Medium
+Set up automated backups for staging environment | Medium
+Prepare quarterly budget forecast for engineering department | Medium
+Coordinate cross-functional sprint planning meeting | Medium
+Update Docker base images to latest stable versions | Medium
+Analyze churn metrics and provide recommendations | Medium
+Implement multi-language support for customer portal | Medium
+Create proof of concept for AI-driven recommendation engine | Medium
+Organize security awareness training for employees | Medium
+Prepare performance review documentation for team leads | Medium
+Fix typo in FAQ section of marketing website | Low
+Order new ergonomic chairs for development team | Low
+Plan annual team-building offsite event | Low
+Research potential adoption of blockchain for audit logs | Low
+Update internal wiki with recent meeting notes | Low
+Create Slack channel for Q4 hackathon participants | Low
+Redesign office floor seating arrangement proposal | Low
+Investigate potential partnership opportunities with local startups | Low
+Clean up outdated branches in Git repository | Low
+Add celebratory banner for company anniversary on homepage | Low
+Organize virtual coffee chat session for remote employees | Low
+Explore rebranding ideas for next fiscal year | Low
+Purchase additional Zoom licenses for HR team | Low
+Update employee birthday calendar | Low
+Test experimental UI animation concept | Low
+Compile list of tech conferences for next year | Low
+Archive old Jira tickets from 2022 backlog | Low
+Create survey for employee satisfaction feedback | Low
+Evaluate new note-taking tool for internal documentation | Low
+Research sustainability initiatives for corporate social responsibility report | Low
+Brainstorm ideas for company merchandise | Low
+Rearrange shared drive folder structure for clarity | Low
+Update profile pictures on internal directory | Low
+Review office pantry inventory and reorder supplies | Low
+Draft blog post ideas for next quarter content calendar | Low
+Test alternative icon sets for design system refresh | Low
+Explore potential migration to new HR management tool | Low
+Clean up obsolete Docker images in development environment | Low
+Prepare optional lunchtime knowledge-sharing session | Low
+Research long-term machine learning roadmap possibilities | Low
+Urgent: Finalize cake flavor options for annual office celebration | Low
+ASAP: Choose background music playlist for Friday team social | Low
+Critical: Decide T-shirt color for internal hackathon participants | Low
+Immediate action required: Update office noticeboard design layout | Low
+High attention needed: Select venue for year-end team dinner | Low
+Top priority: Approve new coffee machine model for pantry | Low
+Escalation: Confirm seating chart for quarterly town hall | Low
+Urgent folLow-up: Review draft tagline for internal newsletter | Low
+Immediate: Shortlist gift hampers for employee appreciation week | Low
+Priority request: Finalize font style for holiday greeting card | Low
+Renew wildcard SSL certificate expiring tomorrow on production domain | High
+Rotate compromised API keys identified in overnight security scan | High
+Apply emergency patch for zero-day vulnerability in authentication library | High
+Restore failed primary database node before nightly batch processing | High
+Re-enable automated backups after silent failure detected in logs | High
+Investigate abnormal spike in outbound traffic from core application server | High
+Update DNS records before domain cutover window closes tonight | High
+Fix misconfigured IAM policy granting public S3 bucket access | High
+Address failing health checks on load balancer impacting live traffic | High
+Regenerate encryption keys after security audit finding | High
+Resolve certificate chain mismatch causing payment gateway handshake failure | High
+Investigate intermittent data truncation in financial reporting export | High
+Remove hardcoded credentials discovered in public repository commit | High
+Patch kernel vulnerability on production Kubernetes nodes | High
+Correct time synchronization drift affecting transaction timestamps | High
+Fix broken cron job responsible for daily invoice generation | High
+Restore email delivery service failing DMARC validation | High
+Replace expired OAuth client secret used by mobile app | High
+Address memory exhaustion issue causing autoscaling loop in production | High
+Reinstate disabled firewall rule blocking internal service communication | High

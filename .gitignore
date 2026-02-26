@@ -36,3 +36,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# python
+__pycache__/
+*.py[cod]
+ML/env/
+.env
+venv/
+env/
+ML/my_setfit_model/
+*.safetensors

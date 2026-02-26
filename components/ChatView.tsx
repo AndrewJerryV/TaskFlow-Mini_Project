@@ -30,20 +30,12 @@ export default function ChatView({ projectId }: ChatViewProps) {
 
     // Poll for messages
     const isFirstLoad = useRef(true);
-
-    useEffect(() => {
-        if (projectId) {
-            fetchMessages();
-            const interval = setInterval(fetchMessages, 3000);
-            return () => clearInterval(interval);
-        }
-    }, [projectId]);
+    const fetchRef = useRef<(() => Promise<void>) | undefined>(undefined);
 
     // Check if user is near bottom of chat
     const isNearBottom = () => {
         if (!scrollRef.current) return true;
         const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-        // Consider "near bottom" if within 100px of the bottom
         return scrollHeight - scrollTop - clientHeight < 100;
     };
 
@@ -53,16 +45,16 @@ export default function ChatView({ projectId }: ChatViewProps) {
             if (res.ok) {
                 const data = await res.json();
                 const wasNearBottom = isNearBottom();
-                const hadMessages = messages.length > 0;
-                setMessages(data);
-
-                // Only auto-scroll if:
-                // 1. It's the first load, or
-                // 2. User was already near the bottom
-                if (isFirstLoad.current || wasNearBottom) {
-                    scrollToBottom();
-                }
-                isFirstLoad.current = false;
+                setMessages(prev => {
+                    // Only auto-scroll if:
+                    // 1. It's the first load, or
+                    // 2. User was already near the bottom
+                    if (isFirstLoad.current || wasNearBottom) {
+                        scrollToBottom();
+                    }
+                    isFirstLoad.current = false;
+                    return data;
+                });
             }
         } catch (e) {
             console.error(e);
@@ -70,6 +62,17 @@ export default function ChatView({ projectId }: ChatViewProps) {
             setLoading(false);
         }
     };
+
+    // Keep fetchRef always pointing to the latest fetchMessages
+    fetchRef.current = fetchMessages;
+
+    useEffect(() => {
+        if (projectId) {
+            fetchRef.current?.();
+            const interval = setInterval(() => fetchRef.current?.(), 3000);
+            return () => clearInterval(interval);
+        }
+    }, [projectId]);
 
     const scrollToBottom = () => {
         setTimeout(() => {

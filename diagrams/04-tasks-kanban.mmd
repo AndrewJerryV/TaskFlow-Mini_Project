@@ -1,0 +1,47 @@
+%%{init: {"sequence": {"mirrorActors": false}}}%%
+sequenceDiagram
+    actor User
+    participant UI as Kanban Board
+    participant API as Task API
+    participant Rules as State Machine
+    participant WS as WebSocket
+    participant DB as Database
+    participant Log as Activity Log
+
+    User->>UI: View board
+    UI->>API: GET /api/tasks?projectId=X
+    API->>DB: Fetch tasks grouped by status
+    DB-->>API: Tasks by column
+    API-->>UI: Render Kanban columns
+
+    User->>UI: Drag task from "Todo" to "In Progress"
+    UI->>UI: Optimistic UI update
+    UI->>API: PATCH /api/tasks/{id} {status: "In Progress"}
+    API->>Rules: Validate transition (Todo → In Progress)
+
+    alt Valid Transition
+        Rules-->>API: Allowed
+        API->>DB: UPDATE task SET status, updatedAt
+        par Persist & Broadcast
+            API->>Log: INSERT activity {from: Todo, to: In Progress}
+            API->>WS: Broadcast to project room
+        end
+        WS-->>UI: Other users see card move
+        API-->>UI: Success
+    else Invalid Transition
+        Rules-->>API: Blocked (e.g., Done → Todo)
+        API-->>UI: Error: Invalid state transition
+        UI->>UI: Revert drag position
+    end
+
+    User->>UI: Drag to "In Progress" column
+    UI->>API: GET /api/columns/{id}/count
+    API->>DB: Count tasks in column
+    DB-->>API: count: 8, limit: 8
+
+    alt count < limit
+        API-->>UI: Drop allowed
+    else count >= limit
+        API-->>UI: Warning: WIP limit reached (8/8)
+        UI->>UI: Show limit warning overlay
+    end

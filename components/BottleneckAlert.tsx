@@ -1,16 +1,16 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { AlertCircle, User, GitBranch, ArrowRight, BarChart3, Sparkles } from 'lucide-react';
-import { Task, User as UserType } from '@/types';
-import { getUserName } from '@/lib/utils';
+import React, { useState, useEffect } from 'react';
+import { Task, User } from '@/types';
+import { AlertTriangle, Activity, Users, ArrowRight, CheckCircle2, Loader2, Zap } from 'lucide-react';
 
 interface BottleneckAlertProps {
-    tasks: Task[];
-    users: UserType[];
+    tasks?: Task[];
+    users?: User[];
 }
 
-interface Bottleneck {
+
+interface BottleneckResult {
     type: 'person' | 'process';
     location: string;
     taskCount: number;
@@ -19,178 +19,193 @@ interface Bottleneck {
     severity: 'low' | 'medium' | 'high';
 }
 
-export function BottleneckAlert({ tasks, users }: BottleneckAlertProps) {
-    const [bottlenecks, setBottlenecks] = useState<Bottleneck[]>([]);
-    const [stats, setStats] = useState({ process: 0, person: 0 });
+export function BottleneckAlert({ tasks = [], users = [] }: BottleneckAlertProps) {
+    const [bottlenecks, setBottlenecks] = useState<BottleneckResult[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [mlPowered, setMlPowered] = useState(false);
+    const [healthScore, setHealthScore] = useState<number | null>(null);
+    const [healthSummary, setHealthSummary] = useState<string | null>(null);
 
     useEffect(() => {
-        const analyze = () => {
-            const newBottlenecks: Bottleneck[] = [];
+        async function fetchBottlenecks() {
+            setLoading(true);
 
-            // 1. Process Bottlenecks (Status columns)
-            const statusCounts: Record<string, Task[]> = {
-                'To Do': [],
-                'In Progress': [],
-                'Review': [],
-                'Done': []
-            };
+            try {
+                const res = await fetch('/api/analytics/bottlenecks');
+                if (!res.ok) throw new Error('Failed to fetch');
 
-            tasks.forEach(t => {
-                if (statusCounts[t.status]) statusCounts[t.status].push(t);
-            });
+                const data = await res.json();
+                setBottlenecks(data.bottlenecks || []);
+                setMlPowered(data.mlPowered || false);
+                setHealthScore(data.overallHealthScore ?? null);
+                setHealthSummary(data.healthSummary ?? null);
+            } catch (err) {
+                console.error('Failed to fetch bottlenecks:', err);
+                // Fallback to client-side analysis
+                analyzeLocally();
+            } finally {
+                setLoading(false);
+            }
+        }
 
-            // Analyze "In Progress" pile-up
-            const inProgress = statusCounts['In Progress'];
-            if (inProgress.length > 5) { // Threshold for pile-up
-                const avgAge = inProgress.reduce((acc, t) => {
-                    const days = (new Date().getTime() - new Date(t.updatedAt).getTime()) / (1000 * 3600 * 24);
-                    return acc + days;
-                }, 0) / inProgress.length;
+        function analyzeLocally() {
+            const now = new Date();
+            const localBottlenecks: BottleneckResult[] = [];
 
-                if (avgAge > 3) {
-                    newBottlenecks.push({
+            const columns = [
+                { status: 'To Do', label: 'To Do' },
+                { status: 'In Progress', label: 'In Progress' },
+                { status: 'Review', label: 'Review' }
+            ];
+
+            columns.forEach(({ status, label }) => {
+                const columnTasks = tasks.filter(t => t.status === status);
+                if (columnTasks.length >= 8) {
+                    const avgDays = Math.round(
+                        columnTasks.reduce((sum, t) => {
+                            const diff = Math.floor((now.getTime() - new Date(t.updatedAt).getTime()) / 86400000);
+                            return sum + diff;
+                        }, 0) / columnTasks.length
+                    );
+                    localBottlenecks.push({
                         type: 'process',
-                        location: 'In Progress Column',
-                        taskCount: inProgress.length,
-                        avgDaysStuck: Math.round(avgAge),
-                        recommendation: 'Break down complex tasks or add more resources to active development.',
-                        severity: inProgress.length > 8 ? 'high' : 'medium'
+                        location: label,
+                        taskCount: columnTasks.length,
+                        avgDaysStuck: avgDays,
+                        severity: columnTasks.length >= 12 ? 'high' : 'medium',
+                        recommendation: `The "${label}" column has ${columnTasks.length} tasks averaging ${avgDays} days. Consider breaking down tasks or adding capacity.`
                     });
                 }
-            }
-
-            // Analyze "Review" pile-up
-            const review = statusCounts['Review'];
-            if (review.length > 3) {
-                const avgAge = review.reduce((acc, t) => {
-                    const days = (new Date().getTime() - new Date(t.updatedAt).getTime()) / (1000 * 3600 * 24);
-                    return acc + days;
-                }, 0) / review.length;
-
-                if (avgAge > 2) {
-                    newBottlenecks.push({
-                        type: 'process',
-                        location: 'Code Review',
-                        taskCount: review.length,
-                        avgDaysStuck: Math.round(avgAge),
-                        recommendation: 'Schedule a dedicated code review session to clear the queue.',
-                        severity: avgAge > 4 ? 'high' : 'medium'
-                    });
-                }
-            }
-
-            // 2. Person Bottlenecks (Overloaded users)
-            const userTaskCounts: Record<string, number> = {};
-            tasks.filter(t => t.status === 'In Progress' || t.status === 'Review').forEach(t => {
-                const assignee = t.assigneeId || 'unassigned';
-                userTaskCounts[assignee] = (userTaskCounts[assignee] || 0) + 1;
             });
 
-            Object.entries(userTaskCounts).forEach(([userId, count]) => {
-                if (count > 4) { // Threshold for overload
-                    const userName = getUserName(users, userId);
-                    newBottlenecks.push({
+            users.forEach(user => {
+                const userTasks = tasks.filter(t =>
+                    t.assigneeId === user.id && t.status !== 'Done'
+                );
+                const staleTasks = userTasks.filter(t => {
+                    const days = Math.floor((now.getTime() - new Date(t.updatedAt).getTime()) / 86400000);
+                    return days > 5;
+                });
+                if (staleTasks.length >= 3) {
+                    const avgDays = Math.round(
+                        staleTasks.reduce((sum, t) => {
+                            const diff = Math.floor((now.getTime() - new Date(t.updatedAt).getTime()) / 86400000);
+                            return sum + diff;
+                        }, 0) / staleTasks.length
+                    );
+                    localBottlenecks.push({
                         type: 'person',
-                        location: userName,
-                        taskCount: count,
-                        avgDaysStuck: 0, // Not calculated for person yet
-                        recommendation: `Redistribute tasks from ${userName} to balance workload.`,
-                        severity: count > 6 ? 'high' : 'medium'
+                        location: user.name || 'Unknown',
+                        taskCount: staleTasks.length,
+                        avgDaysStuck: avgDays,
+                        severity: staleTasks.length >= 5 ? 'high' : 'medium',
+                        recommendation: `${user.name} has ${staleTasks.length} stale tasks. Check for blockers or redistribute work.`
                     });
                 }
             });
 
-            setBottlenecks(newBottlenecks);
-            setStats({
-                process: newBottlenecks.filter(b => b.type === 'process').length,
-                person: newBottlenecks.filter(b => b.type === 'person').length
-            });
-        };
+            setBottlenecks(localBottlenecks);
+            setMlPowered(false);
+        }
 
-        analyze();
+        fetchBottlenecks();
     }, [tasks, users]);
 
-    if (bottlenecks.length === 0) {
+    if (loading) {
         return (
-            <div className="space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-800">
-                    <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                        <BarChart3 size={18} className="text-green-600 dark:text-green-400" />
-                        Workflow Health
-                    </h2>
-                </div>
-                <div className="p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center text-center">
-                    <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-full mb-3">
-                        <Sparkles size={24} className="text-green-600 dark:text-green-400" />
-                    </div>
-                    <h3 className="font-medium text-gray-900 dark:text-white">Workflow is Healthy</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-md">
-                        No bottlenecks detected. Task flow in "In Progress" and "Review" follows optimal velocity.
-                    </p>
-                </div>
+            <div className="p-6 text-center text-gray-500 text-sm flex items-center justify-center gap-2">
+                <Loader2 size={16} className="animate-spin text-indigo-500" />
+                Analyzing workflow health...
             </div>
         );
     }
 
+    const severityColor = {
+        high: 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300',
+        medium: 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-300',
+        low: 'bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-900/20 dark:border-yellow-800 dark:text-yellow-300'
+    };
+
+    const severityDot = {
+        high: 'bg-red-500',
+        medium: 'bg-amber-500',
+        low: 'bg-yellow-500'
+    };
+
+    const getHealthColor = (score: number) => {
+        if (score >= 80) return 'text-green-600 dark:text-green-400';
+        if (score >= 60) return 'text-yellow-600 dark:text-yellow-400';
+        return 'text-red-600 dark:text-red-400';
+    };
+
     return (
-        <div className="space-y-4">
+        <div className="space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-800">
-                <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                    <BarChart3 size={18} className="text-orange-600 dark:text-orange-400" />
-                    Workflow Bottlenecks
-                </h2>
-                <div className="flex gap-3 text-xs text-gray-500">
-                    <span className="flex items-center gap-1"><GitBranch size={12} /> {stats.process} Process</span>
-                    <span className="flex items-center gap-1"><User size={12} /> {stats.person} People</span>
+                <h3 className="text-base font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                    <Activity size={16} className="text-indigo-600 dark:text-indigo-400" />
+                    Workflow Health
+                </h3>
+                <div className="flex items-center gap-2">
+                    {mlPowered && (
+                        <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700">
+                            <Zap size={10} />
+                            ML Insights
+                        </span>
+                    )}
+                    {healthScore !== null && (
+                        <span className={`text-sm font-semibold ${getHealthColor(healthScore)}`}>
+                            {healthScore}/100
+                        </span>
+                    )}
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {bottlenecks.map((bottleneck, idx) => (
-                    <div
-                        key={idx}
-                        className={`p-4 rounded-lg border flex flex-col justify-between ${bottleneck.severity === 'high'
-                            ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800'
-                            : 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800'
-                            }`}
-                    >
-                        <div>
-                            <div className="flex items-start justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                    <div className={`p-1.5 rounded-md ${bottleneck.type === 'process'
-                                        ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
-                                        : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                                        }`}>
-                                        {bottleneck.type === 'process' ? <GitBranch size={16} /> : <User size={16} />}
-                                    </div>
-                                    <span className="font-semibold text-gray-900 dark:text-white">{bottleneck.location}</span>
-                                </div>
-                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${bottleneck.severity === 'high'
-                                    ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
-                                    : 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400'
-                                    }`}>
-                                    {bottleneck.severity.toUpperCase()}
-                                </span>
-                            </div>
+            {healthSummary && mlPowered && (
+                <p className="text-sm text-indigo-600 dark:text-indigo-400 italic px-1">
+                    💡 {healthSummary}
+                </p>
+            )}
 
-                            <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400 mb-3 ml-1">
-                                <span>{bottleneck.taskCount} items piled up</span>
-                                {bottleneck.avgDaysStuck > 0 && (
-                                    <>
-                                        <span>•</span>
-                                        <span>~{bottleneck.avgDaysStuck}d avg age</span>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-gray-800/40 p-2 rounded">
-                            <ArrowRight size={14} className="mt-1 flex-shrink-0 opacity-70" />
-                            <span>{bottleneck.recommendation}</span>
-                        </div>
+            {bottlenecks.length === 0 ? (
+                <div className="flex items-center gap-3 p-4 bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800 rounded-lg">
+                    <CheckCircle2 size={20} className="text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                    <div>
+                        <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">No bottlenecks detected</p>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">Workflow is running smoothly.</p>
                     </div>
-                ))}
-            </div>
+                </div>
+            ) : (
+                <div className="space-y-2">
+                    {bottlenecks.map((bottleneck, idx) => (
+                        <div key={idx} className={`p-3 rounded-lg border ${severityColor[bottleneck.severity]} transition-all`}>
+                            <div className="flex items-start gap-3">
+                                <div className="mt-0.5 flex-shrink-0">
+                                    {bottleneck.type === 'process' ? (
+                                        <AlertTriangle size={16} />
+                                    ) : (
+                                        <Users size={16} />
+                                    )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className={`w-2 h-2 rounded-full ${severityDot[bottleneck.severity]}`} />
+                                        <span className="text-xs font-bold uppercase tracking-wider">
+                                            {bottleneck.type} bottleneck
+                                        </span>
+                                        <span className="opacity-50">•</span>
+                                        <span className="text-xs font-medium">{bottleneck.location}</span>
+                                    </div>
+                                    <p className="text-sm leading-relaxed">{bottleneck.recommendation}</p>
+                                    <div className="flex items-center gap-4 mt-2 text-xs opacity-75">
+                                        <span>{bottleneck.taskCount} tasks</span>
+                                        <span>Avg {bottleneck.avgDaysStuck} days stuck</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

@@ -134,3 +134,33 @@ export interface DbFormResponse {
     answers: string; // JSON string of Record<string, any>
     submitted_at: string;
 }
+
+export interface DbShortcut {
+    id: string;
+    project_id: string;
+    name: string;
+    url: string;
+    type: 'link' | 'repository';
+    created_at: string;
+}
+
+export interface DbRepoLink {
+    id: string;
+    project_id: string;
+    name: string;
+    url: string;
+    owner: string;
+    repo: string;
+    description?: string;
+    added_at: string;
+}
+
+export interface DbFormLink {
+    id: string;
+    project_id: string;
+    title: string;
+    description?: string;
+    form_url: string;
+    created_by?: string;
+    created_at: string;
+}
