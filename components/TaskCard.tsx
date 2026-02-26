@@ -4,7 +4,7 @@ import React from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Task } from '@/types';
-import { User, Tag } from 'lucide-react';
+import { User, Tag ,CalendarClock } from 'lucide-react';
 import { getPriorityColorBordered } from '@/lib/utils';
 
 interface TaskCardProps {
@@ -81,9 +81,12 @@ function CardContent({ task }: { task: Task }) {
                 )}
             </div>
             <h4 className="font-medium text-gray-900 dark:text-white text-sm mb-1">{task.title}</h4>
-            <p className={`text-sm font-medium ${isOverdue ? "text-red-500" : "text-gray-500"}`}>
-                📅 Due: {formattedDate}
-            </p>
+            <div className='flex gap-1'>
+                <CalendarClock size={15} color='grey' > </CalendarClock>
+                <p className={`text-xs font-medium ${isOverdue ? "text-red-600" : "text-gray-500"}`}>
+                    Due: {formattedDate}
+                </p>
+            </div>
 
 
             <div className="flex flex-wrap gap-1 mt-2">

@@ -88,6 +88,10 @@ export function TaskBoard({ tasks, onTaskMove }: TaskBoardProps) {
         }),
     };
 
+    const priorityOrder: Record<string,number> ={
+        Critical:4,High:3,Medium:2,Low:1
+    }
+
     return (
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <div className="flex h-full overflow-x-auto pb-4">
@@ -96,7 +100,10 @@ export function TaskBoard({ tasks, onTaskMove }: TaskBoardProps) {
                         key={status}
                         id={status}
                         title={status}
-                        tasks={tasks.filter(t => t.status === status)}
+                        tasks={tasks
+                        .filter(t => t.status === status)
+                        .sort((a, b) => priorityOrder[b.priority] - priorityOrder[a.priority])
+}
                     />
                 ))}
             </div>
