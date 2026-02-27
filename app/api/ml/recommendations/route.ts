@@ -225,10 +225,17 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url);
         const projectId = searchParams.get('projectId');
         const userId = searchParams.get('userId');
+        const filterByUserId = searchParams.get('filterByUserId') === 'true';
 
-        const tasks = projectId
+        let tasks = projectId
             ? await db.getTasks(projectId)
             : await db.getTasks();
+
+        // If 'filterByUserId' is true, immediately restrict the entire dataset 
+        // down to tasks assigned exactly to this user.
+        if (filterByUserId && userId) {
+            tasks = tasks.filter(t => t.assigneeId === userId);
+        }
 
         console.log(`[ML API] Found ${tasks.length} tasks for projectId: ${projectId || 'ALL'}`);
 
