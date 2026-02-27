@@ -194,7 +194,7 @@ async function localMLRecommendations(tasks: Task[], currentUserId: string | nul
                 taskId: task.id,
                 type,
                 title: task.title,
-                description: `AI Urgency: ${Math.round(urgency_score)}/100 • Predicted: ${predicted_priority} (${confidence_score} conf)`,
+                description: `Urgency: ${Math.min(100, Math.round(urgency_score))}/100 • Predicted priority: ${predicted_priority} (${confidence_score} conf)`,
                 score: Math.min(Math.round(finalScore), 100),
                 reason: reasons.join(' • '),
                 suggestedAction
@@ -208,7 +208,11 @@ async function localMLRecommendations(tasks: Task[], currentUserId: string | nul
     }
 
     return {
-        recommendations: generated.sort((a, b) => b.score - a.score).slice(0, 6),
+        recommendations: generated.sort((a, b) => {
+            if (a.type === 'overdue_risk' && b.type !== 'overdue_risk') return -1;
+            if (b.type === 'overdue_risk' && a.type !== 'overdue_risk') return 1;
+            return b.score - a.score;
+        }).slice(0, 6),
         mlPowered: true
     };
 }

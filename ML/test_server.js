@@ -30,6 +30,15 @@ const testCases = [
             days_until_due: 5,
             days_since_update: 20   // Hasn't been touched in 20 days!
         }
+    },
+    {
+        scenario: "Create a Figma design for a sign up page ",
+        payload: {
+            description: "Design figma design",
+            status: "In Progress",
+            days_until_due: 5,
+            days_since_update: 20   // Hasn't been touched in 20 days!
+        }
     }
 ];
 

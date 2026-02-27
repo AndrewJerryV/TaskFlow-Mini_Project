@@ -128,3 +128,117 @@ Restore email delivery service failing DMARC validation | High
 Replace expired OAuth client secret used by mobile app | High
 Address memory exhaustion issue causing autoscaling loop in production | High
 Reinstate disabled firewall rule blocking internal service communication | High
+Urgent: Finalize snack menu for Friday game night | LOW
+Immediate: Approve design for office lobby poster | LOW
+Critical: Confirm balloon colors for product launch party | LOW
+High visibility: Select photographer for team outing | LOW
+ASAP: Decide between pizza or pasta for sprint celebration | LOW
+Top priority: Update motivational quote on reception display | LOW
+Escalation: Choose theme for quarterly fun Friday | LOW
+Immediate attention: Review options for branded notebooks | LOW
+Urgent: Book conference room for informal brainstorming session | LOW
+Priority: Shortlist icebreaker activities for onboarding day | LOW
+Update root CA certificate bundle before midnight expiry | HIGH
+Rotate database credentials exposed in third-party integration logs | HIGH
+Apply hotfix for race condition causing duplicate invoice generation | HIGH
+Resolve production queue backlog exceeding SLA limits | HIGH
+Disable compromised user accounts flagged by SOC team | HIGH
+Fix broken webhook endpoint preventing order confirmations | HIGH
+Reconfigure load balancer health probe misrouting live traffic | HIGH
+Investigate checksum mismatch in nightly financial reconciliation job | HIGH
+Restore access to SSO provider after metadata corruption | HIGH
+Rebuild failed RAID array on primary storage server | HIGH
+Patch critical vulnerability in container runtime across all nodes | HIGH
+Stop runaway background job consuming 100% CPU in production | HIGH
+Correct misapplied tax calculation impacting all invoices | HIGH
+Replace expired signing certificate used for mobile app builds | HIGH
+Address data sync failure between CRM and billing platform | HIGH
+Mitigate DDoS attack saturating public API endpoints | HIGH
+Fix broken migration script blocking production release | HIGH
+Recover deleted customer records from latest backup snapshot | HIGH
+Resolve permission regression exposing HR salary folder | HIGH
+Investigate failed disaster recovery replication test | HIGH
+Refactor onboarding workflow to reduce manual HR steps | MEDIUM
+Prepare Q4 sales forecast deck for leadership review | MEDIUM
+Implement pagination on customer transaction history page | MEDIUM
+Schedule usability testing session with beta users | MEDIUM
+Upgrade React version in frontend monorepo | MEDIUM
+Draft partnership proposal for regional distributor | MEDIUM
+Create automated onboarding emails for new signups | MEDIUM
+Optimize image compression for landing page assets | MEDIUM
+Conduct training session on secure coding practices | MEDIUM
+Migrate legacy reports to new BI platform | MEDIUM
+Implement rate limiting on public API | MEDIUM
+Review and update employee handbook policies | MEDIUM
+Design new dashboard widgets for analytics suite | MEDIUM
+Plan campus hiring drive with HR and marketing | MEDIUM
+Improve error messaging in checkout flow | MEDIUM
+Conduct quarterly vendor performance evaluation | MEDIUM
+Automate payroll reconciliation report | MEDIUM
+Update customer success playbook documentation | MEDIUM
+Organize roadmap alignment workshop across departments | MEDIUM
+Implement A/B test for homepage conversion optimization | MEDIUM
+Draft case study for recent enterprise client win | MEDIUM
+Upgrade PostgreSQL minor version in staging | MEDIUM
+Integrate chatbot support into help center | MEDIUM
+Review accessibility compliance against WCAG guidelines | MEDIUM
+Create internal knowledge base for DevOps runbooks | MEDIUM
+Optimize CI pipeline execution time | MEDIUM
+Conduct mid-year performance reviews | MEDIUM
+Implement two-factor authentication for admin portal | MEDIUM
+Prepare product pricing comparison analysis | MEDIUM
+Schedule penetration testing with external security firm | MEDIUM
+Update internal API gateway routing rules | MEDIUM
+Design referral incentive program for customers | MEDIUM
+Build reporting dashboard for marketing attribution | MEDIUM
+Organize leadership Q&A town hall session | MEDIUM
+Implement automated data retention policy enforcement | MEDIUM
+Update training modules for new compliance standards | MEDIUM
+Coordinate cross-functional dependency mapping exercise | MEDIUM
+Refine user persona documentation for design team | MEDIUM
+Improve search indexing strategy for faster queries | MEDIUM
+Prepare investor update summary for board circulation | MEDIUM
+Archive inactive customer accounts older than five years | MEDIUM
+Enhance mobile responsiveness for account settings page | MEDIUM
+Conduct capacity planning for next quarter traffic growth | MEDIUM
+Update vendor risk assessment documentation | MEDIUM
+Organize quarterly hackathon logistics | LOW
+Brainstorm ideas for office wall mural | LOW
+Research potential mascot redesign concepts | LOW
+Create playlist for monthly all-hands meeting | LOW
+Evaluate new coffee bean supplier options | LOW
+Update internal Slack emoji library | LOW
+Draft informal thank-you notes for interns | LOW
+Test alternative backgrounds for Zoom calls | LOW
+Compile fun facts for company newsletter | LOW
+Rearrange bookshelf in collaboration area | LOW
+Explore optional yoga instructor for weekly wellness | LOW
+Review font pairing options for brand refresh exploration | LOW
+Collect suggestions for next book club pick | LOW
+Research potential corporate gift vendors for next year | LOW
+Organize desk plant distribution initiative | LOW
+Update decorative signage near meeting rooms | LOW
+Create poll for preferred team hoodie design | LOW
+Test experimental micro-interaction animation concept | LOW
+Gather ideas for future podcast series | LOW
+Draft outline for long-term innovation lab concept | LOW
+Renew production SSL certificate expiring tonight | HIGH
+Rotate compromised AWS access keys detected in security scan | HIGH
+Restore primary database after unexpected crash during peak traffic | HIGH
+Mitigate active DDoS attack impacting customer login endpoint | HIGH
+Fix broken payment webhook causing failed transactions | HIGH
+Patch critical zero-day vulnerability in authentication service | HIGH
+Recover deleted customer invoices from last night’s failed backup | HIGH
+Resolve data corruption in payroll processing module before disbursement | HIGH
+Reinstate CI/CD pipeline blocking hotfix deployment | HIGH
+Disable unauthorized admin accounts identified in audit logs | HIGH
+Address production memory leak crashing Kubernetes pods | HIGH
+Update expired OAuth client secret used by mobile app | HIGH
+Correct tax miscalculation affecting all active subscriptions | HIGH
+Restore SSO integration preventing employees from accessing systems | HIGH
+Contain suspected ransomware activity on shared file server | HIGH
+Fix misconfigured firewall blocking internal API communication | HIGH
+Resolve SLA breach due to API latency exceeding contractual limits | HIGH
+Reconfigure load balancer after health check failures | HIGH
+Investigate spike in failed login attempts indicating brute-force attack | HIGH
+Deploy emergency rollback after failed production release | HIGH

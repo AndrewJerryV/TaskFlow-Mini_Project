@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Task, User } from '@/types';
-import { Sparkles, ArrowRight, BrainCircuit, TrendingUp, Calendar, AlertCircle, ArrowDown, Loader2, Zap } from 'lucide-react';
+import { Sparkles, ArrowRight, BrainCircuit, TrendingUp, Calendar, AlertCircle, ArrowDown, Loader2, Zap, Lightbulb } from 'lucide-react';
 import { BottleneckAlert } from '@/components/BottleneckAlert';
+import { Modal } from '@/components/ui/Modal';
 
 interface MLTaskRecommendationsProps {
   tasks: Task[];
@@ -29,6 +30,7 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
   const [loading, setLoading] = useState(true);
   const [mlPowered, setMlPowered] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rescheduleData, setRescheduleData] = useState<{ isOpen: boolean, task: Task | null, days: string }>({ isOpen: false, task: null, days: '1' });
   const bottlenecksRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -141,6 +143,8 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
       if (confirmed) onTaskUpdate({ ...task, status: 'Done' });
     } else if (rec.suggestedAction === 'Start Task') {
       onTaskUpdate({ ...task, status: 'In Progress' });
+    } else if (rec.suggestedAction === 'Reschedule') {
+      setRescheduleData({ isOpen: true, task, days: '1' });
     } else {
       alert(`Action: ${rec.suggestedAction}\nTask: ${task.title}`);
     }
@@ -232,8 +236,9 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
                     <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate pr-4">{rec.title}</h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{rec.reason}</p>
                     {mlPowered && rec.description && rec.description !== 'No description provided' && (
-                      <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1 italic line-clamp-2">
-                        💡 {rec.description}
+                      <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1 italic line-clamp-2 flex items-start gap-1">
+                        <Lightbulb size={12} className="mt-0.5 flex-shrink-0" />
+                        <span>{rec.description}</span>
                       </p>
                     )}
                   </div>
@@ -258,6 +263,55 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
       <div ref={bottlenecksRef}>
         <BottleneckAlert tasks={tasks} users={users} />
       </div>
+
+      {/* Reschedule Modal */}
+      <Modal isOpen={rescheduleData.isOpen} onClose={() => setRescheduleData({ isOpen: false, task: null, days: '1' })} title="Reschedule Task">
+        <div className="p-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            How many days would you like to delay "{rescheduleData.task?.title}"?
+          </p>
+          <input
+            type="number"
+            min="1"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white mb-6 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            value={rescheduleData.days}
+            onChange={(e) => setRescheduleData(prev => ({ ...prev, days: e.target.value }))}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const days = parseInt(rescheduleData.days);
+                if (!isNaN(days) && rescheduleData.task) {
+                  const newDate = rescheduleData.task.dueDate ? new Date(rescheduleData.task.dueDate) : new Date();
+                  newDate.setDate(newDate.getDate() + days);
+                  onTaskUpdate?.({ ...rescheduleData.task, dueDate: newDate.toISOString() });
+                  setRescheduleData({ isOpen: false, task: null, days: '1' });
+                }
+              }
+            }}
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => setRescheduleData({ isOpen: false, task: null, days: '1' })}
+              className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                const days = parseInt(rescheduleData.days);
+                if (!isNaN(days) && rescheduleData.task) {
+                  const newDate = rescheduleData.task.dueDate ? new Date(rescheduleData.task.dueDate) : new Date();
+                  newDate.setDate(newDate.getDate() + days);
+                  onTaskUpdate?.({ ...rescheduleData.task, dueDate: newDate.toISOString() });
+                  setRescheduleData({ isOpen: false, task: null, days: '1' });
+                }
+              }}
+              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors shadow-sm"
+            >
+              Confirm Update
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
