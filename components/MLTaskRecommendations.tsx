@@ -33,14 +33,33 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
   const [rescheduleData, setRescheduleData] = useState<{ isOpen: boolean, task: Task | null, days: string }>({ isOpen: false, task: null, days: '1' });
   const bottlenecksRef = useRef<HTMLDivElement>(null);
 
+  // Use refs and stringified dependencies to prevent infinite fetch loops
+  // since the parent `tasks` array reference might change on polling
+  const prevTasksLength = useRef<number>(0);
+  const tasksSignature = tasks.map(t => `${t.id}-${t.updatedAt}-${t.status}`).join('|');
+
   useEffect(() => {
+    // Only fetch if tasks actually changed meaningfully or it's the first load
+    if (tasks.length === prevTasksLength.current && recommendations.length > 0) {
+      // Just verify if any statuses/dates changed
+      // We do a deep generation but we don't necessarily need to trigger the full ML fetch
+      // unless requested. For now, we'll let it fetch on actual data changes.
+    }
+    prevTasksLength.current = tasks.length;
+
     const fetchRecommendations = async () => {
       setLoading(true);
       setError(null);
 
       try {
         const params = new URLSearchParams({ projectId });
-        if (currentUser?.id) params.set('userId', currentUser.id);
+        // The ML endpoint honors 'userId' but let's strictly target the query
+        if (currentUser?.id) {
+          if (currentUser.role === 'Member') {
+            params.set('filterByUserId', "true");
+          }
+          params.set('userId', currentUser.id);
+        }
 
         const res = await fetch(`/api/ml/recommendations?${params.toString()}`);
         if (!res.ok) throw new Error('Failed to fetch recommendations');
@@ -131,7 +150,9 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
     };
 
     fetchRecommendations();
-  }, [tasks, currentUser, projectId]);
+    // Only re-run if tasks signature changes (tasks edited/moved/added/removed), not just when reference changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasksSignature, currentUser?.id, projectId]);
 
   const handleAction = (rec: Recommendation) => {
     if (!onTaskUpdate) return;

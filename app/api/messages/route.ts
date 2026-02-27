@@ -29,15 +29,15 @@ export async function POST(request: Request) {
             attachment = body.attachment as Attachment;
         }
 
-        // Validation: need projectId and either content or attachment
-        if (!body.projectId || (!body.content && !attachment)) {
-            return NextResponse.json({ error: 'Missing fields: need projectId and either content or attachment' }, { status: 400 });
+        // Validation: need projectId, userId and either content or attachment
+        if (!body.projectId || !body.userId || (!body.content && !attachment)) {
+            return NextResponse.json({ error: 'Missing fields: need projectId, userId and either content or attachment' }, { status: 400 });
         }
 
         const newMessage: Message = {
             id: crypto.randomUUID(),
             projectId: body.projectId,
-            userId: body.userId || 'u1',
+            userId: body.userId,
             content: body.content || '',
             timestamp: new Date().toISOString(),
             attachment,

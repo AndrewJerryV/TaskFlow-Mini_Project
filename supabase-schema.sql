@@ -8,7 +8,6 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT UNIQUE NOT NULL,
   avatar_url TEXT,
   role TEXT NOT NULL CHECK (role IN ('Admin', 'Manager', 'Member')),
-  role TEXT NOT NULL CHECK (role IN ('Admin', 'Manager', 'Member')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   -- AI / Smart Assign Fields
   skills TEXT[] DEFAULT '{}',
@@ -43,6 +42,20 @@ CREATE TABLE IF NOT EXISTS projects (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Project members table (many-to-many relationship)
+CREATE TABLE IF NOT EXISTS project_members (
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  role TEXT DEFAULT 'Member',
+  joined_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (project_id, user_id)
+);
+
+-- Seed initial memberships (owners of existing projects)
+INSERT INTO project_members (project_id, user_id, role)
+SELECT id, owner_id, 'Owner' FROM projects
+ON CONFLICT (project_id, user_id) DO NOTHING;
 
 -- Tasks table
 CREATE TABLE IF NOT EXISTS tasks (
@@ -323,6 +336,40 @@ ON CONFLICT (id) DO UPDATE SET
   burnout_sensitivity = EXCLUDED.burnout_sensitivity,
   auto_assign = EXCLUDED.auto_assign,
   skill_match_priority = EXCLUDED.skill_match_priority;
+
+-- Seed Projects
+INSERT INTO projects (id, name, description, key, owner_id) VALUES
+  ('00000000-0000-0000-0000-000000000101', 'TaskFlow Web App', 'Main web application built with Next.js and Supabase', 'TFW', '00000000-0000-0000-0000-000000000001'),
+  ('00000000-0000-0000-0000-000000000102', 'AI Recommendation Engine', 'Machine learning powered smart task assignment', 'AIR', '00000000-0000-0000-0000-000000000002'),
+  ('00000000-0000-0000-0000-000000000103', 'Mobile App (Flutter)', 'Cross-platform mobile application for iOS and Android', 'MOB', '00000000-0000-0000-0000-000000000004'),
+  ('00000000-0000-0000-0000-000000000104', 'DevOps & Infrastructure', 'Cloud infrastructure on AWS/Azure with Terraform', 'DEV', '00000000-0000-0000-0000-000000000005')
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  description = EXCLUDED.description,
+  key = EXCLUDED.key,
+  owner_id = EXCLUDED.owner_id;
+
+-- Seed Project Memberships (Distribute projects to each of the members)
+INSERT INTO project_members (project_id, user_id, role) VALUES
+  -- TaskFlow Web App members
+  ('00000000-0000-0000-0000-000000000101', '00000000-0000-0000-0000-000000000001', 'Owner'),
+  ('00000000-0000-0000-0000-000000000101', '00000000-0000-0000-0000-000000000003', 'Member'),
+  ('00000000-0000-0000-0000-000000000101', '00000000-0000-0000-0000-000000000006', 'Member'),
+  
+  -- AI Recommendation Engine members
+  ('00000000-0000-0000-0000-000000000102', '00000000-0000-0000-0000-000000000002', 'Owner'),
+  ('00000000-0000-0000-0000-000000000102', '00000000-0000-0000-0000-000000000003', 'Member'),
+  ('00000000-0000-0000-0000-000000000102', '00000000-0000-0000-0000-000000000010', 'Member'),
+  
+  -- Mobile App members
+  ('00000000-0000-0000-0000-000000000103', '00000000-0000-0000-0000-000000000004', 'Owner'),
+  ('00000000-0000-0000-0000-000000000103', '00000000-0000-0000-0000-000000000007', 'Member'),
+  ('00000000-0000-0000-0000-000000000103', '00000000-0000-0000-0000-000000000009', 'Member'),
+  
+  -- DevOps members
+  ('00000000-0000-0000-0000-000000000104', '00000000-0000-0000-0000-000000000005', 'Owner'),
+  ('00000000-0000-0000-0000-000000000104', '00000000-0000-0000-0000-000000000001', 'Member')
+ON CONFLICT (project_id, user_id) DO NOTHING;
 
 
 -- Shortcuts table

@@ -47,7 +47,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                             // Update local storage to match fresh data
                             localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(freshUser));
                         } else {
-                            setCurrentUser(storedUser);
+                            // If user not found in fresh data (likely legacy ID 'u1'), clear session
+                            console.warn("Stored user not found in fresh data, clearing session.");
+                            setCurrentUser(null);
+                            localStorage.removeItem(LOCAL_STORAGE_KEY);
                         }
                     } catch {
                         localStorage.removeItem(LOCAL_STORAGE_KEY);

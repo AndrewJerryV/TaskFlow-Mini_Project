@@ -1,8 +1,7 @@
-'use client';
-
 import React, { useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CreateProjectDialogProps {
     isOpen: boolean;
@@ -10,9 +9,12 @@ interface CreateProjectDialogProps {
 }
 
 export function CreateProjectDialog({ isOpen, onClose }: CreateProjectDialogProps) {
+    const { currentUser, users } = useAuth();
     const [name, setName] = useState('');
     const [key, setKey] = useState('');
     const [description, setDescription] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
     const router = useRouter();
 
@@ -24,7 +26,7 @@ export function CreateProjectDialog({ isOpen, onClose }: CreateProjectDialogProp
             const res = await fetch('/api/projects', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, key, description, ownerId: 'u1' })
+                body: JSON.stringify({ name, key, description, ownerId: currentUser?.id, memberIds: selectedMembers })
             });
 
             if (res.ok) {
@@ -33,6 +35,7 @@ export function CreateProjectDialog({ isOpen, onClose }: CreateProjectDialogProp
                 setName('');
                 setKey('');
                 setDescription('');
+                setSelectedMembers([]);
                 router.push(`/projects/${project.id}`);
                 // Force router refresh to update sidebar
                 router.refresh();
@@ -83,6 +86,48 @@ export function CreateProjectDialog({ isOpen, onClose }: CreateProjectDialogProp
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                     />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Team Members</label>
+                    <input
+                        type="text"
+                        placeholder="Search members..."
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded p-2">
+                        {users
+                            .filter(u => u.id !== currentUser?.id)
+                            .filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.email.toLowerCase().includes(searchQuery.toLowerCase()))
+                            .map(user => {
+                                const isSelected = selectedMembers.includes(user.id);
+                                return (
+                                    <label key={user.id} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                            checked={isSelected}
+                                            onChange={() => {
+                                                if (isSelected) {
+                                                    setSelectedMembers(prev => prev.filter(id => id !== user.id));
+                                                } else {
+                                                    setSelectedMembers(prev => [...prev, user.id]);
+                                                }
+                                            }}
+                                        />
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-6 h-6 bg-indigo-500 rounded-full flex items-center justify-center text-white text-xs font-medium">
+                                                {user.name.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div>
+                                                <span className="text-sm font-medium text-gray-900">{user.name}</span>
+                                            </div>
+                                        </div>
+                                    </label>
+                                );
+                            })}
+                    </div>
                 </div>
 
                 <div className="pt-4 flex justify-end space-x-2 border-t border-gray-100 mt-4">

@@ -4,19 +4,21 @@ import React from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Task } from '@/types';
-import { User, Tag ,CalendarClock } from 'lucide-react';
+import { User, Tag, CalendarClock } from 'lucide-react';
 import { getPriorityColorBordered } from '@/lib/utils';
 
 interface TaskCardProps {
     task: Task;
     isOverlay?: boolean;
     onClick?: (task: Task) => void;
+    disableDrag?: boolean;
 }
 
-export function TaskCard({ task, isOverlay, onClick }: TaskCardProps) {
+export function TaskCard({ task, isOverlay, onClick, disableDrag }: TaskCardProps) {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: task.id,
-        data: { task }
+        data: { task },
+        disabled: disableDrag
     });
 
     const style = transform ? {
@@ -41,12 +43,15 @@ export function TaskCard({ task, isOverlay, onClick }: TaskCardProps) {
 
     return (
         <div
-            ref={setNodeRef}
+            ref={disableDrag ? undefined : setNodeRef}
             style={style}
-            {...listeners}
-            {...attributes}
+            {...(disableDrag ? {} : listeners)}
+            {...(disableDrag ? {} : attributes)}
             onClick={handleClick}
-            className={`bg-white dark:bg-gray-700 p-3 rounded-md shadow-sm border border-gray-200 dark:border-gray-600 cursor-grab hover:shadow-md hover:border-blue-300 dark:hover:border-blue-500 transition-all ${isDragging ? 'opacity-30' : ''} mb-3`}
+            className={`bg-white dark:bg-gray-700 p-3 rounded-md shadow-sm border ${disableDrag
+                ? 'border-gray-200 dark:border-gray-600 cursor-pointer hover:border-gray-300 dark:hover:border-gray-500'
+                : 'border-l-4 border-l-blue-500 border-gray-200 dark:border-gray-600 cursor-grab hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500'
+                } transition-all ${isDragging ? 'opacity-30' : ''} mb-3`}
         >
             <CardContent task={task} />
         </div>
@@ -56,17 +61,17 @@ export function TaskCard({ task, isOverlay, onClick }: TaskCardProps) {
 function CardContent({ task }: { task: Task }) {
 
     const formattedDate = task.dueDate
-  ? new Date(task.dueDate).toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "long",
-      year:"numeric"
-  })
-  : "No deadline";
+        ? new Date(task.dueDate).toLocaleDateString("en-GB", {
+            day: "numeric",
+            month: "long",
+            year: "numeric"
+        })
+        : "No deadline";
 
     const isOverdue =
-    task.dueDate &&
-    new Date(task.dueDate) < new Date() &&
-    task.status !== "Done";
+        task.dueDate &&
+        new Date(task.dueDate) < new Date() &&
+        task.status !== "Done";
 
     return (
         <>
@@ -81,9 +86,9 @@ function CardContent({ task }: { task: Task }) {
                 )}
             </div>
             <h4 className="font-medium text-gray-900 dark:text-white text-sm mb-1">{task.title}</h4>
-            <div className='flex gap-1'>
-                <CalendarClock size={15} color='grey' > </CalendarClock>
-                <p className={`text-xs font-medium ${isOverdue ? "text-red-600" : "text-gray-500"}`}>
+            <div className='flex gap-1 items-center'>
+                <CalendarClock size={12} color='grey' />
+                <p className={`text-[10px] font-medium ${isOverdue ? "text-red-600" : "text-gray-500"}`}>
                     Due: {formattedDate}
                 </p>
             </div>

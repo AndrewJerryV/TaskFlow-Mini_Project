@@ -57,6 +57,12 @@ export interface Comment {
   createdAt: string; // ISO Date
 }
 
+export interface TimeLog {
+  userId: string;
+  minutes: number;
+  date: string; // ISO Date string
+}
+
 export interface Task {
   id: string;
   projectId: string;
@@ -70,6 +76,9 @@ export interface Task {
   createdAt: string; // ISO Date
   updatedAt: string; // ISO Date
   tags: string[];
+  isPrivate?: boolean;
+  timeLogs?: TimeLog[];
+  dependencies?: string[]; // Array of task IDs this task depends on
 }
 
 

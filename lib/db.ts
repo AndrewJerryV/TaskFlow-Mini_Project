@@ -153,6 +153,20 @@ class Database {
         return (data || []).map(toUser);
     }
 
+    async getUser(id: string): Promise<User | null> {
+        const { data, error } = await getSupabase()
+            .from('users')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error || !data) {
+            console.error('Error fetching user:', error);
+            return null;
+        }
+        return toUser(data);
+    }
+
     async updateUserSettings(userId: string, settings: Partial<{
         phone: string;
         officeAddress: string;
@@ -200,18 +214,91 @@ class Database {
         return toUser(data);
     }
 
+    async updateUserRole(userId: string, newRole: string): Promise<boolean> {
+        const { error } = await getSupabase()
+            .from('users')
+            .update({ role: newRole })
+            .eq('id', userId);
+
+        if (error) {
+            console.error('Error updating user role:', error);
+            return false;
+        }
+        return true;
+    }
+
     // Projects
-    async getProjects(): Promise<Project[]> {
-        const { data, error } = await getSupabase()
-            .from('projects')
-            .select('*')
-            .order('created_at', { ascending: false });
+    async getProjects(userId?: string): Promise<Project[]> {
+        let user: User | null = null;
+        if (userId) {
+            user = await this.getUser(userId);
+        }
+
+        let query = getSupabase().from('projects').select('*');
+
+        // Only filter if userId is provided and user is not an Admin
+        if (userId) {
+            if (!user) {
+                console.warn(`User with ID ${userId} not found in getProjects. Returning empty list.`);
+                return [];
+            }
+
+            if (user.role !== 'Admin') {
+                const { data: membershipData, error: membershipError } = await getSupabase()
+                    .from('project_members')
+                    .select('project_id')
+                    .eq('user_id', userId);
+
+                if (membershipError) {
+                    console.error('Error fetching project memberships:', membershipError);
+                }
+
+                const projectIds = membershipData ? membershipData.map((m: any) => m.project_id) : [];
+
+                // Construct the or filter string
+                const ownerFilter = `owner_id.eq.${userId}`;
+                const membershipFilter = projectIds.length > 0 ? `,id.in.(${projectIds.join(',')})` : '';
+
+                query = query.or(`${ownerFilter}${membershipFilter}`);
+            }
+        }
+
+        const { data, error } = await query.order('created_at', { ascending: false });
 
         if (error) {
             console.error('Error fetching projects:', error);
             return [];
         }
         return (data || []).map(toProject);
+    }
+
+    async getProject(id: string): Promise<Project | null> {
+        const { data, error } = await getSupabase()
+            .from('projects')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error) {
+            if (error.code !== 'PGRST116') { // PGRST116 is 'no rows returned'
+                console.error('Error fetching project:', error);
+            }
+            return null;
+        }
+        return toProject(data);
+    }
+
+    async getProjectMembers(projectId: string): Promise<string[]> {
+        const { data, error } = await getSupabase()
+            .from('project_members')
+            .select('user_id')
+            .eq('project_id', projectId);
+
+        if (error) {
+            console.error('Error fetching project members:', error);
+            return [];
+        }
+        return (data || []).map((m: any) => m.user_id);
     }
 
     async addProject(project: Project): Promise<void> {
@@ -229,7 +316,41 @@ class Database {
 
         if (error) {
             console.error('Error adding project:', error);
+            return;
         }
+
+        // Add creator as the first member (Owner)
+        await this.addProjectMember(project.id, project.ownerId, 'Owner');
+    }
+
+    async addProjectMember(projectId: string, userId: string, role: string = 'Member'): Promise<boolean> {
+        const { error } = await getSupabase()
+            .from('project_members')
+            .insert({
+                project_id: projectId,
+                user_id: userId,
+                role: role
+            });
+
+        if (error) {
+            console.error('Error adding project member:', error);
+            return false;
+        }
+        return true;
+    }
+
+    async removeProjectMember(projectId: string, userId: string): Promise<boolean> {
+        const { error } = await getSupabase()
+            .from('project_members')
+            .delete()
+            .eq('project_id', projectId)
+            .eq('user_id', userId);
+
+        if (error) {
+            console.error('Error removing project member:', error);
+            return false;
+        }
+        return true;
     }
 
     async deleteProject(id: string): Promise<boolean> {
@@ -311,7 +432,7 @@ class Database {
         });
     }
 
-    async updateTask(id: string, updates: Partial<Task>): Promise<Task | null> {
+    async updateTask(id: string, updates: Partial<Task>, userId: string = 'system'): Promise<Task | null> {
         // First get the current task to compare status
         const { data: currentTasks, error: fetchError } = await getSupabase()
             .from('tasks')
@@ -360,7 +481,7 @@ class Database {
                 entityId: id,
                 action: 'Moved',
                 details: `Status changed from "${oldStatus}" to "${updates.status}".`,
-                userId: 'system',
+                userId: userId,
                 timestamp: new Date().toISOString()
             });
         }

@@ -49,6 +49,13 @@ export interface DbUser {
 }
 
 
+export interface DbProjectMember {
+    project_id: string;
+    user_id: string;
+    role: string;
+    joined_at: string;
+}
+
 export interface DbDocument {
     id: string;
     project_id: string;

@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, User, TrendingDown, Activity, Heart } from 'lucide-react';
+import { AlertTriangle, User, TrendingDown, Activity, Heart, ShieldAlert } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface BurnoutMetrics {
     userId: string;
@@ -17,22 +18,21 @@ interface BurnoutMetrics {
 export function BurnoutDashboard() {
     const [metrics, setMetrics] = useState<BurnoutMetrics[]>([]);
     const [loading, setLoading] = useState(true);
+    const { currentUser } = useAuth();
 
     useEffect(() => {
-        fetch('/api/team/burnout')
-            .then(res => res.json())
-            .then(data => {
-                setMetrics(Array.isArray(data) ? data : []);
-                setLoading(false);
-            })
-            .catch(() => setLoading(false));
-    }, []);
-
-    const highRisk = metrics.filter(m => m.burnoutRisk === 'High');
-    const mediumRisk = metrics.filter(m => m.burnoutRisk === 'Medium');
-    const avgCapacity = metrics.length > 0
-        ? Math.round(metrics.reduce((sum, m) => sum + m.capacityPercent, 0) / metrics.length)
-        : 0;
+        if (currentUser?.role === 'Admin' || currentUser?.role === 'Manager') {
+            fetch('/api/team/burnout')
+                .then(res => res.json())
+                .then(data => {
+                    setMetrics(Array.isArray(data) ? data : []);
+                    setLoading(false);
+                })
+                .catch(() => setLoading(false));
+        } else {
+            setLoading(false);
+        }
+    }, [currentUser]);
 
     if (loading) {
         return (
@@ -44,6 +44,22 @@ export function BurnoutDashboard() {
             </div>
         );
     }
+
+    if (!currentUser || (currentUser.role !== 'Admin' && currentUser.role !== 'Manager')) {
+        return (
+            <div className="p-6 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center text-gray-500 min-h-[300px]">
+                <ShieldAlert size={48} className="text-red-400 mb-4" />
+                <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300">Access Denied</h2>
+                <p className="mt-2 text-center">You need Manager or Admin privileges to view burnout and wellness data.</p>
+            </div>
+        );
+    }
+
+    const highRisk = metrics.filter(m => m.burnoutRisk === 'High');
+    const mediumRisk = metrics.filter(m => m.burnoutRisk === 'Medium');
+    const avgCapacity = metrics.length > 0
+        ? Math.round(metrics.reduce((sum, m) => sum + m.capacityPercent, 0) / metrics.length)
+        : 0;
 
     return (
         <div className="space-y-6">
@@ -149,8 +165,8 @@ export function BurnoutDashboard() {
                                             <div className="w-24 h-2 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
                                                 <div
                                                     className={`h-2 rounded-full transition-all ${member.capacityPercent >= 100 ? 'bg-red-500' :
-                                                            member.capacityPercent >= 80 ? 'bg-orange-500' :
-                                                                member.capacityPercent >= 60 ? 'bg-yellow-500' : 'bg-green-500'
+                                                        member.capacityPercent >= 80 ? 'bg-orange-500' :
+                                                            member.capacityPercent >= 60 ? 'bg-yellow-500' : 'bg-green-500'
                                                         }`}
                                                     style={{ width: `${Math.min(member.capacityPercent, 100)}%` }}
                                                 />
@@ -173,10 +189,10 @@ export function BurnoutDashboard() {
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${member.burnoutRisk === 'High'
-                                                ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                                : member.burnoutRisk === 'Medium'
-                                                    ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
-                                                    : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                            : member.burnoutRisk === 'Medium'
+                                                ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                                                : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                                             }`}>
                                             {member.burnoutRisk}
                                         </span>

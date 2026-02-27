@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Priority, Status, Task, User } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CreateTaskDialogProps {
     isOpen: boolean;
@@ -19,6 +20,10 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
     const [startDate, setStartDate] = useState('');
     const [dueDate, setDueDate] = useState('');
     const [assigneeId, setAssigneeId] = useState('');
+    const [isPrivate, setIsPrivate] = useState(false);
+
+    const { currentUser } = useAuth();
+    const isMember = currentUser?.role === 'Member';
 
     // Users list from API
     const [users, setUsers] = useState<User[]>([]);
@@ -39,7 +44,9 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
                 .then(data => {
                     setUsers(data);
                     // Set default assignee to first user if available
-                    if (data.length > 0 && !assigneeId) {
+                    if (isMember && currentUser) {
+                        setAssigneeId(currentUser.id);
+                    } else if (data.length > 0 && !assigneeId) {
                         setAssigneeId(data[0].id);
                     }
                 })
@@ -100,6 +107,7 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
             dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
             assigneeId,
             tags: [], // Could add tag input later
+            isPrivate: isMember ? false : isPrivate,
         };
 
         onSubmit(newTask);
@@ -111,6 +119,7 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
         setStartDate('');
         setDueDate('');
         setAiReasoning(null);
+        setIsPrivate(false);
     };
 
     // Get selected user's skills for display
@@ -138,8 +147,8 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
                         <button
                             type="button"
                             onClick={handleSmartAssign}
-                            disabled={isAnalyzing}
-                            className={`text-xs px-2 py-1 rounded flex items-center gap-1 text-white transition-colors ${isAnalyzing ? 'bg-blue-300 dark:bg-blue-700' : 'bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:opacity-90'}`}
+                            disabled={isAnalyzing || isMember}
+                            className={`text-xs px-2 py-1 rounded flex items-center gap-1 text-white transition-colors ${isAnalyzing || isMember ? 'bg-blue-300 dark:bg-blue-700 opacity-50 cursor-not-allowed' : 'bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:opacity-90'}`}
                         >
                             {isAnalyzing ? 'Analyzing...' : '✨ Smart Assign'}
                         </button>
@@ -150,12 +159,14 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
                             className="w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 text-sm bg-white dark:bg-gray-800 dark:text-white"
                             value={assigneeId}
                             onChange={e => setAssigneeId(e.target.value)}
-                            disabled={loadingUsers}
+                            disabled={loadingUsers || isMember}
                         >
                             {loadingUsers ? (
                                 <option>Loading users...</option>
                             ) : users.length === 0 ? (
                                 <option>No users available</option>
+                            ) : isMember ? (
+                                <option value={currentUser.id}>{currentUser.name} (Me)</option>
                             ) : (
                                 users.map(user => (
                                     <option key={user.id} value={user.id}>
@@ -235,6 +246,21 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
                         </select>
                     </div>
                 </div>
+
+                {!isMember && (
+                    <div className="flex items-center gap-2 mt-2">
+                        <input
+                            type="checkbox"
+                            checked={isPrivate}
+                            onChange={(e) => setIsPrivate(e.target.checked)}
+                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                            id="isPrivate"
+                        />
+                        <label htmlFor="isPrivate" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Private Task (Only visible to assigned member and Managers/Admins)
+                        </label>
+                    </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>

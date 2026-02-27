@@ -6,6 +6,7 @@ import { Task, ActivityLog, User } from '@/types';
 import { getActionDisplay } from '@/lib/utils';
 import { Calendar, CheckCircle2, Clock, History, PieChart as PieIcon, Phone, Building } from 'lucide-react';
 import { PieChart, TaskTimeline } from '@/components/ui/Charts';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface UserHistoryModalProps {
     isOpen: boolean;
@@ -18,6 +19,8 @@ export function UserHistoryModal({ isOpen, onClose, user }: UserHistoryModalProp
     const [logs, setLogs] = useState<ActivityLog[]>([]);
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<'tasks' | 'activity' | 'visuals'>('tasks');
+    const { currentUser } = useAuth();
+    const canViewHealth = currentUser?.role === 'Admin' || currentUser?.role === 'Manager';
 
     useEffect(() => {
         if (isOpen && user) {
@@ -73,9 +76,11 @@ export function UserHistoryModal({ isOpen, onClose, user }: UserHistoryModalProp
                     <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-1">Role & Health</h4>
                     <div className="space-y-1 text-gray-600 dark:text-gray-300">
                         <div>{user.role}</div>
-                        <div className={`${user.wellnessScore >= 80 ? 'text-green-600' : 'text-yellow-600'}`}>
-                            {user.wellnessScore}% Wellness Score
-                        </div>
+                        {canViewHealth && (
+                            <div className={`${user.wellnessScore >= 80 ? 'text-green-600' : 'text-yellow-600'}`}>
+                                {user.wellnessScore}% Wellness Score
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

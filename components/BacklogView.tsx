@@ -20,12 +20,14 @@ const TaskItem = ({
   item,
   onUpdate,
   onClick,
-  onDelete
+  onDelete,
+  currentUserRole,
 }: {
   item: Task,
   onUpdate?: (t: Task) => void,
   onClick?: (t: Task) => void,
   onDelete?: (taskId: string) => void,
+  currentUserRole?: string,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(item.title);
@@ -75,12 +77,14 @@ const TaskItem = ({
           </span>
         )}
 
-        <button
-          onClick={(e) => { e.stopPropagation(); setIsEditing(!isEditing); }}
-          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-opacity"
-        >
-          <Edit2 size={12} />
-        </button>
+        {currentUserRole !== 'Member' && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setIsEditing(!isEditing); }}
+            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-opacity"
+          >
+            <Edit2 size={12} />
+          </button>
+        )}
       </div>
 
       <div className="flex items-center space-x-4">
@@ -115,18 +119,22 @@ const TaskItem = ({
               >
                 View Details
               </button>
-              <button
-                className="w-full text-left px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                onClick={() => { setIsEditing(true); setShowMenu(false); }}
-              >
-                Edit Title
-              </button>
-              <button
-                className="w-full text-left px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                onClick={() => { onDelete?.(item.id); setShowMenu(false); }}
-              >
-                Delete
-              </button>
+              {currentUserRole !== 'Member' && (
+                <>
+                  <button
+                    className="w-full text-left px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    onClick={() => { setIsEditing(true); setShowMenu(false); }}
+                  >
+                    Edit Title
+                  </button>
+                  <button
+                    className="w-full text-left px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                    onClick={() => { onDelete?.(item.id); setShowMenu(false); }}
+                  >
+                    Delete
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -136,7 +144,7 @@ const TaskItem = ({
 };
 
 export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskDelete }: BacklogViewProps) {
-  const { users } = useAuth();
+  const { users, currentUser } = useAuth();
   const [isSprintOpen, setIsSprintOpen] = useState(true);
   const [isBacklogOpen, setIsBacklogOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -229,14 +237,16 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskD
         {isSprintOpen && (
           <div className="space-y-[-1px] mt-2">
             {sprintTasks.map(item => (
-              <TaskItem key={item.id} item={item} onUpdate={onTaskUpdate} onClick={handleTaskClick} onDelete={handleTaskDelete} />
+              <TaskItem key={item.id} item={item} onUpdate={onTaskUpdate} onClick={handleTaskClick} onDelete={handleTaskDelete} currentUserRole={currentUser?.role} />
             ))}
             {sprintTasks.length === 0 && (
               <p className="text-sm text-gray-400 dark:text-gray-500 italic py-4 text-center">No tasks in sprint</p>
             )}
-            <button onClick={onTaskCreate} className="w-full text-left p-2 pl-3 mt-1 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300 transition-colors rounded">
-              <Plus size={14} /> Create issue
-            </button>
+            {currentUser?.role !== 'Member' && (
+              <button onClick={onTaskCreate} className="w-full text-left p-2 pl-3 mt-1 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300 transition-colors rounded">
+                <Plus size={14} /> Create issue
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -257,14 +267,16 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskD
         {isBacklogOpen && (
           <div className="space-y-[-1px] mt-2">
             {backlogTasks.map(item => (
-              <TaskItem key={item.id} item={item} onUpdate={onTaskUpdate} onClick={handleTaskClick} onDelete={handleTaskDelete} />
+              <TaskItem key={item.id} item={item} onUpdate={onTaskUpdate} onClick={handleTaskClick} onDelete={handleTaskDelete} currentUserRole={currentUser?.role} />
             ))}
             {backlogTasks.length === 0 && (
               <p className="text-sm text-gray-400 dark:text-gray-500 italic py-4 text-center">No tasks in backlog</p>
             )}
-            <button onClick={onTaskCreate} className="w-full text-left p-2 pl-3 mt-1 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300 transition-colors rounded">
-              <Plus size={14} /> Create issue
-            </button>
+            {currentUser?.role !== 'Member' && (
+              <button onClick={onTaskCreate} className="w-full text-left p-2 pl-3 mt-1 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300 transition-colors rounded">
+                <Plus size={14} /> Create issue
+              </button>
+            )}
           </div>
         )}
       </div>

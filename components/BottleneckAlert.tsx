@@ -109,7 +109,8 @@ export function BottleneckAlert({ tasks = [], users = [] }: BottleneckAlertProps
         }
 
         fetchBottlenecks();
-    }, [tasks, users]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tasks.length, users.length]);
 
     if (loading) {
         return (

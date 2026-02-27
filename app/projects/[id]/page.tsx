@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Project, Task, Status } from '@/types';
 import { TaskBoard } from '@/components/TaskBoard';
@@ -41,6 +41,8 @@ export default function ProjectPage() {
     const [isVideoOpen, setIsVideoOpen] = useState(false);
     const [isInviteOpen, setIsInviteOpen] = useState(false);
     const [projectMembers, setProjectMembers] = useState<string[]>([]);
+    const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+    const [lastSyncTime, setLastSyncTime] = useState(0);
     const { users, currentUser } = useAuth();
     // ... (rest of the component state and effects remain the same until the return statement)
 
@@ -63,61 +65,128 @@ export default function ProjectPage() {
         }
     };
 
-    useEffect(() => {
-        if (id) {
-            fetchData();
-        }
-    }, [id]);
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async (silent = false) => {
+        if (!id || !currentUser) return;
         try {
+            if (!silent) setLoading(true);
             // Fetch Tasks
-            const tasksRes = await fetch(`/api/tasks?projectId=${id}`);
-            const tasksData = await tasksRes.json();
-            setTasks(tasksData);
+            const tasksRes = await fetch(`/api/tasks?projectId=${id}&userId=${currentUser?.id}`);
+            if (!tasksRes.ok) {
+                try {
+                    const errData = await tasksRes.json();
+                    console.error("API error fetching tasks:", errData);
+                } catch (e) {
+                    console.error("API error fetching tasks (non-JSON):", tasksRes.status);
+                }
+                setTasks([]);
+            } else {
+                const tasksData = await tasksRes.json();
+                if (Array.isArray(tasksData)) {
+                    setTasks(tasksData);
+                } else {
+                    console.error("Tasks response is not an array:", tasksData);
+                    setTasks([]);
+                }
+            }
 
             // Fetch Projects to find current one
-            const projectsRes = await fetch('/api/projects');
+            const projectsRes = await fetch(`/api/projects?userId=${currentUser?.id}`);
             const projectsData = await projectsRes.json();
-            const currentProject = projectsData.find((p: Project) => p.id === id);
-            setProject(currentProject || null);
+
+            if (Array.isArray(projectsData)) {
+                const currentProject = projectsData.find((p: Project) => p.id === id);
+                if (!currentProject) {
+                    setProject(null);
+                    setTimeout(() => router.push('/'), 3000);
+                } else {
+                    setProject(currentProject);
+                }
+            }
+
+            // Fetch Project Members
+            // If we recently updated members manually (within last 5 seconds), skip background sync
+            if (!silent || Date.now() - lastSyncTime > 5000) {
+                const membersRes = await fetch(`/api/projects/${id}/members`);
+                if (membersRes.ok) {
+                    const membersData = await membersRes.json();
+                    setProjectMembers(membersData);
+                    // Only sync selected members if modal is NOT open to avoid overwriting user selection
+                    if (!isInviteOpen) {
+                        setSelectedMembers(membersData);
+                    } else if (silent) {
+                        console.log("Background sync: Modal is open, skipping selectedMembers update to preserve user input.");
+                    }
+                }
+            }
 
         } catch (err) {
-            console.error(err);
+            console.error("API error fetching data:", err);
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
-    };
+    }, [id, currentUser, isInviteOpen, lastSyncTime, router]);
+
+    useEffect(() => {
+        if (id && currentUser?.id) {
+            fetchData();
+        }
+    }, [id, currentUser?.id, fetchData]);
+
+    useEffect(() => {
+        if (id && currentUser?.id) {
+            // Setup polling every 3 seconds
+            const interval = setInterval(() => {
+                fetchData(true);
+            }, 3000);
+
+            return () => clearInterval(interval);
+        }
+    }, [id, currentUser?.id, fetchData]);
 
     const handleTaskMove = async (taskId: string, newStatus: Status) => {
         // Optimistic update
         const oldTasks = [...tasks];
-        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
+        setTasks(prev => prev.map(t => t.id == taskId ? { ...t, status: newStatus } : t));
 
         try {
-            await fetch('/api/tasks', {
+            const res = await fetch('/api/tasks', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: taskId, status: newStatus })
+                body: JSON.stringify({ id: taskId, status: newStatus, userId: currentUser?.id })
             });
-        } catch (err) {
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Failed to update task');
+            }
+            const updatedTask = await res.json();
+            setTasks(prev => prev.map(t => t.id == taskId ? updatedTask : t));
+        } catch (err: any) {
             console.error("Failed to update task", err);
+            alert(err.message || "Failed to update task");
             setTasks(oldTasks); // Revert
         }
     };
 
     const handleTaskUpdate = async (updatedTask: Task) => {
         // Optimistic
-        setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+        setTasks(prev => prev.map(t => t.id == updatedTask.id ? updatedTask : t));
 
         try {
-            await fetch('/api/tasks', {
+            const res = await fetch('/api/tasks', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updatedTask)
+                body: JSON.stringify({ ...updatedTask, userId: currentUser?.id })
             });
-        } catch (err) {
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Failed to update task');
+            }
+            const realTask = await res.json();
+            setTasks(prev => prev.map(t => t.id == realTask.id ? realTask : t));
+        } catch (err: any) {
             console.error("Failed to update task", err);
+            alert(err.message || "Failed to update task");
+            // Optionally revert update
         }
     };
 
@@ -132,7 +201,7 @@ export default function ProjectPage() {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             tags: [],
-            assigneeId: taskData.assigneeId || 'u1',
+            assigneeId: taskData.assigneeId || undefined,
             startDate: taskData.startDate,
             dueDate: taskData.dueDate
         };
@@ -143,10 +212,13 @@ export default function ProjectPage() {
         try {
             const res = await fetch('/api/tasks', {
                 method: 'POST',
-                body: JSON.stringify(newTask),
+                body: JSON.stringify({ ...newTask, userId: currentUser?.id }),
                 headers: { 'Content-Type': 'application/json' }
             });
-            if (!res.ok) throw new Error('Failed');
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Failed');
+            }
             const realTask = await res.json();
             setTasks(prev => prev.map(t => t.id === newTask.id ? realTask : t));
         } catch (err) {
@@ -160,7 +232,24 @@ export default function ProjectPage() {
     };
 
     if (loading) return <div className="p-10 text-center text-gray-500 dark:text-gray-400">Loading Workspace...</div>;
-    if (!project) return <div className="p-10 text-center text-red-500">Project not found</div>;
+    if (!project) return (
+        <div className="flex flex-col items-center justify-center h-[calc(100vh-64px)] p-10 bg-gray-50 dark:bg-gray-900">
+            <div className="text-red-500 mb-4 bg-red-50 dark:bg-red-900/20 p-4 rounded-full">
+                <BarChart3 size={48} />
+            </div>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Access Denied or Project Not Found</h1>
+            <p className="text-gray-500 dark:text-gray-400 text-center max-w-md">
+                You don't have permission to view this project, or it doesn't exist.
+                You will be redirected to the dashboard in a few seconds...
+            </p>
+            <button
+                onClick={() => router.push('/')}
+                className="mt-6 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors"
+            >
+                Back to Dashboard
+            </button>
+        </div>
+    );
 
     return (
         <div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden bg-white dark:bg-gray-900">
@@ -201,13 +290,18 @@ export default function ProjectPage() {
                             </div>
                         )}
                         {/* Add member button */}
-                        <button
-                            onClick={() => setIsInviteOpen(true)}
-                            className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center text-xs transition-colors"
-                            title="Add team member"
-                        >
-                            <Plus size={14} />
-                        </button>
+                        {(currentUser?.role === 'Admin' || currentUser?.role === 'Manager') && (
+                            <button
+                                onClick={() => {
+                                    setSelectedMembers([...projectMembers]);
+                                    setIsInviteOpen(true);
+                                }}
+                                className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center text-xs transition-colors"
+                                title="Add team member"
+                            >
+                                <Plus size={14} />
+                            </button>
+                        )}
                     </div>
                     <button
                         onClick={() => {
@@ -300,18 +394,18 @@ export default function ProjectPage() {
                 <div className="p-4">
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Select team members to add to this project:</p>
                     <div className="space-y-2 max-h-64 overflow-y-auto">
-                        {users.filter(u => u.id !== currentUser?.id).map(user => {
-                            const isMember = projectMembers.includes(user.id);
+                        {users.filter(u => u.role !== 'Admin').map(user => {
+                            const isSelected = selectedMembers.includes(user.id);
                             return (
                                 <div
                                     key={user.id}
-                                    className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${isMember ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700' : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                                    className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${isSelected ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700' : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
                                         }`}
                                     onClick={() => {
-                                        if (isMember) {
-                                            setProjectMembers(prev => prev.filter(id => id !== user.id));
+                                        if (isSelected) {
+                                            setSelectedMembers(prev => prev.filter(id => id !== user.id));
                                         } else {
-                                            setProjectMembers(prev => [...prev, user.id]);
+                                            setSelectedMembers(prev => [...prev, user.id]);
                                         }
                                     }}
                                 >
@@ -324,7 +418,7 @@ export default function ProjectPage() {
                                             <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
                                         </div>
                                     </div>
-                                    {isMember && (
+                                    {isSelected && (
                                         <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
                                             <Check size={14} className="text-white" />
                                         </div>
@@ -341,9 +435,39 @@ export default function ProjectPage() {
                             Cancel
                         </button>
                         <button
-                            onClick={() => {
-                                setIsInviteOpen(false);
-                                alert(`Added ${projectMembers.length} member(s) to project!`);
+                            onClick={async () => {
+                                console.log("Done button clicked. Selected members:", selectedMembers);
+                                try {
+                                    const res = await fetch(`/api/projects/${id}/members`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ userIds: selectedMembers, requestUserId: currentUser?.id })
+                                    });
+
+                                    console.log("Member update response status:", res.status);
+
+                                    if (res.ok) {
+                                        const updatedMembers = await res.json();
+                                        console.log("Member update successful. Updated members:", updatedMembers);
+                                        setProjectMembers(updatedMembers);
+                                        setSelectedMembers(updatedMembers);
+                                        setLastSyncTime(Date.now());
+                                        setIsInviteOpen(false);
+                                        // Use a slight delay before alert to ensure state updates are processed
+                                        setTimeout(() => alert(`Project members updated!`), 100);
+                                    } else {
+                                        let errorMsg = 'Failed to update members';
+                                        try {
+                                            const data = await res.json();
+                                            errorMsg = data.error || errorMsg;
+                                        } catch (e) { }
+                                        console.error("Member update error:", errorMsg);
+                                        alert(`Error: ${errorMsg}`);
+                                    }
+                                } catch (err) {
+                                    console.error("Connection error in member update:", err);
+                                    alert('Failed to update members - check console for details');
+                                }
                             }}
                             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                         >

@@ -2,10 +2,14 @@ import { db } from '@/lib/db';
 import { Project } from '@/types';
 import { NextResponse } from 'next/server';
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
-        const projects = await db.getProjects();
-        const allTasks = await db.getTasks();
+        const { searchParams } = new URL(request.url);
+        const userId = searchParams.get('userId');
+
+        const projects = await db.getProjects(userId || undefined);
+        // Get tasks for all projects returned, without filtering by assigneeId for stats calculation
+        const allTasks = await db.getTasks(undefined, undefined);
 
         // Enrich with stats
         const projectsWithStats = projects.map(p => {
@@ -36,8 +40,13 @@ export async function POST(request: Request) {
         const body = await request.json();
 
         // Basic validation
-        if (!body.name || !body.key) {
-            return NextResponse.json({ error: 'Name and Key are required' }, { status: 400 });
+        if (!body.name || !body.key || !body.ownerId) {
+            return NextResponse.json({ error: 'Name, Key, and Owner ID are required' }, { status: 400 });
+        }
+
+        const requestUser = await db.getUser(body.ownerId);
+        if (!requestUser || (requestUser.role !== 'Admin' && requestUser.role !== 'Manager')) {
+            return NextResponse.json({ error: 'Forbidden. Only Admins and Managers can create projects.' }, { status: 403 });
         }
 
         const newProject: Project = {
@@ -45,12 +54,21 @@ export async function POST(request: Request) {
             name: body.name,
             description: body.description || '',
             key: body.key,
-            ownerId: 'u1', // Default owner
+            ownerId: body.ownerId, // Use provided ownerId
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
         };
 
         await db.addProject(newProject);
+
+        if (body.memberIds && Array.isArray(body.memberIds)) {
+            for (const memberId of body.memberIds) {
+                if (memberId !== body.ownerId) {
+                    await db.addProjectMember(newProject.id, memberId);
+                }
+            }
+        }
+
         return NextResponse.json(newProject);
     } catch (error) {
         console.error('Error creating project:', error);
@@ -62,9 +80,19 @@ export async function DELETE(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
+        const userId = searchParams.get('userId');
 
         if (!id) {
             return NextResponse.json({ error: 'Project ID is required' }, { status: 400 });
+        }
+
+        if (!userId) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const requestUser = await db.getUser(userId);
+        if (!requestUser || (requestUser.role !== 'Admin' && requestUser.role !== 'Manager')) {
+            return NextResponse.json({ error: 'Forbidden. Only Admins and Managers can delete projects.' }, { status: 403 });
         }
 
         const success = await db.deleteProject(id);
