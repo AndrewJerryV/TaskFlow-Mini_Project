@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { Task } from '@/types';
 import { isOverdue } from '@/lib/utils';
-import { predictUrgency, predictPriority, isMLAvailable } from '@/lib/ml-engine';
-
 // =============================================
 // Fallback: Original heuristic batch recommendations
 // =============================================
@@ -89,7 +87,7 @@ function fallbackRecommendations(tasks: Task[], currentUserId: string | null) {
 }
 
 // =============================================
-// Local ML-powered batch recommendations
+// Local ML-powered batch recommendations (Python Backend)
 // =============================================
 async function localMLRecommendations(tasks: Task[], currentUserId: string | null) {
     const generated: Array<{
@@ -105,10 +103,15 @@ async function localMLRecommendations(tasks: Task[], currentUserId: string | nul
 
     const now = Date.now();
 
-    tasks.forEach(task => {
-        if (task.status === 'Done') return;
+    // To prevent hitting the ML API for completely irrelevant/finished tasks
+    const activeTasks = tasks.filter(t => t.status !== 'Done');
 
-        // 1. Calculate metrics
+    if (activeTasks.length === 0) {
+        return { recommendations: [], mlPowered: true };
+    }
+
+    // Make parallel requests to Python backend
+    const mlPromises = activeTasks.map(async task => {
         const daysUntilDue = task.dueDate
             ? Math.ceil((new Date(task.dueDate).getTime() - now) / (1000 * 60 * 60 * 24))
             : -1;
@@ -116,20 +119,39 @@ async function localMLRecommendations(tasks: Task[], currentUserId: string | nul
         const createdDaysAgo = Math.floor((now - new Date(task.createdAt).getTime()) / (1000 * 60 * 60 * 24));
         const isAssignedToMe = task.assigneeId === currentUserId;
 
-        // 2. ML Inference
-        const urgencyScore = predictUrgency({
-            priority: task.priority,
-            status: task.status,
-            daysUntilDue: task.dueDate ? daysUntilDue : 0,
-            hasDueDate: !!task.dueDate,
-            daysSinceUpdate,
-            createdDaysAgo
-        });
+        try {
+            const res = await fetch('http://localhost:8000/analyze_task', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    description: task.title + " " + (task.description || ""),
+                    status: task.status,
+                    days_until_due: task.dueDate ? daysUntilDue : 999, // default if no due date
+                    days_since_update: daysSinceUpdate
+                })
+            });
 
-        const predictedPriority = predictPriority(task.title, task.description || '');
+            if (!res.ok) throw new Error(`ML API Error: ${res.status} ${res.statusText}`);
+            const data = await res.json();
+
+            return { task, mlData: data.analysis, daysUntilDue, daysSinceUpdate, isAssignedToMe };
+        } catch (error: any) {
+            console.error(`Error analyzing task ${task.id}:`, error.message || error);
+            return null;
+        }
+    });
+
+    const results = await Promise.all(mlPromises);
+
+    // Process successful ML analysis
+    for (const result of results) {
+        if (!result) continue;
+
+        const { task, mlData, daysUntilDue, daysSinceUpdate, isAssignedToMe } = result;
+        const { predicted_priority, urgency_score, confidence_score } = mlData;
 
         // 3. Score adjustment
-        let finalScore = urgencyScore;
+        let finalScore = urgency_score;
         const reasons: string[] = [];
 
         if (isAssignedToMe) {
@@ -137,7 +159,7 @@ async function localMLRecommendations(tasks: Task[], currentUserId: string | nul
         }
 
         // Priority mismatch boost
-        if (predictedPriority === 'Critical' && task.priority !== 'Critical') {
+        if (predicted_priority === 'Critical' && task.priority !== 'Critical') {
             finalScore += 20;
             reasons.push('AI Class: Critical');
         }
@@ -157,10 +179,10 @@ async function localMLRecommendations(tasks: Task[], currentUserId: string | nul
             type = 'bottleneck';
             suggestedAction = 'Update Status';
             reasons.push(`Stale ${daysSinceUpdate}d`);
-        } else if (urgencyScore > 70 || (isAssignedToMe && urgencyScore > 50)) {
+        } else if (urgency_score > 70 || (isAssignedToMe && urgency_score > 50)) {
             type = 'focus';
             suggestedAction = task.status === 'To Do' ? 'Start Task' : 'Continue';
-        } else if (task.status === 'To Do' && finalScore < 50 && predictedPriority === 'Low') {
+        } else if (task.status === 'To Do' && finalScore < 50 && predicted_priority === 'Low') {
             type = 'quick_win';
             suggestedAction = 'Complete Now';
             reasons.push('Low Effort');
@@ -172,13 +194,18 @@ async function localMLRecommendations(tasks: Task[], currentUserId: string | nul
                 taskId: task.id,
                 type,
                 title: task.title,
-                description: `AI Urgency: ${Math.round(urgencyScore)}/100 • Predicted: ${predictedPriority}`,
+                description: `AI Urgency: ${Math.round(urgency_score)}/100 • Predicted: ${predicted_priority} (${confidence_score} conf)`,
                 score: Math.min(Math.round(finalScore), 100),
                 reason: reasons.join(' • '),
                 suggestedAction
             });
         }
-    });
+    }
+
+    if (generated.length === 0) {
+        // If Python server fails entirely, we might return 0 recommendations. Route handler catches this.
+        throw new Error("No recommendations generated (ML backend may be completely unreachable, or tasks did not meet score threshold)");
+    }
 
     return {
         recommendations: generated.sort((a, b) => b.score - a.score).slice(0, 6),
@@ -199,14 +226,15 @@ export async function GET(request: Request) {
             ? await db.getTasks(projectId)
             : await db.getTasks();
 
-        // Try ML-powered recommendations
-        if (isMLAvailable()) {
-            try {
-                const result = await localMLRecommendations(tasks, userId);
-                return NextResponse.json(result);
-            } catch (error) {
-                console.error('ML batch recommendations failed, falling back:', error);
-            }
+        console.log(`[ML API] Found ${tasks.length} tasks for projectId: ${projectId || 'ALL'}`);
+
+        // Try ML-powered recommendations (Ping Python Server via first task as health check)
+        try {
+            // Give 500ms timeout for health check, or just attempt batch inference
+            const result = await localMLRecommendations(tasks, userId);
+            return NextResponse.json(result);
+        } catch (error: any) {
+            console.warn('ML batch recommendations failed, falling back:', error.message);
         }
 
         // Fallback
