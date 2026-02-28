@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     try {
         const body = await request.json();
         const { searchParams } = new URL(request.url);
-        const requestUserId = searchParams.get('userId');
+        const requestUserId = searchParams.get('userId') || body.userId;
 
         if (!requestUserId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -82,6 +82,15 @@ export async function POST(request: Request) {
         };
 
         await db.addTask(newTask);
+
+        // Auto-add assignee to project if not already a member
+        if (body.assigneeId) {
+            const projectMembers = await db.getProjectMembers(body.projectId);
+            if (!projectMembers.includes(body.assigneeId)) {
+                await db.addProjectMember(body.projectId, body.assigneeId, 'Member');
+            }
+        }
+
         return NextResponse.json(newTask);
     } catch (error) {
         console.error('Error creating task:', error);
@@ -153,6 +162,14 @@ export async function PATCH(request: Request) {
 
         if (!updatedTask) {
             return NextResponse.json({ error: 'Failed to update task' }, { status: 500 });
+        }
+
+        // Auto-add assignee to project if updated to a non-member
+        if (updates.assigneeId) {
+            const projectMembers = await db.getProjectMembers(existingTask.projectId);
+            if (!projectMembers.includes(updates.assigneeId)) {
+                await db.addProjectMember(existingTask.projectId, updates.assigneeId, 'Member');
+            }
         }
 
         return NextResponse.json(updatedTask);

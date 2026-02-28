@@ -4,8 +4,9 @@ import React from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Task } from '@/types';
-import { User, Tag, CalendarClock } from 'lucide-react';
+import { User as UserIcon, Tag, CalendarClock } from 'lucide-react';
 import { getPriorityColorBordered } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface TaskCardProps {
     task: Task;
@@ -49,7 +50,7 @@ export function TaskCard({ task, isOverlay, onClick, disableDrag }: TaskCardProp
             {...(disableDrag ? {} : attributes)}
             onClick={handleClick}
             className={`bg-white dark:bg-gray-700 p-3 rounded-md shadow-sm border ${disableDrag
-                ? 'border-gray-200 dark:border-gray-600 cursor-pointer hover:border-gray-300 dark:hover:border-gray-500'
+                ? 'border-gray-200 dark:border-gray-600 cursor-not-allowed opacity-60 bg-gray-50 dark:bg-gray-800/80'
                 : 'border-l-4 border-l-blue-500 border-gray-200 dark:border-gray-600 cursor-grab hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500'
                 } transition-all ${isDragging ? 'opacity-30' : ''} mb-3`}
         >
@@ -59,6 +60,9 @@ export function TaskCard({ task, isOverlay, onClick, disableDrag }: TaskCardProp
 }
 
 function CardContent({ task }: { task: Task }) {
+    const { users } = useAuth();
+
+    const assignee = users?.find(u => u.id === task.assigneeId);
 
     const formattedDate = task.dueDate
         ? new Date(task.dueDate).toLocaleDateString("en-GB", {
@@ -80,8 +84,15 @@ function CardContent({ task }: { task: Task }) {
                     {task.priority}
                 </span>
                 {task.assigneeId && (
-                    <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                        <User size={14} />
+                    <div
+                        className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs uppercase font-medium overflow-hidden"
+                        title={assignee?.name || 'Assigned'}
+                    >
+                        {assignee?.avatarUrl ? (
+                            <img src={assignee.avatarUrl} alt={assignee.name} className="w-full h-full object-cover" />
+                        ) : (
+                            assignee ? assignee.name.charAt(0) : <UserIcon size={14} className="text-white" />
+                        )}
                     </div>
                 )}
             </div>

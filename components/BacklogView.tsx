@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Task, Priority, Status } from '@/types';
-import { CheckSquare, Plus, Edit2, MoreVertical, Search, PlayCircle, Layers } from 'lucide-react';
+import { Task, Priority, Status, User } from '@/types';
+import { CheckSquare, Square, Plus, Edit2, MoreVertical, Search, PlayCircle, Layers } from 'lucide-react';
 import { TaskFilters } from './TaskFilters';
 import { TaskDetailModal } from './TaskDetailModal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,12 +18,14 @@ interface BacklogViewProps {
 // Editable Task Item Component
 const TaskItem = ({
   item,
+  users,
   onUpdate,
   onClick,
   onDelete,
   currentUserRole,
 }: {
   item: Task,
+  users?: User[],
   onUpdate?: (t: Task) => void,
   onClick?: (t: Task) => void,
   onDelete?: (taskId: string) => void,
@@ -53,11 +55,11 @@ const TaskItem = ({
       onClick={handleRowClick}
     >
       <div className="flex items-center space-x-3 flex-1">
-        <input
-          type="checkbox"
-          className="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500 dark:bg-gray-700"
-          onClick={(e) => e.stopPropagation()}
-        />
+        {item.status === 'Done' ? (
+          <CheckSquare className="w-4 h-4 text-green-500 dark:text-green-400" />
+        ) : (
+          <Square className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+        )}
         <span className="text-gray-500 dark:text-gray-400 font-medium text-xs w-16 truncate font-mono" title={item.id}>{item.id.substring(0, 6)}</span>
 
         {isEditing ? (
@@ -97,8 +99,11 @@ const TaskItem = ({
         </span>
 
         {item.assigneeId && (
-          <div className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center text-xs text-white uppercase">
-            {item.assigneeId.charAt(0)}
+          <div
+            className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center text-xs text-white uppercase"
+            title={users?.find(u => u.id === item.assigneeId)?.name || 'Assigned'}
+          >
+            {users?.find(u => u.id === item.assigneeId)?.name?.charAt(0) || item.assigneeId.charAt(0)}
           </div>
         )}
         <div className="relative">
@@ -237,7 +242,7 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskD
         {isSprintOpen && (
           <div className="space-y-[-1px] mt-2">
             {sprintTasks.map(item => (
-              <TaskItem key={item.id} item={item} onUpdate={onTaskUpdate} onClick={handleTaskClick} onDelete={handleTaskDelete} currentUserRole={currentUser?.role} />
+              <TaskItem key={item.id} item={item} users={users} onUpdate={onTaskUpdate} onClick={handleTaskClick} onDelete={handleTaskDelete} currentUserRole={currentUser?.role} />
             ))}
             {sprintTasks.length === 0 && (
               <p className="text-sm text-gray-400 dark:text-gray-500 italic py-4 text-center">No tasks in sprint</p>
@@ -267,7 +272,7 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskD
         {isBacklogOpen && (
           <div className="space-y-[-1px] mt-2">
             {backlogTasks.map(item => (
-              <TaskItem key={item.id} item={item} onUpdate={onTaskUpdate} onClick={handleTaskClick} onDelete={handleTaskDelete} currentUserRole={currentUser?.role} />
+              <TaskItem key={item.id} item={item} users={users} onUpdate={onTaskUpdate} onClick={handleTaskClick} onDelete={handleTaskDelete} currentUserRole={currentUser?.role} />
             ))}
             {backlogTasks.length === 0 && (
               <p className="text-sm text-gray-400 dark:text-gray-500 italic py-4 text-center">No tasks in backlog</p>

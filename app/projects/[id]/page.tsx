@@ -183,6 +183,14 @@ export default function ProjectPage() {
             }
             const realTask = await res.json();
             setTasks(prev => prev.map(t => t.id == realTask.id ? realTask : t));
+
+            // Alert if new member was auto-added during update
+            if (updatedTask.assigneeId && !projectMembers.includes(updatedTask.assigneeId)) {
+                const addedUser = users.find(u => u.id === updatedTask.assigneeId);
+                const userName = addedUser ? addedUser.name : 'The assigned user';
+                alert(`${userName} was automatically added to the project members list!`);
+                fetchData(true);
+            }
         } catch (err: any) {
             console.error("Failed to update task", err);
             alert(err.message || "Failed to update task");
@@ -221,6 +229,15 @@ export default function ProjectPage() {
             }
             const realTask = await res.json();
             setTasks(prev => prev.map(t => t.id === newTask.id ? realTask : t));
+
+            // Alert if new member was auto-added
+            if (taskData.assigneeId && !projectMembers.includes(taskData.assigneeId)) {
+                const addedUser = users.find(u => u.id === taskData.assigneeId);
+                const userName = addedUser ? addedUser.name : 'The assigned user';
+                alert(`${userName} was automatically added to the project members list!`);
+                // Trigger a sync of project members
+                fetchData(true);
+            }
         } catch (err) {
             console.error(err);
             setTasks(previousTasks);

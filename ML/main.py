@@ -3,7 +3,8 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sentence_transformers import SentenceTransformer
-from models import TaskPriorityModel, TaskAssigner, UrgencyModel, FullTaskRequest
+from models import TaskPriorityModel, TaskAssigner, UrgencyModel, FullTaskRequest, WellnessRequest
+from wellness_model import WellnessModel
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "my_setfit_model")
@@ -28,6 +29,7 @@ with open(PEOPLE_DB_PATH) as f:
     people_db = json.load(f)
 assigner_ai = TaskAssigner(people_db, sentence_model)
 urgency_ai = UrgencyModel()
+wellness_ai = WellnessModel()
 print("✅ All systems ready!\n")
 
 # ── Endpoint ────────────────────────────────────────────
@@ -47,6 +49,15 @@ def analyze_task(task: FullTaskRequest):
             "detected_skills": skills,
         },
         "suggested_assignees": ranked_people[:3],
+    }
+
+@app.post("/analyze_wellness")
+def analyze_wellness(req: WellnessRequest):
+    score = wellness_ai.calculate(req.active_tasks, req.high_priority_count, req.critical_urgency_count)
+    status = wellness_ai.get_status(score)
+    return {
+        "score": score,
+        "status": status
     }
 
 if __name__ == "__main__":

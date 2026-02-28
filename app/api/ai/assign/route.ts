@@ -40,6 +40,7 @@ interface AssignRequest {
     title: string;
     description: string;
     priority: string;
+    projectId?: string;
 }
 
 function extractKeywords(text: string): string[] {
@@ -296,7 +297,7 @@ async function localSmartAssignment(users: User[], allTasks: Task[], title: stri
 export async function POST(request: Request) {
     try {
         const body: AssignRequest = await request.json();
-        const { title, description, priority } = body;
+        const { title, description, priority, projectId } = body;
 
         const users = await db.getUsers();
         const allTasks = await db.getTasks();

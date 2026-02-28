@@ -80,3 +80,8 @@ class FullTaskRequest(BaseModel):
     status: str
     days_until_due: int
     days_since_update: int
+
+class WellnessRequest(BaseModel):
+    active_tasks: int
+    high_priority_count: int
+    critical_urgency_count: int

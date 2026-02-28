@@ -7,11 +7,42 @@ export async function GET() {
         const users = await db.getUsers();
         const allTasks = await db.getTasks();
 
-        const teamStats = users.map(user => {
-            const activeTasks = allTasks.filter(t =>
+        const teamStats = await Promise.all(users.map(async user => {
+            const activeUserTasks = allTasks.filter(t =>
                 t.assigneeId === user.id &&
                 (t.status === 'To Do' || t.status === 'In Progress')
-            ).length;
+            );
+
+            const activeTasks = activeUserTasks.length;
+
+            const highPriorityCount = activeUserTasks.filter(t => t.priority === 'High').length;
+
+            const criticalUrgencyCount = activeUserTasks.filter(t => {
+                if (t.priority === 'Critical') return true;
+                if (t.dueDate && new Date(t.dueDate) < new Date()) return true;
+                return false;
+            }).length;
+
+            // Fetch wellness score from ML service
+            let wellnessScore = user.wellnessScore || 100;
+            try {
+                const mlRes = await fetch('http://127.0.0.1:8000/analyze_wellness', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        active_tasks: activeTasks,
+                        high_priority_count: highPriorityCount,
+                        critical_urgency_count: criticalUrgencyCount
+                    })
+                });
+
+                if (mlRes.ok) {
+                    const mlData = await mlRes.json();
+                    wellnessScore = mlData.score;
+                }
+            } catch (err) {
+                console.warn("Could not reach ML service for wellness score, using default");
+            }
 
             const maxLoad = user.maxWorkload || 5;
             const utilization = Math.round((activeTasks / maxLoad) * 100);
@@ -22,13 +53,14 @@ export async function GET() {
 
             return {
                 ...user,
+                wellnessScore, // Override DB value with real-time ML calculation
                 stats: {
                     activeTasks,
                     utilization,
                     status
                 }
             };
-        });
+        }));
 
         return NextResponse.json(teamStats);
     } catch (error) {

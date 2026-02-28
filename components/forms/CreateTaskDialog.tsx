@@ -21,12 +21,15 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
     const [dueDate, setDueDate] = useState('');
     const [assigneeId, setAssigneeId] = useState('');
     const [isPrivate, setIsPrivate] = useState(false);
+    const [tags, setTags] = useState<string[]>([]);
+    const [tagInput, setTagInput] = useState('');
 
     const { currentUser } = useAuth();
     const isMember = currentUser?.role === 'Member';
 
     // Users list from API
     const [users, setUsers] = useState<User[]>([]);
+    const [projectMemberIds, setProjectMemberIds] = useState<string[]>([]);
     const [loadingUsers, setLoadingUsers] = useState(false);
 
     // AI State
@@ -39,21 +42,42 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
     useEffect(() => {
         if (isOpen) {
             setLoadingUsers(true);
-            fetch('/api/users')
-                .then(res => res.json())
-                .then(data => {
-                    setUsers(data);
+            Promise.all([
+                fetch('/api/users').then(res => res.json()),
+                fetch(`/api/projects/${currentProjectId}/members`).then(res => res.json())
+            ])
+                .then(([allUsers, memberIds]) => {
+                    setUsers(allUsers);
+                    setProjectMemberIds(memberIds);
+                    const projectUsers = allUsers.filter((u: User) => memberIds.includes(u.id));
                     // Set default assignee to first user if available
                     if (isMember && currentUser) {
                         setAssigneeId(currentUser.id);
-                    } else if (data.length > 0 && !assigneeId) {
-                        setAssigneeId(data[0].id);
+                    } else if (projectUsers.length > 0 && !assigneeId) {
+                        setAssigneeId(projectUsers[0].id);
+                    } else if (allUsers.length > 0 && !assigneeId) {
+                        setAssigneeId(allUsers[0].id);
                     }
                 })
                 .catch(console.error)
                 .finally(() => setLoadingUsers(false));
         }
     }, [isOpen]);
+
+    const handleAddTag = (e?: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e && e.key !== 'Enter') return;
+        if (e) e.preventDefault();
+
+        const newTag = tagInput.trim().toLowerCase();
+        if (newTag && !tags.includes(newTag)) {
+            setTags([...tags, newTag]);
+            setTagInput('');
+        }
+    };
+
+    const handleRemoveTag = (tagToRemove: string) => {
+        setTags(tags.filter(t => t !== tagToRemove));
+    };
 
     const handleSmartAssign = async () => {
         if (!title) {
@@ -68,7 +92,7 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
             const res = await fetch('/api/ai/assign', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title, description, priority })
+                body: JSON.stringify({ title, description, priority, projectId: currentProjectId })
             });
             const data = await res.json();
 
@@ -106,7 +130,7 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
             startDate: startDate ? new Date(startDate).toISOString() : undefined,
             dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
             assigneeId,
-            tags: [], // Could add tag input later
+            tags: tags,
             isPrivate: isMember ? false : isPrivate,
         };
 
@@ -124,6 +148,12 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
 
     // Get selected user's skills for display
     const selectedUser = users.find(u => u.id === assigneeId);
+
+    const formatDateToIndian = (dateStr: string) => {
+        if (!dateStr) return '';
+        const [y, m, d] = dateStr.split('-');
+        return `${d}-${m}-${y}`;
+    };
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Create Issue">
@@ -168,11 +198,22 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
                             ) : isMember ? (
                                 <option value={currentUser.id}>{currentUser.name} (Me)</option>
                             ) : (
-                                users.map(user => (
-                                    <option key={user.id} value={user.id}>
-                                        {user.name} ({user.role}) - {user.skills?.slice(0, 3).join(', ') || 'No skills'}
-                                    </option>
-                                ))
+                                <>
+                                    <optgroup label="Project Members">
+                                        {users.filter(u => projectMemberIds.includes(u.id)).map(user => (
+                                            <option key={user.id} value={user.id}>
+                                                {user.name} ({user.role}) - {user.skills?.slice(0, 3).join(', ') || 'No skills'}
+                                            </option>
+                                        ))}
+                                    </optgroup>
+                                    <optgroup label="Other Members">
+                                        {users.filter(u => !projectMemberIds.includes(u.id)).map(user => (
+                                            <option key={user.id} value={user.id}>
+                                                {user.name} (Not in project) - {user.skills?.slice(0, 3).join(', ') || 'No skills'}
+                                            </option>
+                                        ))}
+                                    </optgroup>
+                                </>
                             )}
                         </select>
                     </div>
@@ -199,6 +240,9 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
                                         ? <strong key={index} className="font-medium text-gray-900">{part.slice(2, -2)}</strong>
                                         : <span key={index}>{part}</span>
                                 ))}
+                                {assigneeId && !projectMemberIds.includes(assigneeId) && (
+                                    <div className="mt-1 text-yellow-600 font-semibold">⚠️ Note: {users.find(u => u.id === assigneeId)?.name} is not currently in the project. They will be added automatically.</div>
+                                )}
                             </div>
                             {/* Debug View for User Feedback */}
                             <div className="text-[10px] text-gray-500 bg-gray-50 dark:bg-gray-800 p-2 rounded border border-gray-100 dark:border-gray-700">
@@ -262,30 +306,80 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
                     </div>
                 )}
 
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tags</label>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                        {tags.map(tag => (
+                            <span
+                                key={tag}
+                                className="flex items-center gap-1 text-xs px-2 py-1 bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-md border border-gray-200 dark:border-gray-500"
+                            >
+                                {tag}
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemoveTag(tag)}
+                                    className="text-gray-400 hover:text-red-500 focus:outline-none"
+                                >
+                                    &times;
+                                </button>
+                            </span>
+                        ))}
+                    </div>
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                            placeholder="Add tag and press Enter (e.g., ui, backend)"
+                            value={tagInput}
+                            onChange={(e) => setTagInput(e.target.value)}
+                            onKeyDown={handleAddTag}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => handleAddTag()}
+                            className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded hover:bg-gray-200 dark:hover:bg-gray-500 border border-gray-200 dark:border-gray-500 transition-colors"
+                        >
+                            Add
+                        </button>
+                    </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
-                        <input
-                            type="text"
-                            onFocus={(e) => e.target.type = 'date'}
-                            onBlur={(e) => { if (!e.target.value) e.target.type = 'text'; }}
-                            placeholder="dd-mm-yyyy"
-                            className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
-                            value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
-                        />
+                        <div className="relative w-full bg-white dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600 focus-within:ring-2 focus-within:ring-blue-500 overflow-hidden">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span className="text-sm text-gray-900 dark:text-white">
+                                    {startDate ? formatDateToIndian(startDate) : <span className="text-gray-400">dd-mm-yyyy</span>}
+                                </span>
+                            </div>
+                            <input
+                                type="date"
+                                className="w-full px-3 py-2 text-sm bg-transparent !text-transparent outline-none focus:outline-none focus:ring-0 border-none [&::-webkit-datetime-edit]:!text-transparent [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-50 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 dark:[color-scheme:dark]"
+                                min="2000-01-01"
+                                max="2100-12-31"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                            />
+                        </div>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Due Date</label>
-                        <input
-                            type="text"
-                            onFocus={(e) => e.target.type = 'date'}
-                            onBlur={(e) => { if (!e.target.value) e.target.type = 'text'; }}
-                            placeholder="dd-mm-yyyy"
-                            className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
-                            value={dueDate}
-                            onChange={(e) => setDueDate(e.target.value)}
-                        />
+                        <div className="relative w-full bg-white dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600 focus-within:ring-2 focus-within:ring-blue-500 overflow-hidden">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span className="text-sm text-gray-900 dark:text-white">
+                                    {dueDate ? formatDateToIndian(dueDate) : <span className="text-gray-400">dd-mm-yyyy</span>}
+                                </span>
+                            </div>
+                            <input
+                                type="date"
+                                className="w-full px-3 py-2 text-sm bg-transparent !text-transparent outline-none focus:outline-none focus:ring-0 border-none [&::-webkit-datetime-edit]:!text-transparent [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-50 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 dark:[color-scheme:dark]"
+                                min="2000-01-01"
+                                max="2100-12-31"
+                                value={dueDate}
+                                onChange={(e) => setDueDate(e.target.value)}
+                            />
+                        </div>
                     </div>
                 </div>
 
