@@ -397,7 +397,7 @@ class Database {
         return (data || []).map(toTask);
     }
 
-    async addTask(task: Task): Promise<void> {
+    async addTask(task: Task, userId: string = 'system'): Promise<void> {
         const { error } = await getSupabase()
             .from('tasks')
             .insert({
@@ -427,7 +427,7 @@ class Database {
             entityId: task.id,
             action: 'Created',
             details: `Task "${task.title}" created.`,
-            userId: task.assigneeId || 'system',
+            userId: userId,
             timestamp: new Date().toISOString()
         });
     }

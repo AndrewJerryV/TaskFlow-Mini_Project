@@ -81,7 +81,7 @@ export async function POST(request: Request) {
             timeLogs: []
         };
 
-        await db.addTask(newTask);
+        await db.addTask(newTask, requestUserId as string);
 
         // Auto-add assignee to project if not already a member
         if (body.assigneeId) {
