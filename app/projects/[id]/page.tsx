@@ -40,6 +40,7 @@ export default function ProjectPage() {
     const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
     const [isVideoOpen, setIsVideoOpen] = useState(false);
     const [isInviteOpen, setIsInviteOpen] = useState(false);
+    const [isMembersListOpen, setIsMembersListOpen] = useState(false);
     const [projectMembers, setProjectMembers] = useState<string[]>([]);
     const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
     const [lastSyncTime, setLastSyncTime] = useState(0);
@@ -318,25 +319,31 @@ export default function ProjectPage() {
                     >
                         <Video size={16} /> Join Meeting
                     </button>
-                    <div className="flex -space-x-2">
-                        {/* Show project members */}
-                        {projectMembers.slice(0, 3).map((memberId, idx) => {
-                            const member = users.find(u => u.id === memberId);
-                            return (
-                                <div
-                                    key={memberId}
-                                    className="w-8 h-8 rounded-full border-2 border-white bg-indigo-500 text-white flex items-center justify-center text-xs font-medium"
-                                    title={member?.name}
-                                >
-                                    {member?.name?.charAt(0).toUpperCase() || '?'}
+                    <div className="flex items-center gap-2">
+                        <div
+                            className="flex -space-x-2 cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => setIsMembersListOpen(true)}
+                            title="View all project members"
+                        >
+                            {/* Show project members */}
+                            {projectMembers.slice(0, 3).map((memberId, idx) => {
+                                const member = users.find(u => u.id === memberId);
+                                return (
+                                    <div
+                                        key={memberId}
+                                        className="w-8 h-8 rounded-full border-2 border-white bg-indigo-500 text-white flex items-center justify-center text-xs font-medium"
+                                        title={member?.name}
+                                    >
+                                        {member?.name?.charAt(0).toUpperCase() || '?'}
+                                    </div>
+                                );
+                            })}
+                            {projectMembers.length > 3 && (
+                                <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-500 text-white flex items-center justify-center text-xs bg-opacity-90">
+                                    +{projectMembers.length - 3}
                                 </div>
-                            );
-                        })}
-                        {projectMembers.length > 3 && (
-                            <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-500 text-white flex items-center justify-center text-xs">
-                                +{projectMembers.length - 3}
-                            </div>
-                        )}
+                            )}
+                        </div>
                         {/* Add member button */}
                         {(currentUser?.role === 'Admin' || currentUser?.role === 'Manager') && (
                             <button
@@ -526,6 +533,66 @@ export default function ProjectPage() {
                         >
                             Done
                         </button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Project Members List Modal */}
+            <Modal isOpen={isMembersListOpen} onClose={() => setIsMembersListOpen(false)} title="Project Members">
+                <div className="p-4">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">All members on this project, organized by seniority (join date and role).</p>
+                    <div className="space-y-3 max-h-96 overflow-y-auto pr-2 no-scrollbar">
+                        {projectMembers
+                            .map(id => users.find(u => u.id === id))
+                            .filter(Boolean)
+                            .sort((a, b) => {
+                                // 1. Try to sort by createdAt ascending (older is more senior)
+                                if (a!.createdAt && b!.createdAt && a!.createdAt !== b!.createdAt) {
+                                    return new Date(a!.createdAt).getTime() - new Date(b!.createdAt).getTime();
+                                }
+                                // 2. If same date or missing, sort by role (Admin > Manager > Member)
+                                const roleWeight = { 'Admin': 3, 'Manager': 2, 'Member': 1 };
+                                if (roleWeight[a!.role] !== roleWeight[b!.role]) {
+                                    return roleWeight[b!.role] - roleWeight[a!.role];
+                                }
+                                // 3. Fallback to name alphabetic
+                                return (a!.name || '').localeCompare(b!.name || '');
+                            })
+                            .map((user, idx) => (
+                                <div key={user!.id} className="flex items-start gap-4 p-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg shadow-sm">
+                                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-lg border border-indigo-200 dark:border-indigo-800 relative">
+                                        {user!.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between">
+                                            <p className="font-semibold text-gray-900 dark:text-white truncate" title={user!.name}>{user!.name}</p>
+                                            <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${user!.role === 'Admin' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                                                user!.role === 'Manager' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
+                                                    'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                                }`}>
+                                                {user!.role}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{user!.email}</p>
+
+                                        {user!.skills && user!.skills.length > 0 && (
+                                            <div className="flex flex-wrap gap-1 mt-2">
+                                                {user!.skills.map(s => (
+                                                    <span key={s} className="text-[10px] bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-1.5 py-0.5 rounded">
+                                                        {s}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+
+                        {projectMembers.length === 0 && (
+                            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                                No members found in this project.
+                            </div>
+                        )}
                     </div>
                 </div>
             </Modal>

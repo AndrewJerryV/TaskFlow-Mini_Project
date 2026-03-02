@@ -61,7 +61,7 @@ type ProfileRow = {
 export function AuthProvider({ children }: { children: ReactNode }) {
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [users] = useState<User[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -83,6 +83,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           data.session.user.id,
           data.session.user.email ?? null
         );
+
+        // Fetch all users after load profile
+        try {
+          const res = await fetch('/api/users');
+          if (res.ok) {
+            const allUsers = await res.json();
+            setUsers(allUsers);
+          }
+        } catch (e) {
+          console.error('Failed to fetch users in context', e);
+        }
 
         // Set up auth state listener after successful init
         const { data: listenerData } = supabase.auth.onAuthStateChange(
