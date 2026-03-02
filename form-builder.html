@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Form Builder</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --blue:     #1a73e8;
+  --blue-dk:  #1558b0;
+  --blue-lt:  #e8f0fe;
+  --teal:     #00897b;
+  --teal-dk:  #00695c;
+  --teal-lt:  #e0f2f1;
+  --green:    #2e7d32;
+  --red:      #c62828;
+  --grad:     linear-gradient(135deg,#1a73e8 0%,#00897b 100%);
+  --bg:       #edf2fb;
+  --card:     #ffffff;
+  --text:     #1a1f36;
+  --muted:    #5f6368;
+  --border:   #d0d7e6;
+  --radius:   10px;
+  --shadow:   0 1px 4px rgba(26,115,232,.10),0 1px 2px rgba(0,0,0,.06);
+  --shadow-md:0 6px 20px rgba(26,115,232,.14);
+  --nav-h:    60px;
+}
+
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* ── NAV ───────────────────────────────────── */
+.nav{
+  position:fixed;top:0;left:0;right:0;height:var(--nav-h);
+  background:var(--card);border-bottom:1.5px solid var(--border);
+  display:flex;align-items:center;padding:0 20px;gap:12px;z-index:300
+}
+.nav-logo{display:flex;align-items:center;gap:9px;font-size:17px;font-weight:700;color:var(--blue);white-space:nowrap}
+.logo-box{width:32px;height:32px;border-radius:8px;background:var(--grad);display:flex;align-items:center;justify-content:center}
+.logo-box .mi{font-size:20px;color:#fff}
+.nav-spacer{flex:1}
+.nav-tabs{display:flex;height:var(--nav-h)}
+.nav-tab{
+  display:flex;align-items:center;gap:6px;padding:0 18px;
+  font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;
+  border-bottom:3px solid transparent;transition:color .15s,border-color .15s;
+  user-select:none;white-space:nowrap
+}
+.nav-tab .mi{font-size:17px}
+.nav-tab:hover{color:var(--blue)}
+.nav-tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.badge{margin-left:6px;background:var(--blue);color:#fff;font-size:11px;font-weight:700;padding:1px 7px;border-radius:12px;display:none}
+
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:6px;border:none;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:background .18s,box-shadow .18s;white-space:nowrap}
+.btn .mi{font-size:17px}
+.btn-ghost{background:transparent;color:var(--blue);border:1.5px solid var(--blue-lt)}
+.btn-ghost:hover{background:var(--blue-lt)}
+.btn-danger{background:transparent;color:var(--red);border:1.5px solid #fde8e8}
+.btn-danger:hover{background:#fde8e8}
+
+/* ── LAYOUT ────────────────────────────────── */
+.page{padding-top:calc(var(--nav-h) + 28px);padding-bottom:100px;min-height:100vh}
+.view{max-width:700px;margin:0 auto;padding:0 16px;display:none}
+.view.active{display:block}
+#resultsView{max-width:1100px}
+
+/* ── SHARED CARD ───────────────────────────── */
+.form-card{
+  background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
+  overflow:hidden;margin-bottom:14px
+}
+.form-card-banner{height:8px;background:var(--grad)}
+
+/* ── BUILDER: Header card ──────────────────── */
+.hdr-body{padding:22px 26px 20px;border-left:5px solid var(--blue)}
+.hc-title{
+  width:100%;font-size:24px;font-weight:700;color:var(--text);font-family:inherit;
+  border:none;border-bottom:2px solid transparent;background:transparent;outline:none;
+  padding:4px 0;transition:border-color .2s
+}
+.hc-title:focus{border-bottom-color:var(--blue)}
+.hc-title::placeholder{color:#c5cde8}
+.hc-desc{
+  width:100%;margin-top:10px;font-size:14px;color:var(--muted);font-family:inherit;
+  border:none;border-bottom:1px solid transparent;background:transparent;outline:none;
+  padding:6px 0;resize:none;transition:border-color .2s
+}
+.hc-desc:focus{border-bottom-color:var(--teal)}
+.hc-desc::placeholder{color:#d5daea}
+
+/* ── BUILDER: Question card ────────────────── */
+.q-card{
+  background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
+  margin-bottom:12px;border-left:5px solid transparent;
+  transition:border-color .2s,box-shadow .2s,opacity .2s;
+  position:relative;user-select:none
+}
+.q-card.focused{border-left-color:var(--blue);box-shadow:var(--shadow-md)}
+.q-card.dragging{opacity:.4;box-shadow:none}
+.q-card.drag-over{border-left-color:var(--teal);box-shadow:0 0 0 2px rgba(0,137,123,.35)}
+
+.q-drag{position:absolute;top:12px;left:50%;transform:translateX(-50%);color:#c5cde8;cursor:grab;font-size:20px;opacity:0;transition:opacity .15s;z-index:2}
+.q-card:hover .q-drag{opacity:1}
+.q-drag:active{cursor:grabbing}
+
+.q-header{display:flex;align-items:flex-start;gap:12px;padding:20px 20px 0}
+.q-title-input{
+  flex:1;font-size:15px;font-weight:600;color:var(--text);font-family:inherit;
+  border:none;border-bottom:1.5px solid var(--border);background:transparent;outline:none;padding:8px 0;transition:border-color .2s
+}
+.q-title-input:focus{border-bottom-color:var(--blue);border-bottom-width:2px}
+.q-title-input::placeholder{color:#c5cde8;font-weight:400}
+
+.q-type-select{
+  font-size:13px;color:var(--muted);border:1.5px solid var(--border);border-radius:6px;
+  padding:7px 10px;background:#fff;outline:none;cursor:pointer;min-width:160px;
+  transition:border-color .2s;font-family:inherit;font-weight:500
+}
+.q-type-select:focus{border-color:var(--blue)}
+
+.q-body{padding:12px 20px 4px}
+.q-placeholder{font-size:14px;color:#b0bcd4;border-bottom:1px dotted var(--border);padding:8px 0}
+
+/* Options */
+.opt-row{display:flex;align-items:center;gap:10px;margin-bottom:4px;animation:fadeUp .18s ease both}
+.opt-icon{font-size:19px;color:var(--border);flex-shrink:0}
+.opt-input{
+  flex:1;font-size:14px;color:var(--text);font-family:inherit;
+  border:none;border-bottom:1px solid var(--border);background:transparent;outline:none;padding:6px 0;transition:border-color .2s;user-select:text
+}
+.opt-input:focus{border-bottom-color:var(--blue)}
+.opt-remove{background:none;border:none;cursor:pointer;color:transparent;padding:4px;border-radius:50%;display:flex;align-items:center;transition:background .15s,color .15s}
+.opt-row:hover .opt-remove{color:var(--muted)}
+.opt-remove:hover{background:#fde8e8!important;color:var(--red)!important}
+.add-opt-btn{display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:13px;font-weight:500;font-family:inherit;padding:8px 0;margin-top:4px;transition:color .15s}
+.add-opt-btn:hover{color:var(--blue)}
+
+/* Scale */
+.scale-row{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
+.scale-row label{font-size:13px;color:var(--muted);font-weight:500}
+.scale-num{width:62px;border:1.5px solid var(--border);border-radius:6px;padding:6px 8px;font-size:14px;outline:none;font-family:inherit;transition:border-color .2s}
+.scale-num:focus{border-color:var(--blue)}
+.scale-lbl{width:120px;border:none;border-bottom:1px solid var(--border);background:transparent;padding:6px 0;font-size:13px;outline:none;color:var(--muted);font-family:inherit;transition:border-color .2s}
+.scale-lbl:focus{border-bottom-color:var(--teal)}
+.scale-preview{margin-top:12px;display:flex;flex-wrap:wrap;gap:6px}
+.scale-dot{width:36px;height:36px;line-height:36px;text-align:center;border:1.5px solid var(--border);border-radius:50%;font-size:13px;color:var(--muted)}
+
+/* Card footer */
+.q-footer{display:flex;align-items:center;justify-content:flex-end;gap:4px;padding:10px 16px 14px;border-top:1px solid var(--border);margin-top:14px}
+.q-footer-div{width:1px;height:22px;background:var(--border);margin:0 4px}
+.icon-btn{background:none;border:none;cursor:pointer;color:var(--muted);padding:7px;border-radius:50%;display:flex;align-items:center;transition:background .15s,color .15s}
+.icon-btn:hover{background:var(--blue-lt);color:var(--blue)}
+.icon-btn.danger:hover{background:#fde8e8;color:var(--red)}
+.req-toggle{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;user-select:none}
+.switch{position:relative;width:36px;height:20px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.sw-slider{position:absolute;inset:0;background:#d0d7e6;border-radius:20px;transition:background .2s}
+.sw-slider::before{content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.switch input:checked+.sw-slider{background:var(--teal)}
+.switch input:checked+.sw-slider::before{transform:translateX(16px)}
+
+/* Add question */
+.add-bar{display:flex;justify-content:center;margin:20px 0}
+.add-btn{display:flex;align-items:center;gap:8px;padding:12px 30px;background:var(--grad);color:#fff;border:none;border-radius:24px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 3px 10px rgba(26,115,232,.30);transition:opacity .2s,box-shadow .2s,transform .15s}
+.add-btn:hover{opacity:.9;box-shadow:0 6px 20px rgba(26,115,232,.38);transform:translateY(-1px)}
+.add-btn:active{transform:none}
+
+/* ── PREVIEW ───────────────────────────────── */
+/* Preview header — same card but read-only */
+.prev-hdr-body{padding:22px 26px 20px;border-left:5px solid var(--teal)}
+.prev-form-title{font-size:24px;font-weight:700;color:var(--text);margin-bottom:6px}
+.prev-form-desc{font-size:14px;color:var(--muted);line-height:1.6}
+.prev-required-note{margin-top:10px;font-size:13px;color:var(--red)}
+
+/* Preview question card — identical visual to editor card */
+.prev-q-card{
+  background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
+  margin-bottom:12px;border-left:5px solid transparent;
+  transition:border-color .2s,box-shadow .2s;animation:fadeUp .25s ease both
+}
+.prev-q-card:focus-within{border-left-color:var(--blue);box-shadow:var(--shadow-md)}
+
+.prev-q-body{padding:20px 24px 20px}
+.prev-q-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:14px;line-height:1.4}
+.prev-q-title .req-star{color:var(--red);margin-left:3px}
+
+/* Text / textarea inputs in preview */
+.prev-input{
+  width:100%;font-size:14px;font-family:inherit;color:var(--text);
+  border:none;border-bottom:1.5px solid var(--border);background:transparent;
+  outline:none;padding:8px 0;transition:border-color .2s
+}
+.prev-input:focus{border-bottom-color:var(--blue);border-bottom-width:2px}
+.prev-input::placeholder{color:#b0bcd4}
+.prev-textarea{resize:vertical;min-height:80px;border-bottom:none;border:1.5px solid var(--border);border-radius:6px;padding:10px 12px;background:#fafbff}
+.prev-textarea:focus{border-color:var(--blue)}
+
+/* Radio / checkbox options */
+.prev-opt-list{display:flex;flex-direction:column;gap:6px}
+.prev-opt{
+  display:flex;align-items:center;gap:12px;padding:10px 14px;
+  border-radius:8px;cursor:pointer;transition:background .15s;border:1.5px solid transparent
+}
+.prev-opt:hover{background:var(--blue-lt)}
+.prev-opt.selected{background:var(--blue-lt);border-color:#c2d7fb}
+.prev-opt input[type=radio],
+.prev-opt input[type=checkbox]{
+  width:18px;height:18px;accent-color:var(--blue);cursor:pointer;flex-shrink:0
+}
+.prev-opt input[type=checkbox]{accent-color:var(--teal)}
+.prev-opt-label{font-size:14px;color:var(--text);cursor:pointer;user-select:none}
+
+/* Dropdown */
+.prev-select{
+  width:100%;max-width:320px;font-size:14px;font-family:inherit;color:var(--text);
+  border:none;border-bottom:1.5px solid var(--border);background:transparent;
+  outline:none;padding:8px 4px;cursor:pointer;transition:border-color .2s;appearance:auto
+}
+.prev-select:focus{border-bottom-color:var(--blue)}
+
+/* Date */
+.prev-date{
+  font-size:14px;font-family:inherit;color:var(--text);
+  border:none;border-bottom:1.5px solid var(--border);background:transparent;
+  outline:none;padding:8px 0;transition:border-color .2s
+}
+.prev-date:focus{border-bottom-color:var(--blue)}
+
+/* Scale / rating */
+.prev-scale{display:flex;flex-direction:column;gap:10px}
+.prev-scale-labels{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);padding:0 2px}
+.prev-scale-btns{display:flex;flex-wrap:wrap;gap:8px}
+.prev-scale-btn{
+  width:42px;height:42px;border-radius:50%;border:1.5px solid var(--border);
+  background:#fff;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .15s,border-color .15s,color .15s;font-family:inherit
+}
+.prev-scale-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-lt)}
+.prev-scale-btn.selected{background:var(--blue);border-color:var(--blue);color:#fff}
+
+/* Validation error */
+.prev-q-card.has-error{border-left-color:var(--red)!important}
+.prev-error{font-size:12px;color:var(--red);margin-top:8px;display:none}
+.prev-q-card.has-error .prev-error{display:block}
+
+/* Submit bar */
+.prev-submit-bar{display:flex;align-items:center;gap:12px;margin-top:8px}
+.prev-submit-btn{
+  display:flex;align-items:center;gap:8px;padding:12px 32px;
+  background:var(--grad);color:#fff;border:none;border-radius:6px;
+  font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;
+  box-shadow:0 3px 10px rgba(26,115,232,.28);transition:opacity .2s,box-shadow .2s
+}
+.prev-submit-btn:hover{opacity:.9;box-shadow:0 6px 20px rgba(26,115,232,.35)}
+
+/* Completed screen */
+.prev-completed{
+  background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:60px 24px;text-align:center;animation:fadeUp .3s ease both
+}
+.prev-completed .check{margin-bottom:16px;display:flex;justify-content:center}
+.prev-completed .check svg{width:60px;height:60px;color:var(--teal);stroke-width:1.5}
+.prev-completed h2{font-size:22px;font-weight:700;color:var(--text);margin-bottom:8px}
+.prev-completed p{font-size:14px;color:var(--muted);line-height:1.6}
+.prev-completed .another-btn{
+  margin-top:20px;display:inline-flex;align-items:center;gap:6px;
+  padding:10px 24px;background:var(--blue-lt);color:var(--blue);
+  border:none;border-radius:6px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s
+}
+.prev-completed .another-btn:hover{background:#d2e3fc}
+
+/* ── RESULTS ───────────────────────────────── */
+.results-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.results-toolbar h2{font-size:20px;font-weight:700;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.stat-card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 20px;display:flex;align-items:center;gap:14px}
+.stat-icon{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.stat-label{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.stat-value{font-size:22px;font-weight:700;color:var(--text)}
+
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+
+.res-tabs{display:flex;border-bottom:2px solid var(--border);margin-bottom:18px}
+.res-tab{padding:10px 20px;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:color .15s,border-color .15s;user-select:none}
+.res-tab:hover{color:var(--blue)}
+.res-tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+
+.summary-card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px 24px;margin-bottom:12px;animation:fadeUp .25s ease both}
+.summary-card h3{font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px}
+.summary-meta{font-size:12px;color:var(--muted);margin-bottom:14px}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.bar-label{font-size:13px;color:var(--muted);width:130px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-track{flex:1;height:10px;background:var(--blue-lt);border-radius:5px;overflow:hidden}
+.bar-fill{height:100%;background:var(--grad);border-radius:5px;transition:width .5s ease}
+.bar-pct{font-size:13px;font-weight:600;color:var(--blue);width:36px;text-align:right;flex-shrink:0}
+.text-answer{font-size:14px;color:var(--text);padding:8px 12px;background:#f8faff;border-radius:6px;margin-bottom:6px;border-left:3px solid var(--teal)}
+
+.results-empty{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:64px 24px;text-align:center;color:var(--muted)}
+.results-empty svg{width:52px;height:52px;color:#c5cde8;display:block;margin:0 auto 14px;stroke-width:1.5}
+
+.results-table-wrap{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:12px}
+.results-table-scroll{overflow-x:auto}
+.results-table{width:100%;border-collapse:collapse;font-size:14px;min-width:500px}
+.results-table th{background:var(--blue-lt);color:var(--blue);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.4px;padding:12px 16px;text-align:left;border-bottom:2px solid var(--border);white-space:nowrap}
+.results-table td{padding:12px 16px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:top;max-width:200px;word-break:break-word}
+.results-table tr:last-child td{border-bottom:none}
+.results-table tr:hover td{background:#f8faff}
+.row-delete{background:none;border:none;cursor:pointer;color:var(--muted);padding:4px;border-radius:50%;display:flex;align-items:center;transition:background .15s,color .15s}
+.row-delete:hover{background:#fde8e8;color:var(--red)}
+
+/* ── TOAST ─────────────────────────────────── */
+.toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(20px);background:#1a1f36;color:#fff;padding:11px 22px;border-radius:6px;font-size:14px;font-weight:500;z-index:999;opacity:0;transition:opacity .3s,transform .3s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:#b8cde8;border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-logo">
+    <div class="logo-box"><span class="material-icons mi">description</span></div>
+    Form Builder
+  </div>
+  <div class="nav-spacer"></div>
+  <div class="nav-tabs">
+    <div class="nav-tab active" id="tabEdit"    onclick="switchTab('edit')">
+      <span class="material-icons mi">edit</span>Questions
+    </div>
+    <div class="nav-tab" id="tabPreview" onclick="switchTab('preview')">
+      <span class="material-icons mi">play_circle</span>Preview
+    </div>
+    <div class="nav-tab" id="tabResults" onclick="switchTab('results')">
+      <span class="material-icons mi">bar_chart</span>Results
+      <span class="badge" id="responsesBadge"></span>
+    </div>
+  </div>
+  <div class="nav-spacer"></div>
+  <button class="btn btn-ghost" onclick="exportJSON()">
+    <span class="material-icons mi">download</span>Export JSON
+  </button>
+</nav>
+
+<div class="page">
+
+  <!-- ══ EDITOR ══════════════════════════════ -->
+  <div id="editView" class="view active">
+    <div class="form-card">
+      <div class="form-card-banner"></div>
+      <div class="hdr-body">
+        <input id="formTitle" class="hc-title" type="text" placeholder="Untitled form" value="My Survey"/>
+        <textarea id="formDesc" class="hc-desc" rows="2" placeholder="Form description (optional)"></textarea>
+      </div>
+    </div>
+    <div id="questionsList"></div>
+    <div class="add-bar">
+      <button class="add-btn" onclick="addQuestion()">
+        <span class="material-icons mi">add_circle_outline</span>Add Question
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ PREVIEW ═════════════════════════════ -->
+  <div id="previewView" class="view">
+    <div id="prevContent"></div>
+  </div>
+
+  <!-- ══ RESULTS ═════════════════════════════ -->
+  <div id="resultsView" class="view">
+    <div class="results-toolbar">
+      <h2 id="resultsTitle">Results</h2>
+      <button class="btn btn-ghost" onclick="exportCSV()"><span class="material-icons mi">table_chart</span>Export CSV</button>
+      <button class="btn btn-danger" onclick="clearAllResponses()"><span class="material-icons mi">delete_sweep</span>Clear All</button>
+    </div>
+    <div class="stats-row" id="statsRow"></div>
+    <div class="res-tabs">
+      <div class="res-tab active" id="resTabSummary" onclick="switchResTab('summary')">Summary</div>
+      <div class="res-tab"        id="resTabAll"     onclick="switchResTab('all')">Individual Responses</div>
+    </div>
+    <div id="summaryView"></div>
+    <div id="allResponsesView" style="display:none"></div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════
+   STATE
+══════════════════════════════════════════ */
+let questions = [];
+let nextId    = 1;
+let activeId  = null;
+
+const S_FORM = 'fb_form_v3';
+const S_RESP = 'fb_resp_v3';
+
+const TYPES = {
+  text:       'Short answer',
+  comment:    'Paragraph',
+  radiogroup: 'Multiple choice',
+  checkbox:   'Checkboxes',
+  dropdown:   'Dropdown',
+  rating:     'Linear scale',
+  date:       'Date',
+};
+
+/* ══════════════════════════════════════════
+   UTIL
+══════════════════════════════════════════ */
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+function getQ(id){ return questions.find(q=>q.id===id) }
+
+/* ══════════════════════════════════════════
+   BUILDER — card HTML
+══════════════════════════════════════════ */
+function typeOpts(cur){
+  return Object.entries(TYPES).map(([v,l])=>
+    `<option value="${v}"${cur===v?' selected':''}>${l}</option>`
+  ).join('');
+}
+
+function bodyHTML(q){
+  switch(q.type){
+    case 'text':    return `<div class="q-placeholder">Short answer text</div>`;
+    case 'comment': return `<div class="q-placeholder">Long answer text</div>`;
+    case 'date':    return `<div class="q-placeholder" style="display:flex;align-items:center;gap:8px"><i data-lucide="calendar" style="width:16px;height:16px;flex-shrink:0;stroke-width:2"></i>Date picker</div>`;
+    case 'radiogroup':
+    case 'checkbox':
+    case 'dropdown':{
+      const ico = q.type==='radiogroup'?'radio_button_unchecked':q.type==='checkbox'?'check_box_outline_blank':'arrow_drop_down';
+      const rows = q.choices.map((c,i)=>`
+        <div class="opt-row">
+          <span class="material-icons opt-icon">${ico}</span>
+          <input class="opt-input" type="text" value="${esc(c)}" placeholder="Option ${i+1}"
+                 oninput="updateOption(${q.id},${i},this.value)" onfocus="setActive(${q.id})"/>
+          <button class="opt-remove" onclick="removeOption(${q.id},${i})">
+            <span class="material-icons" style="font-size:18px">close</span>
+          </button>
+        </div>`).join('');
+      return `<div id="opts-${q.id}">${rows}</div>
+              <button class="add-opt-btn" onclick="addOption(${q.id})">
+                <span class="material-icons" style="font-size:17px">add</span> Add option
+              </button>`;
+    }
+    case 'rating':{
+      const n = Math.max(0, q.rateMax - q.rateMin + 1);
+      const dots = [...Array(n)].map((_,i)=>`<div class="scale-dot">${q.rateMin+i}</div>`).join('');
+      return `<div class="scale-row">
+        <label>Min</label>
+        <input class="scale-num" type="number" min="0" max="5" value="${q.rateMin}"
+               oninput="updateQ(${q.id},'rateMin',+this.value);refreshBody(${q.id})"/>
+        <input class="scale-lbl" type="text" placeholder="Min label" value="${esc(q.minLabel)}"
+               oninput="updateQ(${q.id},'minLabel',this.value)"/>
+        <label>Max</label>
+        <input class="scale-num" type="number" min="2" max="10" value="${q.rateMax}"
+               oninput="updateQ(${q.id},'rateMax',+this.value);refreshBody(${q.id})"/>
+        <input class="scale-lbl" type="text" placeholder="Max label" value="${esc(q.maxLabel)}"
+               oninput="updateQ(${q.id},'maxLabel',this.value)"/>
+      </div>
+      <div class="scale-preview">${dots}</div>`;
+    }
+    default: return '';
+  }
+}
+
+function cardHTML(q){
+  return `
+  <span class="material-icons q-drag" data-drag="${q.id}">drag_indicator</span>
+  <div class="q-header">
+    <input class="q-title-input" id="qtitle-${q.id}" type="text"
+           placeholder="Question" value="${esc(q.title)}"
+           oninput="updateQ(${q.id},'title',this.value)" onfocus="setActive(${q.id})"/>
+    <select class="q-type-select" onchange="changeType(${q.id},this.value)">${typeOpts(q.type)}</select>
+  </div>
+  <div class="q-body" id="qbody-${q.id}">${bodyHTML(q)}</div>
+  <div class="q-footer">
+    <button class="icon-btn" onclick="duplicateQ(${q.id})" title="Duplicate"><span class="material-icons">content_copy</span></button>
+    <button class="icon-btn danger" onclick="deleteQ(${q.id})" title="Delete"><span class="material-icons">delete</span></button>
+    <div class="q-footer-div"></div>
+    <label class="req-toggle">Required
+      <label class="switch">
+        <input type="checkbox" id="qreq-${q.id}" ${q.required?'checked':''}
+               onchange="updateQ(${q.id},'required',this.checked)"/>
+        <span class="sw-slider"></span>
+      </label>
+    </label>
+  </div>`;
+}
+
+/* ══════════════════════════════════════════
+   BUILDER — CRUD
+══════════════════════════════════════════ */
+function mkQ(type='radiogroup'){
+  return{id:nextId++,type,title:'',required:false,
+    choices:['radiogroup','checkbox','dropdown'].includes(type)?['Option 1']:[],
+    rateMin:1,rateMax:5,minLabel:'',maxLabel:''};
+}
+
+function mountCard(q, after){
+  const card=document.createElement('div');
+  card.className='q-card'; card.id=`qcard-${q.id}`;
+  card.innerHTML=cardHTML(q);
+  card.addEventListener('click',()=>setActive(q.id));
+  if(after) after.insertAdjacentElement('afterend',card);
+  else document.getElementById('questionsList').appendChild(card);
+  initDrag(card);
+  lucide.createIcons({context:card});
+  return card;
+}
+
+function addQuestion(type='radiogroup'){
+  const q=mkQ(type); questions.push(q);
+  const card=mountCard(q);
+  setActive(q.id);
+  setTimeout(()=>card.scrollIntoView({behavior:'smooth',block:'center'}),50);
+  saveForm();
+}
+
+function setActive(id){
+  if(activeId!==null){const p=document.getElementById(`qcard-${activeId}`);if(p)p.classList.remove('focused')}
+  activeId=id;
+  const el=document.getElementById(`qcard-${id}`);if(el)el.classList.add('focused');
+}
+
+function updateQ(id,f,v){ const q=getQ(id);if(q){q[f]=v;saveForm()} }
+
+function changeType(id,t){
+  const q=getQ(id);if(!q)return;
+  q.type=t;
+  if(['radiogroup','checkbox','dropdown'].includes(t)&&!q.choices.length)q.choices=['Option 1'];
+  refreshBody(id);saveForm();
+}
+
+function refreshBody(id){
+  const q=getQ(id),el=document.getElementById(`qbody-${id}`);
+  if(q&&el){ el.innerHTML=bodyHTML(q); lucide.createIcons({context:el}); }
+}
+
+function updateOption(qId,i,v){const q=getQ(qId);if(q){q.choices[i]=v;saveForm()}}
+
+function addOption(qId){
+  const q=getQ(qId);if(!q)return;
+  q.choices.push(`Option ${q.choices.length+1}`);
+  refreshBody(qId);saveForm();
+  setTimeout(()=>{const ins=document.querySelectorAll(`#opts-${qId} .opt-input`);if(ins.length)ins[ins.length-1].focus()},30);
+}
+
+function removeOption(qId,i){
+  const q=getQ(qId);if(!q||q.choices.length<=1)return;
+  q.choices.splice(i,1);refreshBody(qId);saveForm();
+}
+
+function duplicateQ(id){
+  const q=getQ(id);if(!q)return;
+  const copy=JSON.parse(JSON.stringify(q));copy.id=nextId++;
+  copy.title=copy.title?copy.title+' (copy)':'';
+  const idx=questions.findIndex(x=>x.id===id);questions.splice(idx+1,0,copy);
+  const card=mountCard(copy,document.getElementById(`qcard-${id}`));
+  setActive(copy.id);saveForm();showToast('Question duplicated');
+}
+
+function deleteQ(id){
+  questions=questions.filter(q=>q.id!==id);
+  const card=document.getElementById(`qcard-${id}`);
+  if(card){card.style.transition='opacity .2s,transform .2s';card.style.opacity='0';card.style.transform='translateY(-8px)';setTimeout(()=>card.remove(),210)}
+  if(activeId===id)activeId=null;
+  saveForm();showToast('Question deleted');
+}
+
+/* ══════════════════════════════════════════
+   DRAG & DROP
+══════════════════════════════════════════ */
+let drag=null;
+
+function initDrag(card){
+  const h=card.querySelector('[data-drag]');
+  if(h) h.addEventListener('mousedown',e=>startDrag(e,card));
+}
+
+function startDrag(e,card){
+  e.preventDefault();
+  const list=document.getElementById('questionsList');
+  const rect=card.getBoundingClientRect();
+  const clone=card.cloneNode(true);
+  clone.style.cssText=`position:fixed;top:${rect.top}px;left:${rect.left}px;width:${rect.width}px;
+    pointer-events:none;z-index:500;opacity:.85;box-shadow:0 8px 32px rgba(26,115,232,.22);
+    border-radius:10px;border-left:5px solid var(--blue);background:#fff;transition:none`;
+  document.body.appendChild(clone);
+  card.classList.add('dragging');
+  drag={card,clone,offsetY:e.clientY-rect.top,list};
+  document.addEventListener('mousemove',onDragMove);
+  document.addEventListener('mouseup',onDragEnd);
+}
+
+function onDragMove(e){
+  if(!drag)return;
+  drag.clone.style.top=(e.clientY-drag.offsetY)+'px';
+  const siblings=[...drag.list.querySelectorAll('.q-card:not(.dragging)')];
+  let target=null,before=true;
+  for(const c of siblings){const r=c.getBoundingClientRect();if(e.clientY<r.top+r.height/2){target=c;before=true;break}target=c;before=false}
+  siblings.forEach(c=>c.classList.remove('drag-over'));
+  if(target)target.classList.add('drag-over');
+  drag.target=target;drag.before=before;
+}
+
+function onDragEnd(){
+  if(!drag)return;
+  document.removeEventListener('mousemove',onDragMove);
+  document.removeEventListener('mouseup',onDragEnd);
+  const{card,clone,target,before,list}=drag;drag=null;
+  clone.remove();card.classList.remove('dragging');
+  if(target&&target!==card){
+    [...list.querySelectorAll('.q-card')].forEach(c=>c.classList.remove('drag-over'));
+    if(before)list.insertBefore(card,target);else target.insertAdjacentElement('afterend',card);
+    const newOrder=[];
+    list.querySelectorAll('.q-card').forEach(c=>{const id=parseInt(c.id.replace('qcard-',''));const q=getQ(id);if(q)newOrder.push(q)});
+    questions=newOrder;saveForm();
+  }
+}
+
+/* ══════════════════════════════════════════
+   PREVIEW RENDERER  (custom — no SurveyJS)
+══════════════════════════════════════════ */
+let prevAnswers = {};  // { qId: value }
+
+function renderPreview(){
+  const title = document.getElementById('formTitle').value.trim()||'Untitled form';
+  const desc  = document.getElementById('formDesc').value.trim();
+  prevAnswers  = {};
+
+  let html = `
+    <div class="form-card">
+      <div class="form-card-banner"></div>
+      <div class="prev-hdr-body">
+        <div class="prev-form-title">${esc(title)}</div>
+        ${desc?`<div class="prev-form-desc">${esc(desc)}</div>`:''}
+        <div class="prev-required-note">* Required</div>
+      </div>
+    </div>`;
+
+  questions.forEach(q=>{
+    html += prevQuestionHTML(q);
+  });
+
+  html += `
+    <div class="prev-submit-bar">
+      <button class="prev-submit-btn" onclick="submitPreview()">
+        <span class="material-icons mi">send</span> Submit
+      </button>
+      <button class="btn btn-ghost" onclick="clearPreview()">Clear form</button>
+    </div>`;
+
+  document.getElementById('prevContent').innerHTML = html;
+  lucide.createIcons();
+}
+
+function prevQuestionHTML(q){
+  const star = q.required ? `<span class="req-star">*</span>` : '';
+  let inputHTML = '';
+
+  switch(q.type){
+    case 'text':
+      inputHTML = `<input class="prev-input" type="text" placeholder="Your answer"
+                   oninput="setAnswer(${q.id},this.value)" id="prev-inp-${q.id}"/>`;
+      break;
+    case 'comment':
+      inputHTML = `<textarea class="prev-input prev-textarea" placeholder="Your answer" rows="3"
+                   oninput="setAnswer(${q.id},this.value)" id="prev-inp-${q.id}"></textarea>`;
+      break;
+    case 'date':
+      inputHTML = `<input class="prev-date" type="date"
+                   onchange="setAnswer(${q.id},this.value)" id="prev-inp-${q.id}"/>`;
+      break;
+    case 'radiogroup':
+      inputHTML = `<div class="prev-opt-list" id="prev-inp-${q.id}">
+        ${q.choices.map((c,i)=>`
+          <label class="prev-opt" id="prev-opt-${q.id}-${i}">
+            <input type="radio" name="q${q.id}" value="${esc(c)}"
+                   onchange="setAnswer(${q.id},this.value);highlightOpts(${q.id})"/>
+            <span class="prev-opt-label">${esc(c)}</span>
+          </label>`).join('')}
+      </div>`;
+      break;
+    case 'checkbox':
+      inputHTML = `<div class="prev-opt-list" id="prev-inp-${q.id}">
+        ${q.choices.map((c,i)=>`
+          <label class="prev-opt" id="prev-opt-${q.id}-${i}">
+            <input type="checkbox" value="${esc(c)}"
+                   onchange="setCheckbox(${q.id},${i},this.checked,this.value);highlightOpts(${q.id})"/>
+            <span class="prev-opt-label">${esc(c)}</span>
+          </label>`).join('')}
+      </div>`;
+      break;
+    case 'dropdown':
+      inputHTML = `<select class="prev-select" id="prev-inp-${q.id}" onchange="setAnswer(${q.id},this.value)">
+        <option value="">Select...</option>
+        ${q.choices.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('')}
+      </select>`;
+      break;
+    case 'rating':
+      const n = Math.max(0, q.rateMax - q.rateMin + 1);
+      const btns = [...Array(n)].map((_,i)=>{
+        const v = q.rateMin+i;
+        return `<button class="prev-scale-btn" id="prev-scl-${q.id}-${v}"
+                        onclick="setRating(${q.id},${v})">${v}</button>`;
+      }).join('');
+      inputHTML = `<div class="prev-scale" id="prev-inp-${q.id}">
+        ${(q.minLabel||q.maxLabel)?`<div class="prev-scale-labels"><span>${esc(q.minLabel)}</span><span>${esc(q.maxLabel)}</span></div>`:''}
+        <div class="prev-scale-btns">${btns}</div>
+      </div>`;
+      break;
+  }
+
+  return `
+    <div class="prev-q-card" id="prev-qcard-${q.id}">
+      <div class="prev-q-body">
+        <div class="prev-q-title">${esc(q.title||'Untitled question')}${star}</div>
+        ${inputHTML}
+        <div class="prev-error">This question is required.</div>
+      </div>
+    </div>`;
+}
+
+function setAnswer(qId, val){ prevAnswers[qId] = val; clearError(qId); }
+
+function setCheckbox(qId, idx, checked, val){
+  if(!Array.isArray(prevAnswers[qId])) prevAnswers[qId]=[];
+  if(checked){ if(!prevAnswers[qId].includes(val)) prevAnswers[qId].push(val); }
+  else{ prevAnswers[qId]=prevAnswers[qId].filter(v=>v!==val); }
+  clearError(qId);
+}
+
+function setRating(qId, val){
+  prevAnswers[qId]=val;
+  // Update button highlights
+  const q=getQ(qId);if(!q)return;
+  const n=Math.max(0,q.rateMax-q.rateMin+1);
+  [...Array(n)].forEach((_,i)=>{
+    const v=q.rateMin+i;
+    const btn=document.getElementById(`prev-scl-${qId}-${v}`);
+    if(btn) btn.classList.toggle('selected',v===val);
+  });
+  clearError(qId);
+}
+
+function highlightOpts(qId){
+  const q=getQ(qId);if(!q)return;
+  q.choices.forEach((_,i)=>{
+    const lbl=document.getElementById(`prev-opt-${qId}-${i}`);
+    if(!lbl)return;
+    const inp=lbl.querySelector('input');
+    lbl.classList.toggle('selected', inp.type==='radio'?inp.checked:inp.checked);
+  });
+}
+
+function clearError(qId){
+  const card=document.getElementById(`prev-qcard-${qId}`);
+  if(card) card.classList.remove('has-error');
+}
+
+function clearPreview(){
+  renderPreview();
+}
+
+function submitPreview(){
+  let valid=true;
+  questions.forEach(q=>{
+    if(!q.required) return;
+    const ans=prevAnswers[q.id];
+    const empty = ans===undefined||ans===null||ans===''||(Array.isArray(ans)&&ans.length===0);
+    if(empty){
+      valid=false;
+      const card=document.getElementById(`prev-qcard-${q.id}`);
+      if(card){ card.classList.add('has-error'); card.scrollIntoView({behavior:'smooth',block:'center'}); }
+    }
+  });
+  if(!valid){ showToast('Please fill in all required fields.'); return; }
+
+  // Build result data
+  const data={};
+  questions.forEach(q=>{ data[`q_${q.id}`]=prevAnswers[q.id]??null; });
+  saveResponse(data);
+
+  // Show completion screen
+  const title=document.getElementById('formTitle').value.trim()||'Untitled form';
+  document.getElementById('prevContent').innerHTML=`
+    <div class="prev-completed">
+      <div class="check"><i data-lucide="circle-check-big"></i></div>
+      <h2>Response recorded!</h2>
+      <p>Thank you for completing <strong>${esc(title)}</strong>.</p>
+      <button class="another-btn" onclick="renderPreview()">
+        <i data-lucide="refresh-cw" style="width:16px;height:16px"></i>Submit another response
+      </button>
+    </div>`;
+  lucide.createIcons();
+}
+
+/* ══════════════════════════════════════════
+   PERSIST
+══════════════════════════════════════════ */
+function saveForm(){
+  try{localStorage.setItem(S_FORM,JSON.stringify({
+    title:document.getElementById('formTitle').value,
+    desc:document.getElementById('formDesc').value,
+    questions,nextId
+  }))}catch(e){}
+}
+
+function loadForm(){
+  try{
+    const raw=localStorage.getItem(S_FORM);if(!raw)return;
+    const d=JSON.parse(raw);nextId=d.nextId||1;
+    document.getElementById('formTitle').value=d.title||'My Survey';
+    document.getElementById('formDesc').value=d.desc||'';
+    document.getElementById('questionsList').innerHTML='';
+    (d.questions||[]).forEach(q=>{questions.push(q);mountCard(q)});
+  }catch(e){}
+}
+
+/* ══════════════════════════════════════════
+   RESPONSES
+══════════════════════════════════════════ */
+function getResponses(){ try{return JSON.parse(localStorage.getItem(S_RESP)||'[]')}catch(e){return[]} }
+
+function saveResponse(data){
+  const r=getResponses();r.push({id:Date.now(),ts:new Date().toLocaleString(),data});
+  localStorage.setItem(S_RESP,JSON.stringify(r));updateBadge();
+}
+
+function deleteResponse(id){
+  localStorage.setItem(S_RESP,JSON.stringify(getResponses().filter(r=>r.id!==id)));
+  updateBadge();renderResults();showToast('Response deleted');
+}
+
+function clearAllResponses(){
+  if(!confirm('Delete all responses? This cannot be undone.'))return;
+  localStorage.removeItem(S_RESP);updateBadge();renderResults();showToast('All responses cleared');
+}
+
+function updateBadge(){
+  const n=getResponses().length,b=document.getElementById('responsesBadge');
+  b.style.display=n?'inline':'none';b.textContent=n;
+}
+
+/* ══════════════════════════════════════════
+   TAB SWITCHING
+══════════════════════════════════════════ */
+const TABS={
+  edit:    {tab:'tabEdit',    view:'editView'},
+  preview: {tab:'tabPreview', view:'previewView'},
+  results: {tab:'tabResults', view:'resultsView'},
+};
+
+function switchTab(tab){
+  if(tab==='preview'&&!questions.length){showToast('Add at least one question first!');return}
+  Object.entries(TABS).forEach(([k,{tab:t,view:v}])=>{
+    document.getElementById(t).classList.toggle('active',k===tab);
+    document.getElementById(v).classList.toggle('active',k===tab);
+  });
+  if(tab==='preview') renderPreview();
+  if(tab==='results') renderResults();
+}
+
+/* ══════════════════════════════════════════
+   RESULTS
+══════════════════════════════════════════ */
+let curResTab='summary';
+
+function switchResTab(t){
+  curResTab=t;
+  document.getElementById('resTabSummary').classList.toggle('active',t==='summary');
+  document.getElementById('resTabAll').classList.toggle('active',t==='all');
+  document.getElementById('summaryView').style.display=t==='summary'?'block':'none';
+  document.getElementById('allResponsesView').style.display=t==='all'?'block':'none';
+  renderResults();
+}
+
+function renderResults(){
+  const responses=getResponses();
+  const title=document.getElementById('formTitle').value.trim()||'My Survey';
+  document.getElementById('resultsTitle').textContent=`Results - ${title}`;
+  const last=responses.length?responses[responses.length-1].ts:'—';
+
+  document.getElementById('statsRow').innerHTML=`
+    <div class="stat-card">
+      <div class="stat-icon" style="background:var(--blue-lt)"><span class="material-icons" style="color:var(--blue);font-size:22px">group</span></div>
+      <div><div class="stat-label">Responses</div><div class="stat-value">${responses.length}</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:var(--teal-lt)"><span class="material-icons" style="color:var(--teal);font-size:22px">help_outline</span></div>
+      <div><div class="stat-label">Questions</div><div class="stat-value">${questions.length}</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#e8f5e9"><span class="material-icons" style="color:var(--green);font-size:22px">schedule</span></div>
+      <div><div class="stat-label">Last response</div><div class="stat-value" style="font-size:13px;padding-top:5px">${last}</div></div>
+    </div>`;
+
+  if(!responses.length){
+    document.getElementById('summaryView').innerHTML=`<div class="results-empty"><i data-lucide="inbox"></i><p>No responses yet. Go to <strong>Preview</strong> and submit the form.</p></div>`;
+    document.getElementById('allResponsesView').innerHTML='';
+    lucide.createIcons();
+    return;
+  }
+  if(curResTab==='summary') renderSummary(responses);
+  else renderIndividual(responses);
+}
+
+function renderSummary(responses){
+  let html='';
+  questions.forEach(q=>{
+    const key=`q_${q.id}`;
+    const answers=responses.map(r=>r.data[key]).filter(v=>v!=null&&v!=='');
+    html+=`<div class="summary-card"><h3>${esc(q.title||'Untitled question')}</h3>
+      <div class="summary-meta">${answers.length} of ${responses.length} responded</div>`;
+
+    if(['radiogroup','dropdown'].includes(q.type)||q.type==='rating'){
+      const counts={};
+      const choices=q.type==='rating'?[...Array(q.rateMax-q.rateMin+1)].map((_,i)=>String(q.rateMin+i)):q.choices;
+      answers.forEach(a=>{const k=String(a);counts[k]=(counts[k]||0)+1});
+      [...new Set([...choices,...Object.keys(counts)])].forEach(k=>{
+        const n=counts[k]||0,p=answers.length?Math.round(n/answers.length*100):0;
+        html+=`<div class="bar-row"><div class="bar-label" title="${esc(k)}">${esc(k)}</div><div class="bar-track"><div class="bar-fill" style="width:${p}%"></div></div><div class="bar-pct">${p}%</div></div>`;
+      });
+    } else if(q.type==='checkbox'){
+      const counts={};
+      answers.forEach(a=>(Array.isArray(a)?a:[a]).forEach(v=>{counts[v]=(counts[v]||0)+1}));
+      [...new Set([...q.choices,...Object.keys(counts)])].forEach(k=>{
+        const n=counts[k]||0,p=answers.length?Math.round(n/answers.length*100):0;
+        html+=`<div class="bar-row"><div class="bar-label" title="${esc(k)}">${esc(k)}</div><div class="bar-track"><div class="bar-fill" style="width:${p}%"></div></div><div class="bar-pct">${p}%</div></div>`;
+      });
+    } else {
+      answers.slice().reverse().forEach(a=>``.length>0||1&&(html+=`<div class="text-answer">${esc(String(a))}</div>`));
+    }
+    html+='</div>';
+  });
+  document.getElementById('summaryView').innerHTML=`<div class="summary-grid">${html}</div>`||'<div class="results-empty"><p>Nothing to display.</p></div>';
+  lucide.createIcons();
+}
+
+function renderIndividual(responses){
+  const cols=questions.map(q=>({key:`q_${q.id}`,title:q.title||'Untitled'}));
+  let html=`<div class="results-table-wrap"><div class="results-table-scroll"><table class="results-table">
+    <thead><tr><th>#</th><th>Submitted</th>${cols.map(c=>`<th>${esc(c.title)}</th>`).join('')}<th></th></tr></thead><tbody>`;
+  responses.forEach((r,i)=>{
+    html+=`<tr><td>${i+1}</td><td style="white-space:nowrap;color:var(--muted)">${esc(r.ts)}</td>
+      ${cols.map(c=>{const v=r.data[c.key];return`<td>${esc(String(Array.isArray(v)?v.join(', '):(v??'—')))}</td>`}).join('')}
+      <td><button class="row-delete" onclick="deleteResponse(${r.id})"><span class="material-icons" style="font-size:18px">delete</span></button></td></tr>`;
+  });
+  html+='</tbody></table></div></div>';
+  document.getElementById('allResponsesView').innerHTML=html;
+  lucide.createIcons();
+}
+
+/* ══════════════════════════════════════════
+   EXPORT
+══════════════════════════════════════════ */
+function buildJSON(){
+  const title=document.getElementById('formTitle').value.trim()||'Untitled form';
+  const desc=document.getElementById('formDesc').value.trim();
+  return{title,description:desc,questions:questions.map(q=>({
+    id:q.id,type:q.type,title:q.title,required:q.required,
+    choices:q.choices,rateMin:q.rateMin,rateMax:q.rateMax,minLabel:q.minLabel,maxLabel:q.maxLabel
+  }))};
+}
+
+function exportJSON(){
+  const b=new Blob([JSON.stringify(buildJSON(),null,2)],{type:'application/json'});
+  const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(b),download:'survey.json'});
+  a.click();URL.revokeObjectURL(a.href);showToast('JSON exported!');
+}
+
+function exportCSV(){
+  const responses=getResponses();
+  if(!responses.length){showToast('No responses to export.');return}
+  const cols=questions.map(q=>({key:`q_${q.id}`,title:q.title||'Untitled'}));
+  const line=arr=>arr.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',');
+  const csv=[line(['#','Submitted',...cols.map(c=>c.title)]),...responses.map((r,i)=>line([i+1,r.ts,...cols.map(c=>{const v=r.data[c.key];return Array.isArray(v)?v.join('; '):(v??'')})]))].join('\n');
+  const b=new Blob([csv],{type:'text/csv'});
+  const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(b),download:'responses.csv'});
+  a.click();URL.revokeObjectURL(a.href);showToast('CSV exported!');
+}
+
+/* ══════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════ */
+let toastT=null;
+function showToast(msg){
+  const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');
+  clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),2800);
+}
+
+/* ══════════════════════════════════════════
+   INIT
+══════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('formTitle').addEventListener('input',saveForm);
+  document.getElementById('formDesc').addEventListener('input',saveForm);
+  loadForm();
+  if(!questions.length) addQuestion('radiogroup');
+  updateBadge();
+  lucide.createIcons();
+});
+</script>
+</body>
+</html>

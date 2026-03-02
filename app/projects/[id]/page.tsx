@@ -43,6 +43,7 @@ export default function ProjectPage() {
     const [projectMembers, setProjectMembers] = useState<string[]>([]);
     const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
     const [lastSyncTime, setLastSyncTime] = useState(0);
+    const [hasNewFormsActivity, setHasNewFormsActivity] = useState(false);
     const { users, currentUser } = useAuth();
     // ... (rest of the component state and effects remain the same until the return statement)
 
@@ -62,6 +63,18 @@ export default function ProjectPage() {
         setActiveTab(tab);
         if (id && typeof window !== 'undefined') {
             localStorage.setItem(`project-${id}-activeTab`, tab);
+            if (tab === 'Forms') {
+                setHasNewFormsActivity(false);
+                // We'll update the seen count to the current count in the background or right away if we had it, but for simplicity, we do another fetch or just let the next polling update it.
+                fetch(`/api/projects/${id}/forms-activity`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.count !== undefined) {
+                            localStorage.setItem(`project-${id}-seenFormResponsesCount`, data.count.toString());
+                        }
+                    })
+                    .catch(console.error);
+            }
         }
     };
 
@@ -115,6 +128,24 @@ export default function ProjectPage() {
                         setSelectedMembers(membersData);
                     } else if (silent) {
                         console.log("Background sync: Modal is open, skipping selectedMembers update to preserve user input.");
+                    }
+                }
+            }
+
+            // Check Forms Activity for Notifications
+            const formsActivityRes = await fetch(`/api/projects/${id}/forms-activity`);
+            if (formsActivityRes.ok) {
+                const activityData = await formsActivityRes.json();
+                if (activityData.count !== undefined) {
+                    const seenCountStr = localStorage.getItem(`project-${id}-seenFormResponsesCount`);
+                    const seenCount = seenCountStr ? parseInt(seenCountStr, 10) : 0;
+
+                    if (activityData.count > seenCount && activeTab !== 'Forms') {
+                        setHasNewFormsActivity(true);
+                    } else if (activeTab === 'Forms' && activityData.count > seenCount) {
+                        // User is currently viewing forms, automatically update seen count
+                        localStorage.setItem(`project-${id}-seenFormResponsesCount`, activityData.count.toString());
+                        setHasNewFormsActivity(false);
                     }
                 }
             }
@@ -346,12 +377,17 @@ export default function ProjectPage() {
                             <button
                                 key={item}
                                 onClick={() => handleTabChange(item)}
-                                className={`py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${activeTab === item
+                                className={`py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap relative ${activeTab === item
                                     ? 'border-blue-600 text-blue-600 dark:text-blue-400'
                                     : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                                     }`}
                             >
-                                {item}
+                                <span className="flex items-center gap-1.5">
+                                    {item}
+                                    {item === 'Forms' && hasNewFormsActivity && (
+                                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500 mt-0.5" title="New Activity"></span>
+                                    )}
+                                </span>
                             </button>
                         ))}
                     </div>

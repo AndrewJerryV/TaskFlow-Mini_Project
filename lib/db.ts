@@ -718,6 +718,7 @@ class Database {
 
         if (error) {
             console.error('Error adding form:', error);
+            throw new Error(error.message);
         }
     }
 
@@ -779,6 +780,26 @@ class Database {
         return (data || []).map(toFormResponse);
     }
 
+    async getFormResponsesByRespondent(projectId: string, respondentId: string): Promise<FormResponse[]> {
+        // First get all forms in the project
+        const forms = await this.getForms(projectId);
+        if (forms.length === 0) return [];
+
+        const formIds = forms.map(f => f.id);
+
+        const { data, error } = await getSupabase()
+            .from('form_responses')
+            .select('*')
+            .in('form_id', formIds)
+            .eq('respondent_id', respondentId);
+
+        if (error) {
+            console.error('Error fetching respondent form responses:', error);
+            return [];
+        }
+        return (data || []).map(toFormResponse);
+    }
+
     async addFormResponse(response: FormResponse): Promise<void> {
         const { error } = await getSupabase()
             .from('form_responses')
@@ -792,7 +813,65 @@ class Database {
 
         if (error) {
             console.error('Error adding form response:', error);
+            throw new Error(`Failed to add form response: ${error.message}`);
         }
+    }
+
+    async updateFormResponse(id: string, answers: any): Promise<FormResponse | null> {
+        const { data, error } = await getSupabase()
+            .from('form_responses')
+            .update({
+                answers: JSON.stringify(answers),
+                submitted_at: new Date().toISOString()
+            })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error updating form response:', error);
+            return null;
+        }
+        return toFormResponse(data);
+    }
+
+    async upsertFormResponse(response: FormResponse): Promise<FormResponse | null> {
+        // Check if response already exists for this form and respondent
+        const { data: existing, error: existError } = await getSupabase()
+            .from('form_responses')
+            .select('*')
+            .eq('form_id', response.formId)
+            .eq('respondent_id', response.respondentId)
+            .single();
+
+        if (existError && existError.code !== 'PGRST116') {
+            console.error('Error checking existing form response:', existError);
+            return null;
+        }
+
+        if (existing) {
+            return this.updateFormResponse(existing.id, response.answers);
+        } else {
+            await this.addFormResponse(response);
+            return response;
+        }
+    }
+
+    async getProjectFormsActivity(projectId: string): Promise<number> {
+        const forms = await this.getForms(projectId);
+        if (forms.length === 0) return 0;
+
+        const formIds = forms.map(f => f.id);
+        const { count, error } = await getSupabase()
+            .from('form_responses')
+            .select('*', { count: 'exact', head: true })
+            .in('form_id', formIds);
+
+        if (error) {
+            console.error('Error fetching project forms activity:', error);
+            return 0;
+        }
+        return count || 0;
     }
 
     // Documents

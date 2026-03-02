@@ -54,9 +54,9 @@ export async function POST(request: NextRequest) {
         }
 
         return NextResponse.json(form, { status: 201 });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error creating form:', error);
-        return NextResponse.json({ error: 'Failed to create form' }, { status: 500 });
+        return NextResponse.json({ error: error.message || 'Failed to create form' }, { status: 500 });
     }
 }
 

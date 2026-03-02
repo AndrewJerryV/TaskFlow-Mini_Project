@@ -116,7 +116,7 @@ export interface ActivityLog {
   timestamp: string;
 }
 
-export type FormFieldType = 'text' | 'textarea' | 'select' | 'checkbox' | 'radio' | 'date' | 'number';
+export type FormFieldType = 'text' | 'comment' | 'radiogroup' | 'checkbox' | 'dropdown' | 'rating' | 'date';
 
 export interface FormFieldOption {
   id: string;
@@ -131,6 +131,11 @@ export interface FormField {
   placeholder?: string;
   required: boolean;
   options?: FormFieldOption[]; // For select, checkbox, radio
+  choices?: string[]; // For radiogroup, checkbox, dropdown
+  rateMin?: number;
+  rateMax?: number;
+  minLabel?: string;
+  maxLabel?: string;
 }
 
 export interface Form {
