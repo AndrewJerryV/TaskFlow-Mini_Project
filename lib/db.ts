@@ -242,6 +242,34 @@ class Database {
         return true;
     }
 
+    async addUser(userData: {
+        email: string;
+        password?: string;
+        fullName: string;
+        role: string;
+        skills: string[];
+        maxWorkload: number;
+    }): Promise<User | null> {
+        const { data: userId, error } = await getSupabase().rpc('admin_create_user', {
+            p_email: userData.email,
+            p_password: userData.password || 'TaskFlow@123',
+            p_full_name: userData.fullName,
+            p_user_role: userData.role,
+            p_skills: userData.skills,
+            p_max_workload: userData.maxWorkload
+        });
+
+        if (error) {
+            console.error('Error creating user via RPC:', error);
+            throw new Error(error.message);
+        }
+
+        if (userId) {
+            return await this.getUser(userId as string);
+        }
+        return null;
+    }
+
     // Projects
     async getProjects(userId?: string): Promise<Project[]> {
         let user: User | null = null;
