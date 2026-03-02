@@ -153,6 +153,19 @@ export interface FormResponse {
   submittedAt: string;
 }
 
+export interface Notification {
+  id: string;
+  userId: string;
+  type: 'task_assigned' | 'task_status_changed' | 'new_message' | 'new_form' | 'general';
+  title: string;
+  message: string;
+  isRead: boolean;
+  link?: string;
+  entityId?: string;
+  projectId?: string;
+  createdAt: string;
+}
+
 export interface DbSchema {
   users: User[];
   projects: Project[];
@@ -161,4 +174,5 @@ export interface DbSchema {
   messages: Message[];
   forms: Form[];
   formResponses: FormResponse[];
+  notifications: Notification[];
 }

@@ -171,3 +171,16 @@ export interface DbFormLink {
     created_by?: string;
     created_at: string;
 }
+
+export interface DbNotification {
+    id: string;
+    user_id: string;
+    type: 'task_assigned' | 'task_status_changed' | 'new_message' | 'new_form' | 'general';
+    title: string;
+    message: string;
+    is_read: boolean;
+    link?: string;
+    entity_id?: string;
+    project_id?: string;
+    created_at: string;
+}

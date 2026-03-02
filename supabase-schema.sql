@@ -179,6 +179,20 @@ CREATE TABLE IF NOT EXISTS form_responses (
   submitted_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Notifications table
+CREATE TABLE IF NOT EXISTS notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('task_assigned', 'task_status_changed', 'new_message', 'new_form', 'general')),
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  is_read BOOLEAN DEFAULT false,
+  link TEXT,
+  entity_id TEXT,
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Enable Row Level Security (RLS) - optional but recommended
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
@@ -188,6 +202,7 @@ ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE forms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE form_responses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
 -- Create policies to allow all operations (for development)
 -- In production, you should create more restrictive policies
@@ -196,6 +211,7 @@ CREATE POLICY "Allow all for projects" ON projects FOR ALL USING (true) WITH CHE
 CREATE POLICY "Allow all for tasks" ON tasks FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for activity_logs" ON activity_logs FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for messages" ON messages FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all for notifications" ON notifications FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for comments" ON comments FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for forms" ON forms FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for form_responses" ON form_responses FOR ALL USING (true) WITH CHECK (true);
@@ -413,3 +429,20 @@ CREATE TABLE IF NOT EXISTS form_links (
 
 ALTER TABLE form_links ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all for form_links" ON form_links FOR ALL USING (true) WITH CHECK (true);
+
+-- Notifications table
+CREATE TABLE IF NOT EXISTS notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('task_assigned', 'task_status_changed', 'new_message', 'new_form', 'general')),
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  is_read BOOLEAN DEFAULT false,
+  link TEXT,
+  entity_id TEXT,
+  project_id TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all for notifications" ON notifications FOR ALL USING (true) WITH CHECK (true);

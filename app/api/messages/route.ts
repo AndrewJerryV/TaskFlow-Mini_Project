@@ -44,6 +44,25 @@ export async function POST(request: Request) {
         };
 
         await db.addMessage(newMessage);
+
+        // Notify other project members
+        const projectMembers = await db.getProjectMembers(newMessage.projectId);
+        const membersToNotify = projectMembers.filter(memberId => memberId !== newMessage.userId);
+        const project = await db.getProject(newMessage.projectId);
+        const sender = await db.getUser(newMessage.userId);
+
+        for (const memberId of membersToNotify) {
+            await db.addNotification({
+                userId: memberId,
+                type: 'new_message',
+                title: 'New Chat Message',
+                message: `${sender?.name || 'Someone'} sent a message in ${project?.name || 'a project'}`,
+                link: `/projects/${newMessage.projectId}?tab=chat`,
+                entityId: newMessage.id,
+                projectId: newMessage.projectId,
+            });
+        }
+
         return NextResponse.json(newMessage);
     } catch (error) {
         console.error('Error creating message:', error);

@@ -1,5 +1,5 @@
-import { getSupabase, DbUser, DbProject, DbTask, DbActivityLog, DbMessage, DbComment, DbForm, DbFormResponse, DbDocument, DbShortcut, DbRepoLink, DbFormLink } from './supabase';
-import { Project, Task, User, ActivityLog, Message, Comment, Form, FormResponse, Document } from '@/types';
+import { getSupabase, DbUser, DbProject, DbTask, DbActivityLog, DbMessage, DbComment, DbForm, DbFormResponse, DbDocument, DbShortcut, DbRepoLink, DbFormLink, DbNotification } from './supabase';
+import { Project, Task, User, ActivityLog, Message, Comment, Form, FormResponse, Document, Notification } from '@/types';
 
 // Helper functions to convert between snake_case DB and camelCase TS
 function toUser(dbUser: DbUser): User {
@@ -135,6 +135,21 @@ function toDocument(dbDoc: DbDocument): Document {
         createdBy: dbDoc.created_by,
         createdAt: dbDoc.created_at,
         updatedAt: dbDoc.updated_at,
+    };
+}
+
+function toNotification(dbNotif: DbNotification): Notification {
+    return {
+        id: dbNotif.id,
+        userId: dbNotif.user_id,
+        type: dbNotif.type,
+        title: dbNotif.title,
+        message: dbNotif.message,
+        isRead: dbNotif.is_read,
+        link: dbNotif.link,
+        entityId: dbNotif.entity_id,
+        projectId: dbNotif.project_id,
+        createdAt: dbNotif.created_at,
     };
 }
 
@@ -1028,6 +1043,79 @@ class Database {
         return true;
     }
 
+    // Notifications
+    async getNotifications(userId: string): Promise<Notification[]> {
+        const { data, error } = await getSupabase()
+            .from('notifications')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching notifications:', error);
+            return [];
+        }
+        return (data || []).map(toNotification);
+    }
+
+    async getUnreadNotificationCount(userId: string): Promise<number> {
+        const { count, error } = await getSupabase()
+            .from('notifications')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('is_read', false);
+
+        if (error) {
+            console.error('Error counting unread notifications:', error);
+            return 0;
+        }
+        return count || 0;
+    }
+
+    async addNotification(notification: Omit<Notification, 'id' | 'createdAt' | 'isRead'>): Promise<void> {
+        const { error } = await getSupabase()
+            .from('notifications')
+            .insert({
+                user_id: notification.userId,
+                type: notification.type,
+                title: notification.title,
+                message: notification.message,
+                link: notification.link,
+                entity_id: notification.entityId,
+                project_id: notification.projectId,
+            });
+
+        if (error) {
+            console.error('Error adding notification:', error);
+        }
+    }
+
+    async markNotificationRead(id: string): Promise<boolean> {
+        const { error } = await getSupabase()
+            .from('notifications')
+            .update({ is_read: true })
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error marking notification read:', error);
+            return false;
+        }
+        return true;
+    }
+
+    async markAllNotificationsRead(userId: string): Promise<boolean> {
+        const { error } = await getSupabase()
+            .from('notifications')
+            .update({ is_read: true })
+            .eq('user_id', userId)
+            .eq('is_read', false);
+
+        if (error) {
+            console.error('Error marking all notifications read:', error);
+            return false;
+        }
+        return true;
+    }
 }
 
 export const db = new Database();

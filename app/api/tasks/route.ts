@@ -89,6 +89,20 @@ export async function POST(request: Request) {
             if (!projectMembers.includes(body.assigneeId)) {
                 await db.addProjectMember(body.projectId, body.assigneeId, 'Member');
             }
+
+            // Notify assignee if it's someone else
+            if (body.assigneeId !== requestUserId) {
+                const project = await db.getProject(body.projectId);
+                await db.addNotification({
+                    userId: body.assigneeId,
+                    type: 'task_assigned',
+                    title: 'New Task Assigned',
+                    message: `You have been assigned to "${newTask.title}" in ${project?.name || 'a project'}`,
+                    link: `/projects/${body.projectId}?task=${newTask.id}`,
+                    entityId: newTask.id,
+                    projectId: body.projectId,
+                });
+            }
         }
 
         return NextResponse.json(newTask);
@@ -165,10 +179,60 @@ export async function PATCH(request: Request) {
         }
 
         // Auto-add assignee to project if updated to a non-member
-        if (updates.assigneeId) {
+        if (updates.assigneeId && updates.assigneeId !== existingTask.assigneeId) {
             const projectMembers = await db.getProjectMembers(existingTask.projectId);
             if (!projectMembers.includes(updates.assigneeId)) {
                 await db.addProjectMember(existingTask.projectId, updates.assigneeId, 'Member');
+            }
+
+            // Notify new assignee if it's someone else
+            if (updates.assigneeId !== userId) {
+                const project = await db.getProject(existingTask.projectId);
+                await db.addNotification({
+                    userId: updates.assigneeId,
+                    type: 'task_assigned',
+                    title: 'New Task Assigned',
+                    message: `You have been assigned to "${updatedTask.title}" in ${project?.name || 'a project'}`,
+                    link: `/projects/${existingTask.projectId}?task=${updatedTask.id}`,
+                    entityId: updatedTask.id,
+                    projectId: existingTask.projectId,
+                });
+            }
+        }
+
+        // Notify managers/admins & assignee if status changes
+        if (updates.status && updates.status !== existingTask.status) {
+            const allUsers = await db.getUsers();
+            const membersToNotify = new Set<string>();
+
+            // Find all admins/managers in this project or broadly
+            const projectMembers = await db.getProjectMembers(existingTask.projectId);
+            allUsers.forEach(u => {
+                if ((u.role === 'Admin' || u.role === 'Manager') && projectMembers.includes(u.id)) {
+                    membersToNotify.add(u.id);
+                }
+            });
+
+            // Add assignee to the notification pool if they didn't make the change
+            if (existingTask.assigneeId) {
+                membersToNotify.add(existingTask.assigneeId);
+            }
+
+            // Don't notify the user who made the status change
+            membersToNotify.delete(userId);
+
+            const project = await db.getProject(existingTask.projectId);
+
+            for (const notifyUserId of membersToNotify) {
+                await db.addNotification({
+                    userId: notifyUserId,
+                    type: 'task_status_changed',
+                    title: 'Task Status Updated',
+                    message: `"${updatedTask.title}" status changed to ${updates.status} in ${project?.name || 'a project'}`,
+                    link: `/projects/${existingTask.projectId}?task=${updatedTask.id}`,
+                    entityId: updatedTask.id,
+                    projectId: existingTask.projectId,
+                });
             }
         }
 
