@@ -15,10 +15,12 @@ export function Sidebar() {
     const pathname = usePathname();
 
     useEffect(() => {
-        fetch('/api/projects')
-            .then(res => res.json())
-            .then(setProjects);
-    }, []);
+        if (currentUser?.id) {
+            fetch(`/api/projects?userId=${currentUser.id}`)
+                .then(res => res.json())
+                .then(setProjects);
+        }
+    }, [currentUser?.id]);
 
     return (
         <aside className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full">
@@ -55,12 +57,14 @@ export function Sidebar() {
                 <div>
                     <div className="flex items-center justify-between px-2 mb-2 group">
                         <h2 className="text-xs font-semibold uppercase text-gray-400 dark:text-gray-500">Projects</h2>
-                        <button
-                            onClick={() => setIsCreateOpen(true)}
-                            className="text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                            <Plus size={14} />
-                        </button>
+                        {(currentUser?.role === 'Admin' || currentUser?.role === 'Manager') && (
+                            <button
+                                onClick={() => setIsCreateOpen(true)}
+                                className="text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                                <Plus size={14} />
+                            </button>
+                        )}
                     </div>
 
                     <ul className="space-y-1">

@@ -22,9 +22,12 @@
     "next-auth": "^4.24.13",
     "react": "19.2.1",
     "react-dom": "19.2.1",
+    "recharts": "^3.7.0",
+    "supabase": "^2.76.14",
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
+    "@types/dotenv": "^6.1.1",
     "@types/jest": "^30.0.0",
     "@types/node": "^20",
     "@types/react": "^19",

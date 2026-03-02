@@ -1,0 +1,62 @@
+[
+  {
+    "name": "Alice (Backend)",
+    "skills": [
+      "Python", "Django", "FastAPI", "SQL", "PostgreSQL", "Redis",
+      "AWS", "Docker", "Serverless", "Terraform",
+      "Git", "Jira", "Agile", "Unit Testing", "Microservices",
+      "Problem Solving", "Mentoring", "Code Review", "System Design"
+    ]
+  },
+  {
+    "name": "Bob (Frontend)",
+    "skills": [
+      "JavaScript", "TypeScript", "React", "Next.js", "CSS", "HTML", "Tailwind",
+      "Figma", "UI/UX", "Prototyping", "Accessibility (a11y)", "Responsive Design",
+      "Creativity", "Attention to Detail", "Communication", "Empathy", "User Research"
+    ]
+  },
+  {
+    "name": "Charlie (Fullstack)",
+    "skills": [
+      "Python", "JavaScript", "Node.js", "React", "SQL", "MongoDB", "GraphQL",
+      "REST APIs", "WebSockets", "System Architecture", "Security",
+      "Leadership", "Time Management", "Adaptability", "Cross-functional Collaboration",
+      "Git", "CI/CD", "Webpack"
+    ]
+  },
+  {
+    "name": "Dave (Data)",
+    "skills": [
+      "Python", "R", "SQL", "NoSQL", "Spark",
+      "Pandas", "NumPy", "Machine Learning", "Data Analysis", "TensorFlow", "NLP",
+      "Tableau", "PowerBI", "Matplotlib", "Data Visualization",
+      "Critical Thinking", "Storytelling", "Statistical Analysis", "Business Intelligence"
+    ]
+  },
+  {
+    "name": "Eve (DevOps)",
+    "skills": [
+      "Linux", "Bash", "Python", "Go",
+      "AWS", "Azure", "Docker", "Kubernetes", "Terraform", "Ansible",
+      "CI/CD", "Jenkins", "GitHub Actions", "Prometheus", "Grafana", "Log Management",
+      "Incident Management", "Teamwork", "Crisis Management", "Automation Mindset"
+    ]
+  },
+  {
+    "name": "Frank (Manager)",
+    "skills": [
+      "Project Management", "Agile", "Scrum", "Kanban", "Risk Management",
+      "Leadership", "Conflict Resolution", "Public Speaking", "Negotiation", "Strategic Planning",
+      "Jira", "Confluence", "Excel", "Slack", "Microsoft Teams"
+    ]
+  },
+  {
+    "name": "Grace (Content/Marketing)",
+    "skills": [
+      "SEO", "Content Writing", "Copywriting", "Social Media Marketing", "Email Marketing",
+      "Google Analytics", "WordPress", "Canva", "HubSpot",
+      "Creativity", "Communication", "Brand Strategy", "Customer Focus"
+    ]
+  }
+]

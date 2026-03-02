@@ -494,18 +494,20 @@ export default function SettingsPage() {
                                 {/* Password Change */}
                                 <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
                                     <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Change Password</h3>
+                                    {/* Hidden username field to trap aggressive browser autofill */}
+                                    <input type="text" name="email" autoComplete="username" style={{ display: 'none' }} />
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div>
                                             <label className="block text-xs text-gray-500 mb-1">Current Password</label>
-                                            <input type="password" placeholder="••••••••" className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
+                                            <input type="password" autoComplete="current-password" placeholder="••••••••" className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
                                         </div>
                                         <div>
                                             <label className="block text-xs text-gray-500 mb-1">New Password</label>
-                                            <input type="password" placeholder="••••••••" className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
+                                            <input type="password" autoComplete="new-password" placeholder="••••••••" className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
                                         </div>
                                         <div>
                                             <label className="block text-xs text-gray-500 mb-1">Confirm New Password</label>
-                                            <input type="password" placeholder="••••••••" className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
+                                            <input type="password" autoComplete="new-password" placeholder="••••••••" className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
                                         </div>
                                     </div>
                                     <button className="mt-3 px-4 py-2 text-sm bg-gray-800 dark:bg-gray-600 text-white rounded hover:bg-gray-700 dark:hover:bg-gray-500 transition-colors">

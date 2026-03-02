@@ -1,0 +1,20 @@
+
+[2026-02-27T12:48:04.165Z] Starting localMLRecommendations with 0 tasks.
+Active tasks: 0
+Generated 0 recommendations.
+Throwing error because 0 recommendations generated.
+Catch error in GET: No recommendations generated (ML backend may be completely unreachable)
+Task [c1111111-1111-1111-1111-111111111111] Final Score: 240, Type: overdue_risk, Urgency: 240
+Task [b4444444-4444-4444-4444-444444444444] Final Score: 220, Type: overdue_risk, Urgency: 220
+Task [b3333332-3333-3333-3333-333333333332] Final Score: 228, Type: overdue_risk, Urgency: 228
+Task [b1111113-1111-1111-1111-111111111113] Final Score: 363, Type: overdue_risk, Urgency: 348
+Task [b1111112-1111-1111-1111-111111111112] Final Score: 355, Type: overdue_risk, Urgency: 340
+Task [b3333331-3333-3333-3333-333333333331] Final Score: 350, Type: overdue_risk, Urgency: 350
+Generated 6 recommendations.
+Task [c1111111-1111-1111-1111-111111111111] Final Score: 240, Type: overdue_risk, Urgency: 240
+Task [b4444444-4444-4444-4444-444444444444] Final Score: 220, Type: overdue_risk, Urgency: 220
+Task [b3333332-3333-3333-3333-333333333332] Final Score: 228, Type: overdue_risk, Urgency: 228
+Task [b1111113-1111-1111-1111-111111111113] Final Score: 363, Type: overdue_risk, Urgency: 348
+Task [b1111112-1111-1111-1111-111111111112] Final Score: 355, Type: overdue_risk, Urgency: 340
+Task [b3333331-3333-3333-3333-333333333331] Final Score: 350, Type: overdue_risk, Urgency: 350
+Generated 6 recommendations.

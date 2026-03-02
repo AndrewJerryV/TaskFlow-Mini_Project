@@ -4,19 +4,22 @@ import React from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Task } from '@/types';
-import { User, Tag } from 'lucide-react';
+import { User as UserIcon, Tag, CalendarClock } from 'lucide-react';
 import { getPriorityColorBordered } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface TaskCardProps {
     task: Task;
     isOverlay?: boolean;
     onClick?: (task: Task) => void;
+    disableDrag?: boolean;
 }
 
-export function TaskCard({ task, isOverlay, onClick }: TaskCardProps) {
+export function TaskCard({ task, isOverlay, onClick, disableDrag }: TaskCardProps) {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: task.id,
-        data: { task }
+        data: { task },
+        disabled: disableDrag
     });
 
     const style = transform ? {
@@ -41,12 +44,15 @@ export function TaskCard({ task, isOverlay, onClick }: TaskCardProps) {
 
     return (
         <div
-            ref={setNodeRef}
+            ref={disableDrag ? undefined : setNodeRef}
             style={style}
-            {...listeners}
-            {...attributes}
+            {...(disableDrag ? {} : listeners)}
+            {...(disableDrag ? {} : attributes)}
             onClick={handleClick}
-            className={`bg-white dark:bg-gray-700 p-3 rounded-md shadow-sm border border-gray-200 dark:border-gray-600 cursor-grab hover:shadow-md hover:border-blue-300 dark:hover:border-blue-500 transition-all ${isDragging ? 'opacity-30' : ''} mb-3`}
+            className={`bg-white dark:bg-gray-700 p-3 rounded-md shadow-sm border ${disableDrag
+                ? 'border-gray-200 dark:border-gray-600 cursor-not-allowed opacity-60 bg-gray-50 dark:bg-gray-800/80'
+                : 'border-l-4 border-l-blue-500 border-gray-200 dark:border-gray-600 cursor-grab hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500'
+                } transition-all ${isDragging ? 'opacity-30' : ''} mb-3`}
         >
             <CardContent task={task} />
         </div>
@@ -54,6 +60,23 @@ export function TaskCard({ task, isOverlay, onClick }: TaskCardProps) {
 }
 
 function CardContent({ task }: { task: Task }) {
+    const { users } = useAuth();
+
+    const assignee = users?.find(u => u.id === task.assigneeId);
+
+    const formattedDate = task.dueDate
+        ? new Date(task.dueDate).toLocaleDateString("en-GB", {
+            day: "numeric",
+            month: "long",
+            year: "numeric"
+        })
+        : "No deadline";
+
+    const isOverdue =
+        task.dueDate &&
+        new Date(task.dueDate) < new Date() &&
+        task.status !== "Done";
+
     return (
         <>
             <div className="flex justify-between items-start mb-2">
@@ -61,12 +84,27 @@ function CardContent({ task }: { task: Task }) {
                     {task.priority}
                 </span>
                 {task.assigneeId && (
-                    <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                        <User size={14} />
+                    <div
+                        className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs uppercase font-medium overflow-hidden"
+                        title={assignee?.name || 'Assigned'}
+                    >
+                        {assignee?.avatarUrl ? (
+                            <img src={assignee.avatarUrl} alt={assignee.name} className="w-full h-full object-cover" />
+                        ) : (
+                            assignee ? assignee.name.charAt(0) : <UserIcon size={14} className="text-white" />
+                        )}
                     </div>
                 )}
             </div>
             <h4 className="font-medium text-gray-900 dark:text-white text-sm mb-1">{task.title}</h4>
+            <div className='flex gap-1 items-center'>
+                <CalendarClock size={12} color='grey' />
+                <p className={`text-[10px] font-medium ${isOverdue ? "text-red-600" : "text-gray-500"}`}>
+                    Due: {formattedDate}
+                </p>
+            </div>
+
+
             <div className="flex flex-wrap gap-1 mt-2">
                 {task.tags.map(tag => (
                     <span key={tag} className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-300 border border-gray-100 dark:border-gray-500">

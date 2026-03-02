@@ -1,0 +1,52 @@
+%%{init: {"sequence": {"mirrorActors": false}}}%%
+sequenceDiagram
+    actor User
+    participant UI as Login Page
+    participant API as Auth API
+    participant IdP as OAuth Provider
+    participant RBAC as Role Service
+    participant DB as Database
+    participant Session as Session Store
+
+    User->>UI: Login request
+    
+    alt Google OAuth
+        UI->>API: GET /auth/google
+        API->>IdP: Redirect to Google
+        IdP-->>API: Callback with code
+        API->>IdP: Exchange for tokens
+        IdP-->>API: {access_token, email, profile}
+    else GitHub OAuth
+        UI->>API: GET /auth/github
+        API->>IdP: Redirect to GitHub
+        IdP-->>API: Callback with code
+        API->>IdP: Exchange for tokens
+        IdP-->>API: {access_token, email}
+    else Email/Password
+        UI->>API: POST /auth/login {email, password}
+        API->>DB: Fetch user by email
+        DB-->>API: User + hashed password
+        API->>API: Validate password hash
+        alt Invalid Credentials
+            API-->>UI: 401 Unauthorized
+        end
+    end
+
+    API->>DB: Fetch user with role
+    DB-->>API: {userId, role: Admin|Manager|Employee}
+    API->>RBAC: Load role permissions
+    RBAC-->>API: Permission matrix
+
+    API->>API: Generate JWT (15min) + Refresh Token (7d)
+    API->>Session: Store session
+    Session-->>API: Session ID
+    API-->>UI: {token, user, permissions}
+    UI->>UI: Store in auth context
+
+    alt role = Admin
+        UI-->>User: Full access (Admin Panel + All Features)
+    else role = Manager
+        UI-->>User: Team Management + Reports
+    else role = Employee
+        UI-->>User: Personal Dashboard + Own Tasks
+    end

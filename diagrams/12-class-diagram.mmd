@@ -1,0 +1,195 @@
+classDiagram
+    class User {
+        +id : uuid
+        +name : text
+        +email : text
+        +avatar_url : text
+        +role : text
+        +created_at : timestamptz
+        +skills : text[]
+        +wellness_score : int4
+        +max_workload : int4
+        +phone : text
+        +office_address : text
+        +timezone : text
+        +quiet_hours_start : text
+        +quiet_hours_end : text
+        +quiet_hours_weekends : bool
+        +two_factor_enabled : bool
+        +burnout_sensitivity : int4
+        +auto_assign : bool
+        +skill_match_priority : bool
+        +ai_deadlines : bool
+        +email_digest_frequency : text
+        +push_notifications : bool
+        +sound_alerts : bool
+        +getUsers() Promise~User[]~
+        +updateUserSettings(userId: string, settings: Partial~UserSettings~) Promise~User | null~
+    }
+
+    class Project {
+        +id : uuid
+        +name : text
+        +description : text
+        +key : text
+        +owner_id : text
+        +meeting_url : text
+        +created_at : timestamptz
+        +updated_at : timestamptz
+        +getProjects() Promise~Project[]~
+        +addProject(project: Project) Promise~void~
+        +deleteProject(id: string) Promise~boolean~
+        +getMeetingUrl(id: string) Promise~string | null~
+        +setMeetingUrl(id: string, url: string | null) Promise~boolean~
+    }
+
+    class Task {
+        +id : uuid
+        +project_id : text
+        +title : text
+        +description : text
+        +status : text
+        +priority : text
+        +assignee_id : text
+        +due_date : timestamptz
+        +start_date : timestamptz
+        +created_at : timestamptz
+        +updated_at : timestamptz
+        +tags : text[]
+        +getTasks(projectId?: string, assigneeId?: string) Promise~Task[]~
+        +getTaskById(id: string) Promise~Task | null~
+        +addTask(task: Task) Promise~void~
+        +updateTask(id: string, updates: Partial~Task~) Promise~Task | null~
+        +deleteTask(id: string, userId: string) Promise~boolean~
+    }
+
+    class Document {
+        +id : uuid
+        +project_id : uuid
+        +title : text
+        +type : text
+        +content : text
+        +file_path : text
+        +file_type : text
+        +size : int4
+        +created_by : uuid
+        +created_at : timestamptz
+        +updated_at : timestamptz
+        +getDocuments(projectId: string) Promise~Document[]~
+        +createDocument(doc: Document) Promise~Document | null~
+        +updateDocument(docId: string, updates: Partial~Document~) Promise~boolean~
+        +deleteDocument(docId: string) Promise~boolean~
+    }
+
+    class ActivityLog {
+        +id : uuid
+        +entity_type : text
+        +entity_id : text
+        +action : text
+        +details : text
+        +user_id : text
+        +timestamp : timestamptz
+        +getActivityLogs() Promise~ActivityLog[]~
+        +getUserActivityLogs(userId: string) Promise~ActivityLog[]~
+        +createLog(log: ActivityLog) Promise~void~
+    }
+
+    class Message {
+        +id : uuid
+        +project_id : text
+        +user_id : text
+        +content : text
+        +attachment : text
+        +timestamp : timestamptz
+        +getMessages(projectId: string) Promise~Message[]~
+        +addMessage(message: Message) Promise~void~
+    }
+
+    class Comment {
+        +id : uuid
+        +task_id : uuid
+        +user_id : text
+        +content : text
+        +created_at : timestamptz
+        +getComments(taskId: string) Promise~Comment[]~
+        +addComment(comment: Comment) Promise~void~
+    }
+
+    class Form {
+        +id : uuid
+        +project_id : uuid
+        +title : text
+        +description : text
+        +fields : jsonb
+        +status : text
+        +created_by : text
+        +created_at : timestamptz
+        +updated_at : timestamptz
+        +getForms(projectId: string) Promise~Form[]~
+        +getFormById(id: string) Promise~Form | null~
+        +addForm(form: Form) Promise~void~
+        +updateForm(id: string, updates: Partial~Form~) Promise~Form | null~
+        +deleteForm(id: string) Promise~boolean~
+    }
+
+    class FormResponse {
+        +id : uuid
+        +form_id : uuid
+        +respondent_id : text
+        +answers : jsonb
+        +submitted_at : timestamptz
+        +getFormResponses(formId: string) Promise~FormResponse[]~
+        +addFormResponse(response: FormResponse) Promise~void~
+    }
+
+    class Shortcut {
+        +id : uuid
+        +project_id : text
+        +name : text
+        +url : text
+        +type : text
+        +created_at : timestamptz
+        +getShortcuts(projectId: string) Promise~Shortcut[]~
+        +addShortcut(shortcut: Shortcut) Promise~void~
+        +deleteShortcut(id: string) Promise~boolean~
+    }
+
+    class RepoLink {
+        +id : uuid
+        +project_id : text
+        +name : text
+        +url : text
+        +owner : text
+        +repo : text
+        +description : text
+        +added_at : timestamptz
+        +getRepoLinks(projectId: string) Promise~RepoLink[]~
+        +addRepoLink(repo: RepoLink) Promise~void~
+        +deleteRepoLink(id: string) Promise~boolean~
+    }
+
+    class FormLink {
+        +id : uuid
+        +project_id : text
+        +title : text
+        +description : text
+        +form_url : text
+        +created_by : text
+        +created_at : timestamptz
+        +getFormLinks(projectId: string) Promise~FormLink[]~
+        +addFormLink(form: FormLink) Promise~void~
+        +deleteFormLink(id: string) Promise~boolean~
+    }
+
+    User "1" --> "0..*" Project : owns
+    User "1" --> "0..*" Task : assigned to
+    User "1" --> "0..*" Document : creates
+    Project "1" --> "0..*" Task : contains
+    Project "1" --> "0..*" Document : contains
+    Project "1" --> "0..*" Message : has
+    Project "1" --> "0..*" Form : has
+    Project "1" --> "0..*" Shortcut : has
+    Project "1" --> "0..*" RepoLink : has
+    Project "1" --> "0..*" FormLink : has
+    Task "1" --> "0..*" Comment : has
+    Form "1" --> "0..*" FormResponse : receives

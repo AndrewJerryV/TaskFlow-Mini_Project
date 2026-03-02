@@ -8,6 +8,7 @@ import { getUserName, formatRelativeTime, isOverdue, isDueWithinDays } from '@/l
 interface SummaryViewProps {
   tasks: Task[];
   projectId?: string;
+  currentUser?: User | null;
 }
 
 const StatusChart = ({ tasks }: { tasks: Task[] }) => {
@@ -163,7 +164,138 @@ const ActivityItem = ({ description, time }: { description: string, time: string
   </div>
 );
 
-export default function SummaryView({ tasks, projectId }: SummaryViewProps) {
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
+
+const ProjectHealthChart = ({ tasks }: { tasks: Task[] }) => {
+  const total = tasks.length || 1;
+  const done = tasks.filter(t => t.status === 'Done').length;
+  // Timeliness: tasks with dueDate that are NOT overdue
+  const withDueDate = tasks.filter(t => t.dueDate);
+  const timeless = withDueDate.filter(t => !isOverdue(t.dueDate!)).length;
+  const timeScore = withDueDate.length > 0 ? (timeless / withDueDate.length) * 100 : 100;
+
+  // Assignment: tasks that have an assignee
+  const assigned = tasks.filter(t => t.assigneeId).length;
+  const assignScore = (assigned / total) * 100;
+
+  // Stability: tasks that are NOT critical
+  const critical = tasks.filter(t => t.priority === 'Critical').length;
+  const stableScore = ((total - critical) / total) * 100;
+
+  // Documentation: tasks with descriptions
+  const documented = tasks.filter(t => t.description && t.description.length > 5).length;
+  const docScore = (documented / total) * 100;
+
+  // Completion
+  const compScore = (done / total) * 100;
+
+  const data = [
+    { subject: 'Completion', A: compScore, fullMark: 100 },
+    { subject: 'Timeliness', A: timeScore, fullMark: 100 },
+    { subject: 'Assignment', A: assignScore, fullMark: 100 },
+    { subject: 'Stability', A: stableScore, fullMark: 100 },
+    { subject: 'Documentation', A: docScore, fullMark: 100 },
+  ];
+
+  return (
+    <div className="h-64 mt-4 w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <RadarChart cx="50%" cy="50%" outerRadius="75%" data={data}>
+          <defs>
+            <linearGradient id="colorHealth" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#6366f1" stopOpacity={0.8} />
+              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.3} />
+            </linearGradient>
+          </defs>
+          <PolarGrid stroke="#e5e7eb" className="dark:stroke-gray-700" />
+          <PolarAngleAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 12, fontWeight: 500 }} />
+          <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+          <Radar
+            name="Project Health"
+            dataKey="A"
+            stroke="#6366f1"
+            strokeWidth={2}
+            fill="url(#colorHealth)"
+            fillOpacity={1}
+          />
+          <Tooltip
+            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+            itemStyle={{ fontSize: '13px', fontWeight: 600 }}
+            labelStyle={{ display: 'none' }}
+            formatter={(value: any) => [`${Math.round(Number(value) || 0)}/100`, 'Health Score']}
+          />
+        </RadarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
+
+const TeamWorkloadChart = ({ tasks, users }: { tasks: Task[], users: User[] }) => {
+  // Aggregate tasks by user ID
+  const workloadMap: Record<string, { name: string, Todo: number, InProgress: number, Review: number, Done: number }> = {};
+
+  users.forEach(u => {
+    workloadMap[u.id] = { name: u.name.split(' ')[0], Todo: 0, InProgress: 0, Review: 0, Done: 0 };
+  });
+
+  // Also track unassigned
+  workloadMap['unassigned'] = { name: 'Unassigned', Todo: 0, InProgress: 0, Review: 0, Done: 0 };
+
+  tasks.forEach(t => {
+    const key = t.assigneeId || 'unassigned';
+    if (!workloadMap[key]) workloadMap[key] = { name: 'Unknown', Todo: 0, InProgress: 0, Review: 0, Done: 0 };
+
+    if (t.status === 'To Do') workloadMap[key].Todo++;
+    if (t.status === 'In Progress') workloadMap[key].InProgress++;
+    if (t.status === 'Review') workloadMap[key].Review++;
+    if (t.status === 'Done') workloadMap[key].Done++;
+  });
+
+  // Filter out people with strictly 0 tasks entirely to keep chart clean
+  const data = Object.values(workloadMap).filter(w => w.Todo > 0 || w.InProgress > 0 || w.Review > 0 || w.Done > 0);
+
+  return (
+    <div className="h-64 mt-4 w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ top: 20, right: 20, left: -20, bottom: 5 }} barSize={36}>
+          <defs>
+            <linearGradient id="colorTodo" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#cbd5e1" stopOpacity={1} />
+              <stop offset="100%" stopColor="#94a3b8" stopOpacity={1} />
+            </linearGradient>
+            <linearGradient id="colorInProg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#60a5fa" stopOpacity={1} />
+              <stop offset="100%" stopColor="#3b82f6" stopOpacity={1} />
+            </linearGradient>
+            <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#fde047" stopOpacity={1} />
+              <stop offset="100%" stopColor="#eab308" stopOpacity={1} />
+            </linearGradient>
+            <linearGradient id="colorDone" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#4ade80" stopOpacity={1} />
+              <stop offset="100%" stopColor="#22c55e" stopOpacity={1} />
+            </linearGradient>
+          </defs>
+          <XAxis dataKey="name" tick={{ fill: '#6b7280', fontSize: 12, fontWeight: 500 }} tickLine={false} axisLine={false} />
+          <YAxis tick={{ fill: '#6b7280', fontSize: 12 }} tickLine={false} axisLine={false} />
+          <Tooltip
+            cursor={{ fill: 'rgba(0,0,0,0.03)' }}
+            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
+            itemStyle={{ fontSize: '12px', fontWeight: 500 }}
+            labelStyle={{ fontWeight: 'bold', color: '#374151', marginBottom: '8px', fontSize: '14px' }}
+          />
+          <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} iconType="circle" />
+          <Bar dataKey="Todo" stackId="a" fill="url(#colorTodo)" name="To Do" />
+          <Bar dataKey="InProgress" stackId="a" fill="url(#colorInProg)" name="In Progress" />
+          <Bar dataKey="Review" stackId="a" fill="url(#colorRev)" name="Review" />
+          <Bar dataKey="Done" stackId="a" fill="url(#colorDone)" name="Done" radius={[4, 4, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
+
+export default function SummaryView({ tasks, projectId, currentUser }: SummaryViewProps) {
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [users, setUsers] = useState<User[]>([]);
 
@@ -333,6 +465,31 @@ export default function SummaryView({ tasks, projectId }: SummaryViewProps) {
           </div>
         </div>
       </div>
+
+      {/* Advanced Analytics Row - Admin/Manager Only */}
+      {(currentUser?.role === 'Admin' || currentUser?.role === 'Manager') && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-lg font-bold text-gray-800 dark:text-white">Project Health Index</h2>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">
+              A balanced scorecard evaluating documentation, assignment parity, stability scaling and timeliness.
+            </p>
+            <ProjectHealthChart tasks={tasks} />
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-lg font-bold text-gray-800 dark:text-white">Team Workload Distribution</h2>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">
+              Stacked visual inspection for spotting assignee bottlenecks.
+            </p>
+            <TeamWorkloadChart tasks={tasks} users={users} />
+          </div>
+        </div>
+      )}
 
       {/* Tags Row */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">

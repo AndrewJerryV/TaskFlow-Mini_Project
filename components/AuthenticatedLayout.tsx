@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState, useRef, ReactNode } from 'react';
 import { Sidebar } from '@/components/Sidebar';
+import { NotificationBell } from '@/components/NotificationBell';
 import { LogOut, Search, Folder, CheckSquare, X } from 'lucide-react';
 import { getRoleColor } from '@/lib/utils';
 import { Project, Task } from '@/types';
@@ -226,12 +227,17 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
                         </div>
                     </div>
                     <div className="flex items-center space-x-3">
+                        {/* Notifications */}
+                        <NotificationBell />
+
                         {/* User Info */}
                         <div className="flex items-center gap-3">
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleColor(currentUser.role)}`}>
+                            <span className={`hidden sm:inline-block px-2 py-1 text-xs font-medium rounded-full ${getRoleColor(currentUser.role)}`}>
                                 {currentUser.role}
                             </span>
-                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{currentUser.name}</span>
+                            <span className="hidden sm:inline-block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                {currentUser.name}
+                            </span>
                             <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full flex items-center justify-center font-semibold overflow-hidden">
                                 {currentUser.avatarUrl ? (
                                     <img src={currentUser.avatarUrl} alt={currentUser.name} className="w-full h-full object-cover" />

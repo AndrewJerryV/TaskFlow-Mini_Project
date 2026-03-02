@@ -36,8 +36,10 @@ export default function Home() {
 
   useEffect(() => {
     const fetchProjects = async () => {
+      if (!currentUser?.id) return;
       try {
-        const res = await fetch('/api/projects');
+        setLoading(true);
+        const res = await fetch(`/api/projects?userId=${currentUser.id}`);
         const data = await res.json();
         if (Array.isArray(data)) {
           setProjects(data);
@@ -49,7 +51,7 @@ export default function Home() {
       }
     };
     fetchProjects();
-  }, []);
+  }, [currentUser?.id]);
 
   const getOwnerName = (ownerId: string) => getUserName(users, ownerId);
 
@@ -87,21 +89,29 @@ export default function Home() {
                       <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">{project.name}</h3>
                       <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{project.description}</p>
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (confirm('Are you sure you want to delete this project?')) {
-                          fetch(`/api/projects?id=${project.id}`, { method: 'DELETE' })
-                            .then(() => setProjects(prev => prev.filter(p => p.id !== project.id)))
-                            .catch(console.error);
-                        }
-                      }}
-                      className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                      title="Delete Project"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
-                    </button>
+                    {(currentUser?.role === 'Admin' || currentUser?.role === 'Manager') && (
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (confirm('Are you sure you want to delete this project?')) {
+                            fetch(`/api/projects?id=${project.id}&userId=${currentUser?.id}`, { method: 'DELETE' })
+                              .then((res) => {
+                                if (res.ok) {
+                                  setProjects(prev => prev.filter(p => p.id !== project.id));
+                                } else {
+                                  alert('Failed to delete project');
+                                }
+                              })
+                              .catch(console.error);
+                          }
+                        }}
+                        className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                        title="Delete Project"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
+                      </button>
+                    )}
                   </div>
 
                   <div className="z-10">
@@ -118,13 +128,15 @@ export default function Home() {
             ))}
 
             {/* Create New Project Card */}
-            <button
-              onClick={() => setIsCreateOpen(true)}
-              className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 h-36 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-blue-400 hover:text-blue-500 transition-all hover:bg-blue-50/10 dark:hover:bg-blue-900/10"
-            >
-              <span className="text-2xl mb-1">+</span>
-              <span className="text-sm font-medium">Create Project</span>
-            </button>
+            {(currentUser?.role === 'Admin' || currentUser?.role === 'Manager') && (
+              <button
+                onClick={() => setIsCreateOpen(true)}
+                className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 h-36 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-blue-400 hover:text-blue-500 transition-all hover:bg-blue-50/10 dark:hover:bg-blue-900/10"
+              >
+                <span className="text-2xl mb-1">+</span>
+                <span className="text-sm font-medium">Create Project</span>
+              </button>
+            )}
           </div>
         )}
       </section>

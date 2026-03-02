@@ -58,6 +58,42 @@ export default function PeoplePage() {
         }
     };
 
+    const handleRoleChange = async (userId: string, newRole: string) => {
+        if (!currentUser) return;
+
+        // Prevent demoting the last admin locally as a quick check
+        if (userId === currentUser.id && newRole !== 'Admin') {
+            const adminCount = users.filter(u => u.role === 'Admin').length;
+            if (adminCount <= 1) {
+                alert("You are the only Admin. You cannot change your role.");
+                return;
+            }
+
+            if (!window.confirm("Are you sure you want to remove your Admin privileges? You will lose access to Admin features immediately.")) {
+                return;
+            }
+        }
+
+        try {
+            const res = await fetch(`/api/users/${userId}/role?userId=${currentUser.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ role: newRole }),
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Failed to update user role');
+            }
+
+            // Update local state
+            setUsers(users.map(u => u.id === userId ? { ...u, role: newRole as "Admin" | "Manager" | "Member" } : u));
+        } catch (error: any) {
+            console.error('Error updating role:', error);
+            alert(error.message);
+        }
+    };
+
     if (loading) {
         return <div className="p-8 text-center text-gray-500">Loading users...</div>;
     }
@@ -106,10 +142,22 @@ export default function PeoplePage() {
                             <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
                                 <Mail size={12} /> {user.email}
                             </p>
-                            <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full mt-1 ${getRoleBadgeColor(user.role)}`}>
-                                <Shield size={10} />
-                                {user.role}
-                            </span>
+                            {currentUser?.role === 'Admin' ? (
+                                <select
+                                    value={user.role}
+                                    onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                                    className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full mt-1 border-none cursor-pointer focus:ring-2 focus:ring-blue-500 outline-none appearance-none font-medium ${getRoleBadgeColor(user.role)}`}
+                                >
+                                    <option className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" value="Admin">Admin</option>
+                                    <option className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" value="Manager">Manager</option>
+                                    <option className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" value="Member">Member</option>
+                                </select>
+                            ) : (
+                                <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full mt-1 ${getRoleBadgeColor(user.role)}`}>
+                                    <Shield size={10} />
+                                    {user.role}
+                                </span>
+                            )}
                         </div>
                     </div>
                 ))}

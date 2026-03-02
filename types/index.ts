@@ -57,6 +57,12 @@ export interface Comment {
   createdAt: string; // ISO Date
 }
 
+export interface TimeLog {
+  userId: string;
+  minutes: number;
+  date: string; // ISO Date string
+}
+
 export interface Task {
   id: string;
   projectId: string;
@@ -70,6 +76,9 @@ export interface Task {
   createdAt: string; // ISO Date
   updatedAt: string; // ISO Date
   tags: string[];
+  isPrivate?: boolean;
+  timeLogs?: TimeLog[];
+  dependencies?: string[]; // Array of task IDs this task depends on
 }
 
 
@@ -107,7 +116,7 @@ export interface ActivityLog {
   timestamp: string;
 }
 
-export type FormFieldType = 'text' | 'textarea' | 'select' | 'checkbox' | 'radio' | 'date' | 'number';
+export type FormFieldType = 'text' | 'comment' | 'radiogroup' | 'checkbox' | 'dropdown' | 'rating' | 'date';
 
 export interface FormFieldOption {
   id: string;
@@ -122,6 +131,11 @@ export interface FormField {
   placeholder?: string;
   required: boolean;
   options?: FormFieldOption[]; // For select, checkbox, radio
+  choices?: string[]; // For radiogroup, checkbox, dropdown
+  rateMin?: number;
+  rateMax?: number;
+  minLabel?: string;
+  maxLabel?: string;
 }
 
 export interface Form {
@@ -144,6 +158,19 @@ export interface FormResponse {
   submittedAt: string;
 }
 
+export interface Notification {
+  id: string;
+  userId: string;
+  type: 'task_assigned' | 'task_status_changed' | 'new_message' | 'new_form' | 'general';
+  title: string;
+  message: string;
+  isRead: boolean;
+  link?: string;
+  entityId?: string;
+  projectId?: string;
+  createdAt: string;
+}
+
 export interface DbSchema {
   users: User[];
   projects: Project[];
@@ -152,4 +179,5 @@ export interface DbSchema {
   messages: Message[];
   forms: Form[];
   formResponses: FormResponse[];
+  notifications: Notification[];
 }

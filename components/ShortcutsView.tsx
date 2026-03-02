@@ -5,10 +5,11 @@ import { Link2, Plus, ExternalLink, Trash2, X, Globe, Github, FileText } from 'l
 
 interface Shortcut {
     id: string;
+    project_id: string;
     name: string;
     url: string;
     type: 'link' | 'repository';
-    icon?: string;
+    created_at: string;
 }
 
 interface ShortcutsViewProps {
@@ -19,22 +20,28 @@ export default function ShortcutsView({ projectId }: ShortcutsViewProps) {
     const [shortcuts, setShortcuts] = useState<Shortcut[]>([]);
     const [showAddModal, setShowAddModal] = useState(false);
     const [newShortcut, setNewShortcut] = useState({ name: '', url: '', type: 'link' as 'link' | 'repository' });
+    const [loading, setLoading] = useState(true);
 
-    // Load shortcuts from localStorage
+    // Load shortcuts from the database via API
     useEffect(() => {
-        const saved = localStorage.getItem(`shortcuts-${projectId}`);
-        if (saved) {
-            setShortcuts(JSON.parse(saved));
+        async function fetchShortcuts() {
+            try {
+                setLoading(true);
+                const res = await fetch(`/api/shortcuts?projectId=${projectId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setShortcuts(data);
+                }
+            } catch (error) {
+                console.error('Error fetching shortcuts:', error);
+            } finally {
+                setLoading(false);
+            }
         }
+        fetchShortcuts();
     }, [projectId]);
 
-    // Save shortcuts to localStorage
-    const saveShortcuts = (newShortcuts: Shortcut[]) => {
-        setShortcuts(newShortcuts);
-        localStorage.setItem(`shortcuts-${projectId}`, JSON.stringify(newShortcuts));
-    };
-
-    const handleAddShortcut = () => {
+    const handleAddShortcut = async () => {
         if (!newShortcut.name.trim() || !newShortcut.url.trim()) return;
 
         let url = newShortcut.url;
@@ -42,20 +49,39 @@ export default function ShortcutsView({ projectId }: ShortcutsViewProps) {
             url = 'https://' + url;
         }
 
-        const shortcut: Shortcut = {
-            id: `shortcut-${Date.now()}`,
-            name: newShortcut.name,
-            url: url,
-            type: newShortcut.type,
-        };
+        try {
+            const res = await fetch('/api/shortcuts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    project_id: projectId,
+                    name: newShortcut.name,
+                    url: url,
+                    type: newShortcut.type,
+                }),
+            });
 
-        saveShortcuts([...shortcuts, shortcut]);
+            if (res.ok) {
+                const created = await res.json();
+                setShortcuts(prev => [...prev, created]);
+            }
+        } catch (error) {
+            console.error('Error adding shortcut:', error);
+        }
+
         setNewShortcut({ name: '', url: '', type: 'link' });
         setShowAddModal(false);
     };
 
-    const handleDeleteShortcut = (id: string) => {
-        saveShortcuts(shortcuts.filter(s => s.id !== id));
+    const handleDeleteShortcut = async (id: string) => {
+        try {
+            const res = await fetch(`/api/shortcuts?id=${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                setShortcuts(prev => prev.filter(s => s.id !== id));
+            }
+        } catch (error) {
+            console.error('Error deleting shortcut:', error);
+        }
     };
 
     const getIconForUrl = (url: string, type: string) => {
@@ -76,6 +102,14 @@ export default function ShortcutsView({ projectId }: ShortcutsViewProps) {
             return null;
         }
     };
+
+    if (loading) {
+        return (
+            <div className="max-w-4xl mx-auto flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-4xl mx-auto">
@@ -170,8 +204,8 @@ export default function ShortcutsView({ projectId }: ShortcutsViewProps) {
                             </div>
                             <div className="mt-2">
                                 <span className={`text-xs px-2 py-0.5 rounded-full ${shortcut.type === 'repository'
-                                        ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
-                                        : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                                    ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
+                                    : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
                                     }`}>
                                     {shortcut.type === 'repository' ? 'Repository' : 'Link'}
                                 </span>
@@ -210,8 +244,8 @@ export default function ShortcutsView({ projectId }: ShortcutsViewProps) {
                                 <button
                                     onClick={() => setNewShortcut({ ...newShortcut, type: 'link' })}
                                     className={`p-4 rounded-lg border-2 text-left transition-colors ${newShortcut.type === 'link'
-                                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
-                                            : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                                        : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                                         }`}
                                 >
                                     <div className="flex items-center gap-3 mb-2">
@@ -228,8 +262,8 @@ export default function ShortcutsView({ projectId }: ShortcutsViewProps) {
                                 <button
                                     onClick={() => setNewShortcut({ ...newShortcut, type: 'repository' })}
                                     className={`p-4 rounded-lg border-2 text-left transition-colors ${newShortcut.type === 'repository'
-                                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
-                                            : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                                        : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                                         }`}
                                 >
                                     <div className="flex items-center gap-3 mb-2">

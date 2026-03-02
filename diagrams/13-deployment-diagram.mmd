@@ -1,0 +1,60 @@
+graph TB
+    subgraph ClientLayer["<<device>> Client Machine"]
+        Browser["<<executionEnvironment>> Web Browser\n—\nReact 19 SPA\nTailwindCSS UI\nNext.js Client Components\n@dnd-kit Drag & Drop\nlucide-react Icons"]
+    end
+
+    subgraph VercelCloud["<<cloud>> Vercel Platform"]
+        subgraph NextServer["<<executionEnvironment>> Next.js 16 Runtime"]
+            SSR["<<component>> Server-Side Rendering\n—\nApp Router\nLayout & Pages (.tsx)"]
+            APIRoutes["<<component>> API Routes\n—\n/api/tasks\n/api/projects\n/api/users\n/api/documents\n/api/comments\n/api/messages\n/api/forms\n/api/activity\n/api/analytics\n/api/ai → ML Server\n/api/ml → ML Server"]
+            DBLayer["<<component>> Database Service Layer\n—\nlib/db.ts\nlib/supabase.ts\nSupabase Client SDK"]
+        end
+        StaticAssets["<<artifact>> Static Assets\n—\nCSS, JS Bundles\nPublic Images\nFavicon"]
+    end
+
+    subgraph MLServerNode["<<device>> ML Server Host"]
+        subgraph PythonRuntime["<<executionEnvironment>> Python + Uvicorn (port 8000)"]
+            FastAPIApp["<<component>> FastAPI Application\n—\nCORS Middleware\nPydantic Validation\nPOST /analyze endpoint"]
+            PriorityModel["<<component>> TaskPriorityModel\n—\nSetFit Classifier\nmy_setfit_model/ (438MB)\nPriority: Low|Medium|High"]
+            AssignerModel["<<component>> TaskAssigner\n—\nSentenceTransformer\n(all-MiniLM-L6-v2)\nCosine Similarity Matching\nSkill Extraction & Ranking"]
+            UrgencyModel["<<component>> UrgencyModel\n—\nRule-based Scoring\nPriority + Deadline + Stagnation\n× Status Multiplier\nLabels: Low|Moderate|High|Critical"]
+        end
+        ModelArtifacts["<<artifact>> Model Artifacts\n—\nmodel.safetensors\ntokenizer.json\nconfig.json\nmodel_head.pkl"]
+        MLDeps["<<artifact>> Dependencies\n—\nsentence-transformers ≥5.0\nnumpy ≥1.17\ntorch ≥2.0\ntransformers <5.0"]
+    end
+
+    subgraph SupabaseCloud["<<cloud>> Supabase Cloud (ap-southeast-1)"]
+        subgraph SupabaseServices["<<executionEnvironment>> Supabase BaaS"]
+            PostgreSQL["<<database>> PostgreSQL 17\n—\nusers\nprojects\ntasks\ndocuments\ncomments\nmessages\nforms\nform_responses\nactivity_logs"]
+            Auth["<<component>> Supabase Auth\n—\nJWT Authentication\nnext-auth Integration\nAnon Key Access"]
+            Storage["<<component>> Supabase Storage\n—\nFile Uploads\nDocument Storage"]
+            RLS["<<component>> Row Level Security\n—\nPer-table RLS Policies\nRole-based Access"]
+        end
+    end
+
+    subgraph MLTraining["<<device>> ML Training Environment"]
+        TrainingScripts["<<component>> Training Scripts\n—\nML/main.py\nML/urgency_model.py\nML/task_assignment.py\nML/priority_resolver.ipynb"]
+        TrainingDeps["<<artifact>> Training Stack\n—\nscikit-learn\nSetFit\nsentence-transformers\nPyTorch"]
+    end
+
+    Browser -- "HTTPS Requests" --> SSR
+    Browser -- "REST API Calls\n(JSON)" --> APIRoutes
+    SSR -- "Renders HTML" --> Browser
+    VercelCloud -- "Static Files\n(CDN)" --> Browser
+
+    APIRoutes --> DBLayer
+    APIRoutes -- "HTTP POST /analyze\n(JSON Request/Response)" --> FastAPIApp
+    FastAPIApp --> PriorityModel
+    FastAPIApp --> AssignerModel
+    FastAPIApp --> UrgencyModel
+    PriorityModel -- "Loads" --> ModelArtifacts
+    AssignerModel -- "Downloads on init" --> ModelArtifacts
+
+    DBLayer -- "supabase-js SDK\n(HTTPS/REST)" --> SupabaseServices
+    DBLayer --> PostgreSQL
+    Auth -- "JWT Tokens" --> DBLayer
+    RLS -- "Policy Enforcement" --> PostgreSQL
+    Storage -- "File I/O" --> PostgreSQL
+
+    TrainingScripts -- "Exports trained\nmodel files" --> ModelArtifacts
+    TrainingScripts --> TrainingDeps

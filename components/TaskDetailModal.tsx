@@ -34,11 +34,14 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
     const [editedTask, setEditedTask] = useState<Task | null>(null);
     const [comments, setComments] = useState<Comment[]>([]);
     const [history, setHistory] = useState<any[]>([]);
-    const [activeTab, setActiveTab] = useState<'comments' | 'history'>('comments');
+    const [activeTab, setActiveTab] = useState<'comments' | 'history' | 'time'>('comments');
     const [newComment, setNewComment] = useState('');
+    const [timeLogMinutes, setTimeLogMinutes] = useState('');
     const [isDeleting, setIsDeleting] = useState(false);
     const [loadingComments, setLoadingComments] = useState(false);
     const [loadingHistory, setLoadingHistory] = useState(false);
+
+    const isMember = currentUser?.role === 'Member';
 
     useEffect(() => {
         if (task) {
@@ -135,6 +138,25 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
         }
     };
 
+    const handleAddTimeLog = async () => {
+        if (!timeLogMinutes || isNaN(Number(timeLogMinutes)) || Number(timeLogMinutes) <= 0 || !task || !currentUser || !editedTask) return;
+
+        const newTimeLog = {
+            userId: currentUser.id,
+            minutes: Number(timeLogMinutes),
+            date: new Date().toISOString()
+        };
+
+        const updatedTimeLogs = [...(editedTask.timeLogs || []), newTimeLog];
+
+        // Update local state immediately
+        setEditedTask({ ...editedTask, timeLogs: updatedTimeLogs });
+
+        // Save to backend via onUpdate (the parent component will handle API call)
+        onUpdate({ ...editedTask, timeLogs: updatedTimeLogs });
+        setTimeLogMinutes('');
+    };
+
     if (!task || !editedTask) return null;
 
     return (
@@ -162,7 +184,8 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
                             <input
                                 type="text"
-                                className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                disabled={isMember}
+                                className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60 disabled:bg-gray-100 dark:disabled:bg-gray-800"
                                 value={editedTask.title}
                                 onChange={(e) => setEditedTask({ ...editedTask, title: e.target.value })}
                             />
@@ -170,7 +193,8 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
                             <textarea
-                                className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm min-h-[100px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                disabled={isMember}
+                                className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm min-h-[100px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60 disabled:bg-gray-100 dark:disabled:bg-gray-800"
                                 value={editedTask.description || ''}
                                 onChange={(e) => setEditedTask({ ...editedTask, description: e.target.value })}
                             />
@@ -192,7 +216,8 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Priority</label>
                                 <select
-                                    className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                    disabled={isMember}
+                                    className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60 disabled:bg-gray-100 dark:disabled:bg-gray-800"
                                     value={editedTask.priority}
                                     onChange={(e) => setEditedTask({ ...editedTask, priority: e.target.value as Priority })}
                                 >
@@ -206,7 +231,8 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assignee</label>
                             <select
-                                className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                disabled={isMember}
+                                className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60 disabled:bg-gray-100 dark:disabled:bg-gray-800"
                                 value={editedTask.assigneeId || ''}
                                 onChange={(e) => setEditedTask({ ...editedTask, assigneeId: e.target.value || undefined })}
                             >
@@ -256,6 +282,15 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                             <span className="flex items-center gap-2">
                                 <MessageSquare size={14} />
                                 Comments ({comments.length})
+                            </span>
+                        </button>
+                        <button
+                            className={`pb-2 text-sm font-medium ${activeTab === 'time' ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600' : 'text-gray-500 dark:text-gray-400'}`}
+                            onClick={() => setActiveTab('time')}
+                        >
+                            <span className="flex items-center gap-2">
+                                <Clock size={14} />
+                                Time Logs ({editedTask?.timeLogs?.length || 0})
                             </span>
                         </button>
                         <button
@@ -313,6 +348,47 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                                 </button>
                             </div>
                         </>
+                    ) : activeTab === 'time' ? (
+                        <>
+                            <div className="space-y-3 max-h-48 overflow-y-auto">
+                                {editedTask.timeLogs?.map((log, index) => (
+                                    <div key={index} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                                        <div className="flex justify-between items-start mb-1">
+                                            <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                                                {getUserName(users, log.userId)}
+                                            </span>
+                                            <span className="text-xs text-gray-400 dark:text-gray-500">
+                                                {new Date(log.date).toLocaleString()}
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-gray-600 dark:text-gray-300">Logged {log.minutes} minutes</p>
+                                    </div>
+                                ))}
+                                {(!editedTask.timeLogs || editedTask.timeLogs.length === 0) && (
+                                    <p className="text-sm text-gray-400 dark:text-gray-500 italic">No time logged yet</p>
+                                )}
+                            </div>
+
+                            {/* Add Time Log */}
+                            <div className="mt-3 flex gap-2">
+                                <input
+                                    type="number"
+                                    min="1"
+                                    placeholder="Minutes spent..."
+                                    className="flex-1 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                                    value={timeLogMinutes}
+                                    onChange={(e) => setTimeLogMinutes(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleAddTimeLog()}
+                                />
+                                <button
+                                    onClick={handleAddTimeLog}
+                                    disabled={!timeLogMinutes || isNaN(Number(timeLogMinutes)) || Number(timeLogMinutes) <= 0}
+                                    className="px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
+                                >
+                                    Log Time
+                                </button>
+                            </div>
+                        </>
                     ) : (
                         <div className="space-y-3 max-h-64 overflow-y-auto">
                             {loadingHistory ? (
@@ -342,48 +418,61 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
 
                 {/* Actions */}
                 <div className="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <button
-                        onClick={handleDelete}
-                        disabled={isDeleting}
-                        className="flex items-center gap-1 px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded text-sm"
-                    >
-                        <Trash2 size={14} />
-                        {isDeleting ? 'Deleting...' : 'Delete'}
-                    </button>
+                    {!isMember ? (
+                        <>
+                            <button
+                                onClick={handleDelete}
+                                disabled={isDeleting}
+                                className="flex items-center gap-1 px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded text-sm"
+                            >
+                                <Trash2 size={14} />
+                                {isDeleting ? 'Deleting...' : 'Delete'}
+                            </button>
 
-                    <div className="flex gap-2">
-                        {isEditing ? (
-                            <>
-                                <button
-                                    onClick={() => { setIsEditing(false); setEditedTask(task); }}
-                                    className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-sm"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleSave}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
-                                >
-                                    Save Changes
-                                </button>
-                            </>
-                        ) : (
-                            <>
-                                <button
-                                    onClick={onClose}
-                                    className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-sm"
-                                >
-                                    Close
-                                </button>
-                                <button
-                                    onClick={() => setIsEditing(true)}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
-                                >
-                                    Edit
-                                </button>
-                            </>
-                        )}
-                    </div>
+                            <div className="flex gap-2">
+                                {isEditing ? (
+                                    <>
+                                        <button
+                                            onClick={() => { setIsEditing(false); setEditedTask(task); }}
+                                            className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-sm"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={handleSave}
+                                            className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                                        >
+                                            Save Changes
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <button
+                                            onClick={onClose}
+                                            className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-sm"
+                                        >
+                                            Close
+                                        </button>
+                                        <button
+                                            onClick={() => setIsEditing(true)}
+                                            className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                                        >
+                                            Edit
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        </>
+                    ) : (
+                        <div className="ml-auto flex gap-2">
+                            <button
+                                onClick={onClose}
+                                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-sm"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </Modal>

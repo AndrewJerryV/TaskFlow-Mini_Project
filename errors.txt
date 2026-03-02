@@ -1,0 +1,9 @@
+.next/dev/types/validator.ts(252,31): error TS2344: Type 'typeof import("C:/Users/Andrew/Desktop/Mini Project/task-flow/app/api/projects/[id]/forms-activity/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/projects/[id]/forms-activity">'.
+  Types of property 'GET' are incompatible.
+    Type '(request: NextRequest, context: { params: { id: string; }; }) => Promise<NextResponse<{ error: string; }> | NextResponse<{ count: any; }>>' is not assignable to type '(request: NextRequest, context: { params: Promise<{ id: string; }>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters 'context' and 'context' are incompatible.
+        Type '{ params: Promise<{ id: string; }>; }' is not assignable to type '{ params: { id: string; }; }'.
+          Types of property 'params' are incompatible.
+            Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+app/api/projects/[id]/forms-activity/route.ts(2,10): error TS2459: Module '"@/lib/db"' declares 'getSupabase' locally, but it is not exported.
+app/api/projects/[id]/forms-activity/route.ts(25,35): error TS7006: Parameter 'f' implicitly has an 'any' type.

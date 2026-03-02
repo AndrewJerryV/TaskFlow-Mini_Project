@@ -1,0 +1,34 @@
+%%{init: {"sequence": {"mirrorActors": false}}}%%
+sequenceDiagram
+    actor Manager
+    participant UI as Task Form
+    participant API as Backend API
+    participant ML as Python ML Server
+    participant DB as Database
+    participant Notify as Notifications
+
+    Manager->>UI: Create/Edit task
+    UI->>UI: Input description & due date
+
+    Manager->>UI: Click "Analyze & Auto-Assign"
+    UI->>API: POST /api/tasks/analyze
+    
+    API->>ML: POST /analyze_task
+    
+    ML->>ML: Priority Model (SetFit) -> Predict Priority
+    ML->>ML: Task Assignee (SentenceTransformer) -> Match Skills
+    ML->>ML: Urgency Model -> Calculate Score
+    
+    ML-->>API: JSON Response
+
+    API-->>UI: Return Analysis Results
+    UI-->>Manager: Show results
+
+    Manager->>UI: Confirm Assignee & Save
+    UI->>API: POST /api/tasks (with selected assignee)
+    API->>DB: INSERT Task
+    
+    API->>Notify: Send email/alert to Assignee
+    Notify-->>API: Sent
+    API-->>UI: Task Created Successfully
+

@@ -1,5 +1,5 @@
-import { getSupabase, DbUser, DbProject, DbTask, DbActivityLog, DbMessage, DbComment, DbForm, DbFormResponse, DbDocument } from './supabase';
-import { Project, Task, User, ActivityLog, Message, Comment, Form, FormResponse, Document } from '@/types';
+import { getSupabase, DbUser, DbProject, DbTask, DbActivityLog, DbMessage, DbComment, DbForm, DbFormResponse, DbDocument, DbShortcut, DbRepoLink, DbFormLink, DbNotification } from './supabase';
+import { Project, Task, User, ActivityLog, Message, Comment, Form, FormResponse, Document, Notification } from '@/types';
 
 // Helper functions to convert between snake_case DB and camelCase TS
 function toUser(dbUser: DbUser): User {
@@ -138,6 +138,21 @@ function toDocument(dbDoc: DbDocument): Document {
     };
 }
 
+function toNotification(dbNotif: DbNotification): Notification {
+    return {
+        id: dbNotif.id,
+        userId: dbNotif.user_id,
+        type: dbNotif.type,
+        title: dbNotif.title,
+        message: dbNotif.message,
+        isRead: dbNotif.is_read,
+        link: dbNotif.link,
+        entityId: dbNotif.entity_id,
+        projectId: dbNotif.project_id,
+        createdAt: dbNotif.created_at,
+    };
+}
+
 // Database class with async Supabase operations
 class Database {
     // Users
@@ -151,6 +166,20 @@ class Database {
             return [];
         }
         return (data || []).map(toUser);
+    }
+
+    async getUser(id: string): Promise<User | null> {
+        const { data, error } = await getSupabase()
+            .from('users')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error || !data) {
+            console.error('Error fetching user:', error);
+            return null;
+        }
+        return toUser(data);
     }
 
     async updateUserSettings(userId: string, settings: Partial<{
@@ -200,18 +229,91 @@ class Database {
         return toUser(data);
     }
 
+    async updateUserRole(userId: string, newRole: string): Promise<boolean> {
+        const { error } = await getSupabase()
+            .from('users')
+            .update({ role: newRole })
+            .eq('id', userId);
+
+        if (error) {
+            console.error('Error updating user role:', error);
+            return false;
+        }
+        return true;
+    }
+
     // Projects
-    async getProjects(): Promise<Project[]> {
-        const { data, error } = await getSupabase()
-            .from('projects')
-            .select('*')
-            .order('created_at', { ascending: false });
+    async getProjects(userId?: string): Promise<Project[]> {
+        let user: User | null = null;
+        if (userId) {
+            user = await this.getUser(userId);
+        }
+
+        let query = getSupabase().from('projects').select('*');
+
+        // Only filter if userId is provided and user is not an Admin
+        if (userId) {
+            if (!user) {
+                console.warn(`User with ID ${userId} not found in getProjects. Returning empty list.`);
+                return [];
+            }
+
+            if (user.role !== 'Admin') {
+                const { data: membershipData, error: membershipError } = await getSupabase()
+                    .from('project_members')
+                    .select('project_id')
+                    .eq('user_id', userId);
+
+                if (membershipError) {
+                    console.error('Error fetching project memberships:', membershipError);
+                }
+
+                const projectIds = membershipData ? membershipData.map((m: any) => m.project_id) : [];
+
+                // Construct the or filter string
+                const ownerFilter = `owner_id.eq.${userId}`;
+                const membershipFilter = projectIds.length > 0 ? `,id.in.(${projectIds.join(',')})` : '';
+
+                query = query.or(`${ownerFilter}${membershipFilter}`);
+            }
+        }
+
+        const { data, error } = await query.order('created_at', { ascending: false });
 
         if (error) {
             console.error('Error fetching projects:', error);
             return [];
         }
         return (data || []).map(toProject);
+    }
+
+    async getProject(id: string): Promise<Project | null> {
+        const { data, error } = await getSupabase()
+            .from('projects')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error) {
+            if (error.code !== 'PGRST116') { // PGRST116 is 'no rows returned'
+                console.error('Error fetching project:', error);
+            }
+            return null;
+        }
+        return toProject(data);
+    }
+
+    async getProjectMembers(projectId: string): Promise<string[]> {
+        const { data, error } = await getSupabase()
+            .from('project_members')
+            .select('user_id')
+            .eq('project_id', projectId);
+
+        if (error) {
+            console.error('Error fetching project members:', error);
+            return [];
+        }
+        return (data || []).map((m: any) => m.user_id);
     }
 
     async addProject(project: Project): Promise<void> {
@@ -229,7 +331,41 @@ class Database {
 
         if (error) {
             console.error('Error adding project:', error);
+            return;
         }
+
+        // Add creator as the first member (Owner)
+        await this.addProjectMember(project.id, project.ownerId, 'Owner');
+    }
+
+    async addProjectMember(projectId: string, userId: string, role: string = 'Member'): Promise<boolean> {
+        const { error } = await getSupabase()
+            .from('project_members')
+            .insert({
+                project_id: projectId,
+                user_id: userId,
+                role: role
+            });
+
+        if (error) {
+            console.error('Error adding project member:', error);
+            return false;
+        }
+        return true;
+    }
+
+    async removeProjectMember(projectId: string, userId: string): Promise<boolean> {
+        const { error } = await getSupabase()
+            .from('project_members')
+            .delete()
+            .eq('project_id', projectId)
+            .eq('user_id', userId);
+
+        if (error) {
+            console.error('Error removing project member:', error);
+            return false;
+        }
+        return true;
     }
 
     async deleteProject(id: string): Promise<boolean> {
@@ -276,7 +412,7 @@ class Database {
         return (data || []).map(toTask);
     }
 
-    async addTask(task: Task): Promise<void> {
+    async addTask(task: Task, userId: string = 'system'): Promise<void> {
         const { error } = await getSupabase()
             .from('tasks')
             .insert({
@@ -306,12 +442,12 @@ class Database {
             entityId: task.id,
             action: 'Created',
             details: `Task "${task.title}" created.`,
-            userId: task.assigneeId || 'system',
+            userId: userId,
             timestamp: new Date().toISOString()
         });
     }
 
-    async updateTask(id: string, updates: Partial<Task>): Promise<Task | null> {
+    async updateTask(id: string, updates: Partial<Task>, userId: string = 'system'): Promise<Task | null> {
         // First get the current task to compare status
         const { data: currentTasks, error: fetchError } = await getSupabase()
             .from('tasks')
@@ -360,7 +496,7 @@ class Database {
                 entityId: id,
                 action: 'Moved',
                 details: `Status changed from "${oldStatus}" to "${updates.status}".`,
-                userId: 'system',
+                userId: userId,
                 timestamp: new Date().toISOString()
             });
         }
@@ -582,6 +718,7 @@ class Database {
 
         if (error) {
             console.error('Error adding form:', error);
+            throw new Error(error.message);
         }
     }
 
@@ -643,6 +780,26 @@ class Database {
         return (data || []).map(toFormResponse);
     }
 
+    async getFormResponsesByRespondent(projectId: string, respondentId: string): Promise<FormResponse[]> {
+        // First get all forms in the project
+        const forms = await this.getForms(projectId);
+        if (forms.length === 0) return [];
+
+        const formIds = forms.map(f => f.id);
+
+        const { data, error } = await getSupabase()
+            .from('form_responses')
+            .select('*')
+            .in('form_id', formIds)
+            .eq('respondent_id', respondentId);
+
+        if (error) {
+            console.error('Error fetching respondent form responses:', error);
+            return [];
+        }
+        return (data || []).map(toFormResponse);
+    }
+
     async addFormResponse(response: FormResponse): Promise<void> {
         const { error } = await getSupabase()
             .from('form_responses')
@@ -656,7 +813,65 @@ class Database {
 
         if (error) {
             console.error('Error adding form response:', error);
+            throw new Error(`Failed to add form response: ${error.message}`);
         }
+    }
+
+    async updateFormResponse(id: string, answers: any): Promise<FormResponse | null> {
+        const { data, error } = await getSupabase()
+            .from('form_responses')
+            .update({
+                answers: JSON.stringify(answers),
+                submitted_at: new Date().toISOString()
+            })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error updating form response:', error);
+            return null;
+        }
+        return toFormResponse(data);
+    }
+
+    async upsertFormResponse(response: FormResponse): Promise<FormResponse | null> {
+        // Check if response already exists for this form and respondent
+        const { data: existing, error: existError } = await getSupabase()
+            .from('form_responses')
+            .select('*')
+            .eq('form_id', response.formId)
+            .eq('respondent_id', response.respondentId)
+            .single();
+
+        if (existError && existError.code !== 'PGRST116') {
+            console.error('Error checking existing form response:', existError);
+            return null;
+        }
+
+        if (existing) {
+            return this.updateFormResponse(existing.id, response.answers);
+        } else {
+            await this.addFormResponse(response);
+            return response;
+        }
+    }
+
+    async getProjectFormsActivity(projectId: string): Promise<number> {
+        const forms = await this.getForms(projectId);
+        if (forms.length === 0) return 0;
+
+        const formIds = forms.map(f => f.id);
+        const { count, error } = await getSupabase()
+            .from('form_responses')
+            .select('*', { count: 'exact', head: true })
+            .in('form_id', formIds);
+
+        if (error) {
+            console.error('Error fetching project forms activity:', error);
+            return 0;
+        }
+        return count || 0;
     }
 
     // Documents
@@ -735,6 +950,251 @@ class Database {
         return true;
     }
 
+    // Shortcuts
+    async getShortcuts(projectId: string): Promise<DbShortcut[]> {
+        const { data, error } = await getSupabase()
+            .from('shortcuts')
+            .select('*')
+            .eq('project_id', projectId)
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching shortcuts:', error);
+            return [];
+        }
+        return data || [];
+    }
+
+    async addShortcut(shortcut: { id: string; project_id: string; name: string; url: string; type: 'link' | 'repository' }): Promise<DbShortcut | null> {
+        const { data, error } = await getSupabase()
+            .from('shortcuts')
+            .insert({
+                id: shortcut.id,
+                project_id: shortcut.project_id,
+                name: shortcut.name,
+                url: shortcut.url,
+                type: shortcut.type,
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error adding shortcut:', error);
+            return null;
+        }
+        return data;
+    }
+
+    async deleteShortcut(id: string): Promise<boolean> {
+        const { error } = await getSupabase()
+            .from('shortcuts')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error deleting shortcut:', error);
+            return false;
+        }
+        return true;
+    }
+
+    // Repo Links
+    async getRepoLinks(projectId: string): Promise<DbRepoLink[]> {
+        const { data, error } = await getSupabase()
+            .from('repo_links')
+            .select('*')
+            .eq('project_id', projectId)
+            .order('added_at', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching repo links:', error);
+            return [];
+        }
+        return data || [];
+    }
+
+    async addRepoLink(repoLink: { id: string; project_id: string; name: string; url: string; owner: string; repo: string; description?: string }): Promise<DbRepoLink | null> {
+        const { data, error } = await getSupabase()
+            .from('repo_links')
+            .insert({
+                id: repoLink.id,
+                project_id: repoLink.project_id,
+                name: repoLink.name,
+                url: repoLink.url,
+                owner: repoLink.owner,
+                repo: repoLink.repo,
+                description: repoLink.description || null,
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error adding repo link:', error);
+            return null;
+        }
+        return data;
+    }
+
+    async deleteRepoLink(id: string): Promise<boolean> {
+        const { error } = await getSupabase()
+            .from('repo_links')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error deleting repo link:', error);
+            return false;
+        }
+        return true;
+    }
+
+    // Form Links
+    async getFormLinks(projectId: string): Promise<DbFormLink[]> {
+        const { data, error } = await getSupabase()
+            .from('form_links')
+            .select('*')
+            .eq('project_id', projectId)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching form links:', error);
+            return [];
+        }
+        return data || [];
+    }
+
+    async addFormLink(formLink: { id: string; project_id: string; title: string; description?: string; form_url: string; created_by?: string }): Promise<DbFormLink | null> {
+        const { data, error } = await getSupabase()
+            .from('form_links')
+            .insert({
+                id: formLink.id,
+                project_id: formLink.project_id,
+                title: formLink.title,
+                description: formLink.description || null,
+                form_url: formLink.form_url,
+                created_by: formLink.created_by || null,
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error adding form link:', error);
+            return null;
+        }
+        return data;
+    }
+
+    async deleteFormLink(id: string): Promise<boolean> {
+        const { error } = await getSupabase()
+            .from('form_links')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error deleting form link:', error);
+            return false;
+        }
+        return true;
+    }
+
+    // Meeting URL
+    async getMeetingUrl(projectId: string): Promise<string | null> {
+        const { data, error } = await getSupabase()
+            .from('projects')
+            .select('meeting_url')
+            .eq('id', projectId)
+            .single();
+
+        if (error || !data) return null;
+        return data.meeting_url || null;
+    }
+
+    async setMeetingUrl(projectId: string, meetingUrl: string | null): Promise<boolean> {
+        const { error } = await getSupabase()
+            .from('projects')
+            .update({ meeting_url: meetingUrl })
+            .eq('id', projectId);
+
+        if (error) {
+            console.error('Error updating meeting URL:', error);
+            return false;
+        }
+        return true;
+    }
+
+    // Notifications
+    async getNotifications(userId: string): Promise<Notification[]> {
+        const { data, error } = await getSupabase()
+            .from('notifications')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching notifications:', error);
+            return [];
+        }
+        return (data || []).map(toNotification);
+    }
+
+    async getUnreadNotificationCount(userId: string): Promise<number> {
+        const { count, error } = await getSupabase()
+            .from('notifications')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('is_read', false);
+
+        if (error) {
+            console.error('Error counting unread notifications:', error);
+            return 0;
+        }
+        return count || 0;
+    }
+
+    async addNotification(notification: Omit<Notification, 'id' | 'createdAt' | 'isRead'>): Promise<void> {
+        const { error } = await getSupabase()
+            .from('notifications')
+            .insert({
+                user_id: notification.userId,
+                type: notification.type,
+                title: notification.title,
+                message: notification.message,
+                link: notification.link,
+                entity_id: notification.entityId,
+                project_id: notification.projectId,
+            });
+
+        if (error) {
+            console.error('Error adding notification:', error);
+        }
+    }
+
+    async markNotificationRead(id: string): Promise<boolean> {
+        const { error } = await getSupabase()
+            .from('notifications')
+            .update({ is_read: true })
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error marking notification read:', error);
+            return false;
+        }
+        return true;
+    }
+
+    async markAllNotificationsRead(userId: string): Promise<boolean> {
+        const { error } = await getSupabase()
+            .from('notifications')
+            .update({ is_read: true })
+            .eq('user_id', userId)
+            .eq('is_read', false);
+
+        if (error) {
+            console.error('Error marking all notifications read:', error);
+            return false;
+        }
+        return true;
+    }
 }
 
 export const db = new Database();

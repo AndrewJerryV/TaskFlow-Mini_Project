@@ -1,0 +1,204 @@
+graph TB
+    subgraph PresentationLayer["Presentation Layer"]
+        direction TB
+
+        subgraph Pages["Pages (App Router)"]
+            Dashboard["/ Dashboard Page"]
+            LoginPage["/login Login Page"]
+            ProjectsPage["/projects Projects Page"]
+            PeoplePage["/people People Page"]
+            SettingsPage["/settings Settings Page"]
+            TeamPage["/team Team Page"]
+        end
+
+        subgraph UIComponents["UI Components"]
+            Sidebar["Sidebar"]
+            AuthLayout["AuthenticatedLayout"]
+            TaskBoard["TaskBoard"]
+            TaskCard["TaskCard"]
+            TaskDetail["TaskDetailModal"]
+            TaskFilters["TaskFilters"]
+            CalendarView["CalendarView"]
+            BacklogView["BacklogView"]
+            TimelineView["TimelineView"]
+            ChatView["ChatView"]
+            PagesView["PagesView / Documents"]
+            FormsView["FormsView"]
+            CodeView["CodeView"]
+            ReportsView["ReportsView"]
+            SummaryView["SummaryView"]
+            ShortcutsView["ShortcutsView"]
+            VideoRoom["VideoRoom"]
+        end
+
+        subgraph AIComponents["AI/ML Components"]
+            MLRecommendations["MLTaskRecommendations"]
+            TaskOfDay["TaskOfTheDay"]
+            BurnoutDash["BurnoutDashboard"]
+            BottleneckAlert["BottleneckAlert"]
+        end
+
+        subgraph UserComponents["User Management Components"]
+            UserStats["UserStatsCard"]
+            UserHistory["UserHistoryModal"]
+        end
+
+        subgraph FormComponents["Form Components"]
+            FormBuilder["FormBuilder"]
+            FormResponder["FormResponder"]
+        end
+
+        subgraph SharedUI["Shared UI"]
+            UIDir["ui/ConfirmDialog\nui/MarkdownEditor\nui/MarkdownRenderer\nui/Tooltip"]
+        end
+
+        subgraph ContextProviders["Context Providers"]
+            AuthContext["AuthContext\n(User session, login/logout)"]
+            ThemeContext["ThemeContext\n(Dark/light mode)"]
+        end
+    end
+
+    subgraph ApplicationLayer["Application Layer (Next.js API Routes)"]
+        direction TB
+
+        subgraph TaskAPIs["Task Management"]
+            TasksAPI["/api/tasks\nGET, POST, PATCH, DELETE"]
+            TaskIdAPI["/api/tasks/[id]\nGET, PATCH, DELETE"]
+        end
+
+        subgraph ProjectAPIs["Project Management"]
+            ProjectsAPI["/api/projects\nGET, POST, DELETE"]
+        end
+
+        subgraph UserAPIs["User Management"]
+            UsersAPI["/api/users\nGET"]
+            UsersSettingsAPI["/api/users/settings\nPATCH"]
+            UsersIdAPI["/api/users/[id]\nGET"]
+            TeamAPI["/api/team\nGET, PATCH"]
+        end
+
+        subgraph CollabAPIs["Collaboration"]
+            CommentsAPI["/api/comments\nGET, POST"]
+            MessagesAPI["/api/messages\nGET, POST"]
+            DocumentsAPI["/api/documents\nGET, POST, PATCH, DELETE"]
+            FormsAPI["/api/forms\nGET, POST, PATCH, DELETE"]
+            ShortcutsAPI["/api/shortcuts\nGET, POST, DELETE"]
+            ReposAPI["/api/repos\nGET, POST, DELETE"]
+            FormLinksAPI["/api/form-links\nGET, POST, DELETE"]
+            MeetingAPI["/api/meeting\nGET, POST"]
+        end
+
+        subgraph IntelligenceAPIs["AI & Analytics"]
+            AIAPI["/api/ai\nProxy to ML Server"]
+            MLAPI["/api/ml\nProxy to ML Server"]
+            AnalyticsAPI["/api/analytics\nReports & Metrics"]
+            ActivityAPI["/api/activity\nGET, POST"]
+        end
+
+        subgraph AdminAPIs["Admin"]
+            SeedAPI["/api/seed\nDatabase seeding"]
+        end
+    end
+
+    subgraph ServiceLayer["Service Layer"]
+        direction TB
+
+        subgraph DatabaseService["Database Service"]
+            DB["lib/db.ts\n(Database class)\nCRUD operations\nsnake_case ↔ camelCase mapping"]
+            SupabaseClient["lib/supabase.ts\n(Supabase Client SDK)\nLazy initialization\nDB type interfaces"]
+        end
+
+        subgraph UtilityService["Utility Services"]
+            Utils["lib/utils.ts\nDate formatting\nFile size formatting\nColor/priority helpers"]
+            Constants["lib/constants.ts\nPriority/Status colors\nRole colors\nAction display config"]
+        end
+
+        subgraph TypeSystem["Type System"]
+            Types["types/index.ts\nUser, Project, Task\nDocument, Comment, Message\nForm, FormResponse\nActivityLog, Attachment"]
+        end
+    end
+
+    subgraph MLServer["ML Server (FastAPI + Uvicorn :8000)"]
+        direction TB
+
+        subgraph MLEndpoint["API Endpoint"]
+            AnalyzeAPI["POST /analyze\nFullTaskRequest (Pydantic)\n→ priority, assignment, urgency"]
+        end
+
+        subgraph MLModels["ML Models"]
+            PriorityModel["TaskPriorityModel\nSetFit (my_setfit_model/)\nmodel.safetensors (438MB)\nPriority classification"]
+            AssignerModel["TaskAssigner\nSentenceTransformer\n(all-MiniLM-L6-v2)\nCosine similarity matching\nSkill extraction & ranking"]
+            UrgencyModelClass["UrgencyModel\nRule-based scoring\nPriority + Deadline + Stagnation\n× Status Multiplier"]
+        end
+
+        subgraph MLDeps["Dependencies"]
+            MLRequirements["sentence-transformers ≥5.0\nnumpy ≥1.17\ntorch ≥2.0\ntransformers <5.0\nfastapi, pydantic, uvicorn"]
+        end
+    end
+
+    subgraph DataLayer["Data Layer (Supabase Cloud)"]
+        direction TB
+
+        subgraph PostgreSQL["PostgreSQL 17"]
+            UsersTable["users"]
+            ProjectsTable["projects\n(+meeting_url)"]
+            TasksTable["tasks"]
+            DocumentsTable["documents"]
+            CommentsTable["comments"]
+            MessagesTable["messages"]
+            FormsTable["forms"]
+            FormResponsesTable["form_responses"]
+            ActivityLogsTable["activity_logs"]
+            ShortcutsTable["shortcuts"]
+            RepoLinksTable["repo_links"]
+            FormLinksTable["form_links"]
+        end
+
+        subgraph SupabaseServices["Supabase Services"]
+            Auth["Authentication\nJWT + Anon Key"]
+            RLS["Row Level Security\nPer-table policies"]
+            Storage["File Storage"]
+        end
+    end
+
+    %% Presentation → Application
+    Pages --> AuthLayout
+    AuthLayout --> UIComponents
+    AuthLayout --> AIComponents
+    AuthLayout --> UserComponents
+
+    UIComponents --> ContextProviders
+    AIComponents --> ContextProviders
+
+    Pages --> ApplicationLayer
+    UIComponents --> ApplicationLayer
+    AIComponents --> ApplicationLayer
+
+    %% Application → Services
+    TaskAPIs --> DB
+    ProjectAPIs --> DB
+    UserAPIs --> DB
+    CollabAPIs --> DB
+    ActivityAPI --> DB
+
+    %% Application → ML Server (HTTP)
+    AIAPI -- "HTTP POST\n(JSON)" --> AnalyzeAPI
+    MLAPI -- "HTTP POST\n(JSON)" --> AnalyzeAPI
+
+    %% ML Models
+    AnalyzeAPI --> PriorityModel
+    AnalyzeAPI --> AssignerModel
+    AnalyzeAPI --> UrgencyModelClass
+
+    %% Service → Data
+    DB --> SupabaseClient
+    SupabaseClient -- "supabase-js SDK\n(HTTPS/REST)" --> PostgreSQL
+    SupabaseClient --> Auth
+    Auth --> RLS
+    RLS --> PostgreSQL
+
+    %% Cross-layer utilities
+    ApplicationLayer --> UtilityService
+    ApplicationLayer --> TypeSystem
+    PresentationLayer --> UtilityService
+    PresentationLayer --> TypeSystem

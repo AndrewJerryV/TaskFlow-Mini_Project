@@ -33,10 +33,30 @@ export async function POST(request: NextRequest) {
         };
 
         await db.addForm(form);
+
+        if (form.status === 'active') {
+            const projectMembers = await db.getProjectMembers(form.projectId);
+            const creator = await db.getUser(form.createdBy);
+            const project = await db.getProject(form.projectId);
+            const membersToNotify = projectMembers.filter(memberId => memberId !== form.createdBy);
+
+            for (const memberId of membersToNotify) {
+                await db.addNotification({
+                    userId: memberId,
+                    type: 'new_form',
+                    title: 'New Form Activated',
+                    message: `${creator?.name || 'Someone'} published form "${form.title}" in ${project?.name || 'a project'}`,
+                    link: `/projects/${form.projectId}?tab=forms`,
+                    entityId: form.id,
+                    projectId: form.projectId,
+                });
+            }
+        }
+
         return NextResponse.json(form, { status: 201 });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error creating form:', error);
-        return NextResponse.json({ error: 'Failed to create form' }, { status: 500 });
+        return NextResponse.json({ error: error.message || 'Failed to create form' }, { status: 500 });
     }
 }
 

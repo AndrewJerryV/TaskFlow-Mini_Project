@@ -8,7 +8,6 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT UNIQUE NOT NULL,
   avatar_url TEXT,
   role TEXT NOT NULL CHECK (role IN ('Admin', 'Manager', 'Member')),
-  role TEXT NOT NULL CHECK (role IN ('Admin', 'Manager', 'Member')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   -- AI / Smart Assign Fields
   skills TEXT[] DEFAULT '{}',
@@ -43,6 +42,20 @@ CREATE TABLE IF NOT EXISTS projects (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Project members table (many-to-many relationship)
+CREATE TABLE IF NOT EXISTS project_members (
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  role TEXT DEFAULT 'Member',
+  joined_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (project_id, user_id)
+);
+
+-- Seed initial memberships (owners of existing projects)
+INSERT INTO project_members (project_id, user_id, role)
+SELECT id, owner_id, 'Owner' FROM projects
+ON CONFLICT (project_id, user_id) DO NOTHING;
 
 -- Tasks table
 CREATE TABLE IF NOT EXISTS tasks (
@@ -166,6 +179,20 @@ CREATE TABLE IF NOT EXISTS form_responses (
   submitted_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Notifications table
+CREATE TABLE IF NOT EXISTS notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('task_assigned', 'task_status_changed', 'new_message', 'new_form', 'general')),
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  is_read BOOLEAN DEFAULT false,
+  link TEXT,
+  entity_id TEXT,
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Enable Row Level Security (RLS) - optional but recommended
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
@@ -175,6 +202,7 @@ ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE forms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE form_responses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
 -- Create policies to allow all operations (for development)
 -- In production, you should create more restrictive policies
@@ -183,6 +211,7 @@ CREATE POLICY "Allow all for projects" ON projects FOR ALL USING (true) WITH CHE
 CREATE POLICY "Allow all for tasks" ON tasks FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for activity_logs" ON activity_logs FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for messages" ON messages FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all for notifications" ON notifications FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for comments" ON comments FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for forms" ON forms FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for form_responses" ON form_responses FOR ALL USING (true) WITH CHECK (true);
@@ -324,4 +353,96 @@ ON CONFLICT (id) DO UPDATE SET
   auto_assign = EXCLUDED.auto_assign,
   skill_match_priority = EXCLUDED.skill_match_priority;
 
+-- Seed Projects
+INSERT INTO projects (id, name, description, key, owner_id) VALUES
+  ('00000000-0000-0000-0000-000000000101', 'TaskFlow Web App', 'Main web application built with Next.js and Supabase', 'TFW', '00000000-0000-0000-0000-000000000001'),
+  ('00000000-0000-0000-0000-000000000102', 'AI Recommendation Engine', 'Machine learning powered smart task assignment', 'AIR', '00000000-0000-0000-0000-000000000002'),
+  ('00000000-0000-0000-0000-000000000103', 'Mobile App (Flutter)', 'Cross-platform mobile application for iOS and Android', 'MOB', '00000000-0000-0000-0000-000000000004'),
+  ('00000000-0000-0000-0000-000000000104', 'DevOps & Infrastructure', 'Cloud infrastructure on AWS/Azure with Terraform', 'DEV', '00000000-0000-0000-0000-000000000005')
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  description = EXCLUDED.description,
+  key = EXCLUDED.key,
+  owner_id = EXCLUDED.owner_id;
 
+-- Seed Project Memberships (Distribute projects to each of the members)
+INSERT INTO project_members (project_id, user_id, role) VALUES
+  -- TaskFlow Web App members
+  ('00000000-0000-0000-0000-000000000101', '00000000-0000-0000-0000-000000000001', 'Owner'),
+  ('00000000-0000-0000-0000-000000000101', '00000000-0000-0000-0000-000000000003', 'Member'),
+  ('00000000-0000-0000-0000-000000000101', '00000000-0000-0000-0000-000000000006', 'Member'),
+  
+  -- AI Recommendation Engine members
+  ('00000000-0000-0000-0000-000000000102', '00000000-0000-0000-0000-000000000002', 'Owner'),
+  ('00000000-0000-0000-0000-000000000102', '00000000-0000-0000-0000-000000000003', 'Member'),
+  ('00000000-0000-0000-0000-000000000102', '00000000-0000-0000-0000-000000000010', 'Member'),
+  
+  -- Mobile App members
+  ('00000000-0000-0000-0000-000000000103', '00000000-0000-0000-0000-000000000004', 'Owner'),
+  ('00000000-0000-0000-0000-000000000103', '00000000-0000-0000-0000-000000000007', 'Member'),
+  ('00000000-0000-0000-0000-000000000103', '00000000-0000-0000-0000-000000000009', 'Member'),
+  
+  -- DevOps members
+  ('00000000-0000-0000-0000-000000000104', '00000000-0000-0000-0000-000000000005', 'Owner'),
+  ('00000000-0000-0000-0000-000000000104', '00000000-0000-0000-0000-000000000001', 'Member')
+ON CONFLICT (project_id, user_id) DO NOTHING;
+
+
+-- Shortcuts table
+CREATE TABLE IF NOT EXISTS shortcuts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  url TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('link', 'repository')) DEFAULT 'link',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE shortcuts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all for shortcuts" ON shortcuts FOR ALL USING (true) WITH CHECK (true);
+
+-- Repo links table
+CREATE TABLE IF NOT EXISTS repo_links (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  url TEXT NOT NULL,
+  owner TEXT NOT NULL,
+  repo TEXT NOT NULL,
+  description TEXT,
+  added_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE repo_links ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all for repo_links" ON repo_links FOR ALL USING (true) WITH CHECK (true);
+
+-- Form links table
+CREATE TABLE IF NOT EXISTS form_links (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  form_url TEXT NOT NULL,
+  created_by TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE form_links ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all for form_links" ON form_links FOR ALL USING (true) WITH CHECK (true);
+
+-- Notifications table
+CREATE TABLE IF NOT EXISTS notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('task_assigned', 'task_status_changed', 'new_message', 'new_form', 'general')),
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  is_read BOOLEAN DEFAULT false,
+  link TEXT,
+  entity_id TEXT,
+  project_id TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all for notifications" ON notifications FOR ALL USING (true) WITH CHECK (true);

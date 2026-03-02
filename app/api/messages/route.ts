@@ -29,21 +29,40 @@ export async function POST(request: Request) {
             attachment = body.attachment as Attachment;
         }
 
-        // Validation: need projectId and either content or attachment
-        if (!body.projectId || (!body.content && !attachment)) {
-            return NextResponse.json({ error: 'Missing fields: need projectId and either content or attachment' }, { status: 400 });
+        // Validation: need projectId, userId and either content or attachment
+        if (!body.projectId || !body.userId || (!body.content && !attachment)) {
+            return NextResponse.json({ error: 'Missing fields: need projectId, userId and either content or attachment' }, { status: 400 });
         }
 
         const newMessage: Message = {
             id: crypto.randomUUID(),
             projectId: body.projectId,
-            userId: body.userId || 'u1',
+            userId: body.userId,
             content: body.content || '',
             timestamp: new Date().toISOString(),
             attachment,
         };
 
         await db.addMessage(newMessage);
+
+        // Notify other project members
+        const projectMembers = await db.getProjectMembers(newMessage.projectId);
+        const membersToNotify = projectMembers.filter(memberId => memberId !== newMessage.userId);
+        const project = await db.getProject(newMessage.projectId);
+        const sender = await db.getUser(newMessage.userId);
+
+        for (const memberId of membersToNotify) {
+            await db.addNotification({
+                userId: memberId,
+                type: 'new_message',
+                title: 'New Chat Message',
+                message: `${sender?.name || 'Someone'} sent a message in ${project?.name || 'a project'}`,
+                link: `/projects/${newMessage.projectId}?tab=chat`,
+                entityId: newMessage.id,
+                projectId: newMessage.projectId,
+            });
+        }
+
         return NextResponse.json(newMessage);
     } catch (error) {
         console.error('Error creating message:', error);

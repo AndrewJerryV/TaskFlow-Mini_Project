@@ -1,0 +1,50 @@
+%%{init: {"sequence": {"mirrorActors": false}}}%%
+sequenceDiagram
+    actor Admin
+    participant UI as Admin Panel
+    participant API as User API
+    participant RBAC as Permission Service
+    participant Audit as Audit Log
+    participant DB as Database
+    participant Email as Email Service
+
+    Admin->>UI: Open User Management
+    UI->>API: GET /api/admin/users
+    API->>RBAC: Verify Admin role
+    alt Unauthorized
+        RBAC-->>API: 403 Forbidden
+        API-->>UI: Access denied
+    else Authorized
+        RBAC-->>API: Allowed
+        API->>DB: Fetch all users
+        DB-->>API: User list with roles
+        API-->>UI: Display user table
+    end
+
+    Admin->>UI: Add new user {name, email, role}
+    UI->>API: POST /api/admin/users
+    API->>DB: Check email uniqueness
+    alt Email Exists
+        DB-->>API: Duplicate
+        API-->>UI: Error: Email already registered
+    else Email Available
+        API->>DB: INSERT user with role
+        DB-->>API: New user ID
+        par Log & Notify
+            API->>Audit: Log {action: USER_CREATED, actor: Admin}
+            API->>Email: Send welcome email + temp password
+        end
+        API-->>UI: User created successfully
+    end
+
+    Admin->>UI: Change user role
+    UI->>API: PATCH /api/admin/users/{id}/role
+    API->>DB: UPDATE user SET role
+    API->>Audit: Log {action: ROLE_CHANGED, from, to}
+    API-->>UI: Role updated
+
+    Admin->>UI: View audit history
+    UI->>API: GET /api/admin/audit?type=permissions
+    API->>DB: Fetch audit logs
+    DB-->>API: [{timestamp, actor, action, target}]
+    API-->>UI: Permission change timeline

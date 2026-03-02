@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Task, Priority, Status } from '@/types';
-import { CheckSquare, Plus, Edit2, MoreVertical, Search, PlayCircle, Layers } from 'lucide-react';
+import { Task, Priority, Status, User } from '@/types';
+import { CheckSquare, Square, Plus, Edit2, MoreVertical, Search, PlayCircle, Layers } from 'lucide-react';
 import { TaskFilters } from './TaskFilters';
 import { TaskDetailModal } from './TaskDetailModal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,14 +18,18 @@ interface BacklogViewProps {
 // Editable Task Item Component
 const TaskItem = ({
   item,
+  users,
   onUpdate,
   onClick,
-  onDelete
+  onDelete,
+  currentUserRole,
 }: {
   item: Task,
+  users?: User[],
   onUpdate?: (t: Task) => void,
   onClick?: (t: Task) => void,
   onDelete?: (taskId: string) => void,
+  currentUserRole?: string,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(item.title);
@@ -51,11 +55,11 @@ const TaskItem = ({
       onClick={handleRowClick}
     >
       <div className="flex items-center space-x-3 flex-1">
-        <input
-          type="checkbox"
-          className="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500 dark:bg-gray-700"
-          onClick={(e) => e.stopPropagation()}
-        />
+        {item.status === 'Done' ? (
+          <CheckSquare className="w-4 h-4 text-green-500 dark:text-green-400" />
+        ) : (
+          <Square className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+        )}
         <span className="text-gray-500 dark:text-gray-400 font-medium text-xs w-16 truncate font-mono" title={item.id}>{item.id.substring(0, 6)}</span>
 
         {isEditing ? (
@@ -75,12 +79,14 @@ const TaskItem = ({
           </span>
         )}
 
-        <button
-          onClick={(e) => { e.stopPropagation(); setIsEditing(!isEditing); }}
-          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-opacity"
-        >
-          <Edit2 size={12} />
-        </button>
+        {currentUserRole !== 'Member' && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setIsEditing(!isEditing); }}
+            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-opacity"
+          >
+            <Edit2 size={12} />
+          </button>
+        )}
       </div>
 
       <div className="flex items-center space-x-4">
@@ -93,8 +99,11 @@ const TaskItem = ({
         </span>
 
         {item.assigneeId && (
-          <div className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center text-xs text-white uppercase">
-            {item.assigneeId.charAt(0)}
+          <div
+            className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center text-xs text-white uppercase"
+            title={users?.find(u => u.id === item.assigneeId)?.name || 'Assigned'}
+          >
+            {users?.find(u => u.id === item.assigneeId)?.name?.charAt(0) || item.assigneeId.charAt(0)}
           </div>
         )}
         <div className="relative">
@@ -115,18 +124,22 @@ const TaskItem = ({
               >
                 View Details
               </button>
-              <button
-                className="w-full text-left px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                onClick={() => { setIsEditing(true); setShowMenu(false); }}
-              >
-                Edit Title
-              </button>
-              <button
-                className="w-full text-left px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                onClick={() => { onDelete?.(item.id); setShowMenu(false); }}
-              >
-                Delete
-              </button>
+              {currentUserRole !== 'Member' && (
+                <>
+                  <button
+                    className="w-full text-left px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    onClick={() => { setIsEditing(true); setShowMenu(false); }}
+                  >
+                    Edit Title
+                  </button>
+                  <button
+                    className="w-full text-left px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                    onClick={() => { onDelete?.(item.id); setShowMenu(false); }}
+                  >
+                    Delete
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -136,7 +149,7 @@ const TaskItem = ({
 };
 
 export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskDelete }: BacklogViewProps) {
-  const { users } = useAuth();
+  const { users, currentUser } = useAuth();
   const [isSprintOpen, setIsSprintOpen] = useState(true);
   const [isBacklogOpen, setIsBacklogOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -229,14 +242,16 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskD
         {isSprintOpen && (
           <div className="space-y-[-1px] mt-2">
             {sprintTasks.map(item => (
-              <TaskItem key={item.id} item={item} onUpdate={onTaskUpdate} onClick={handleTaskClick} onDelete={handleTaskDelete} />
+              <TaskItem key={item.id} item={item} users={users} onUpdate={onTaskUpdate} onClick={handleTaskClick} onDelete={handleTaskDelete} currentUserRole={currentUser?.role} />
             ))}
             {sprintTasks.length === 0 && (
               <p className="text-sm text-gray-400 dark:text-gray-500 italic py-4 text-center">No tasks in sprint</p>
             )}
-            <button onClick={onTaskCreate} className="w-full text-left p-2 pl-3 mt-1 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300 transition-colors rounded">
-              <Plus size={14} /> Create issue
-            </button>
+            {currentUser?.role !== 'Member' && (
+              <button onClick={onTaskCreate} className="w-full text-left p-2 pl-3 mt-1 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300 transition-colors rounded">
+                <Plus size={14} /> Create issue
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -257,14 +272,16 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskD
         {isBacklogOpen && (
           <div className="space-y-[-1px] mt-2">
             {backlogTasks.map(item => (
-              <TaskItem key={item.id} item={item} onUpdate={onTaskUpdate} onClick={handleTaskClick} onDelete={handleTaskDelete} />
+              <TaskItem key={item.id} item={item} users={users} onUpdate={onTaskUpdate} onClick={handleTaskClick} onDelete={handleTaskDelete} currentUserRole={currentUser?.role} />
             ))}
             {backlogTasks.length === 0 && (
               <p className="text-sm text-gray-400 dark:text-gray-500 italic py-4 text-center">No tasks in backlog</p>
             )}
-            <button onClick={onTaskCreate} className="w-full text-left p-2 pl-3 mt-1 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300 transition-colors rounded">
-              <Plus size={14} /> Create issue
-            </button>
+            {currentUser?.role !== 'Member' && (
+              <button onClick={onTaskCreate} className="w-full text-left p-2 pl-3 mt-1 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300 transition-colors rounded">
+                <Plus size={14} /> Create issue
+              </button>
+            )}
           </div>
         )}
       </div>
