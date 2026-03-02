@@ -69,10 +69,10 @@ export interface DbUser {
 }
 
 export interface DbProjectMember {
-    project_id: string;
-    user_id: string;
-    role: string;
-    joined_at: string;
+  project_id: string;
+  user_id: string;
+  role: string;
+  joined_at: string;
 }
 
 export interface DbDocument {
@@ -154,61 +154,54 @@ export interface DbForm {
 }
 
 export interface DbFormResponse {
-<<<<<<< fix-auth-and-loading
+
   id: string;
   form_id: string;
   respondent_id: string;
-  answers: string;
+  answers: string; // JSON string of Record<string, any>
   submitted_at: string;
-}
-=======
-    id: string;
-    form_id: string;
-    respondent_id: string;
-    answers: string; // JSON string of Record<string, any>
-    submitted_at: string;
 }
 
 export interface DbShortcut {
-    id: string;
-    project_id: string;
-    name: string;
-    url: string;
-    type: 'link' | 'repository';
-    created_at: string;
+  id: string;
+  project_id: string;
+  name: string;
+  url: string;
+  type: 'link' | 'repository';
+  created_at: string;
 }
 
 export interface DbRepoLink {
-    id: string;
-    project_id: string;
-    name: string;
-    url: string;
-    owner: string;
-    repo: string;
-    description?: string;
-    added_at: string;
+  id: string;
+  project_id: string;
+  name: string;
+  url: string;
+  owner: string;
+  repo: string;
+  description?: string;
+  added_at: string;
 }
 
 export interface DbFormLink {
-    id: string;
-    project_id: string;
-    title: string;
-    description?: string;
-    form_url: string;
-    created_by?: string;
-    created_at: string;
+  id: string;
+  project_id: string;
+  title: string;
+  description?: string;
+  form_url: string;
+  created_by?: string;
+  created_at: string;
 }
 
 export interface DbNotification {
-    id: string;
-    user_id: string;
-    type: 'task_assigned' | 'task_status_changed' | 'new_message' | 'new_form' | 'general';
-    title: string;
-    message: string;
-    is_read: boolean;
-    link?: string;
-    entity_id?: string;
-    project_id?: string;
-    created_at: string;
+  id: string;
+  user_id: string;
+  type: 'task_assigned' | 'task_status_changed' | 'new_message' | 'new_form' | 'general';
+  title: string;
+  message: string;
+  is_read: boolean;
+  link?: string;
+  entity_id?: string;
+  project_id?: string;
+  created_at: string;
 }
->>>>>>> main
+

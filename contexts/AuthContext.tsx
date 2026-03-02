@@ -59,76 +59,23 @@ type ProfileRow = {
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-<<<<<<< fix-auth-and-loading
-=======
-    const [currentUser, setCurrentUser] = useState<User | null>(null);
-    const [users, setUsers] = useState<User[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-
-    // Load users from API and restore session
-    useEffect(() => {
-        const init = async () => {
-            try {
-                // Fetch available users
-                // Fetch available users
-                const res = await fetch('/api/users');
-                let data: User[] = [];
-                if (res.ok) {
-                    data = await res.json();
-                    setUsers(Array.isArray(data) ? data : []);
-                }
-
-                // Restore session from localStorage but prefer fresh data
-                const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-                if (stored) {
-                    try {
-                        const storedUser = JSON.parse(stored);
-                        // Find the updated user object from the fresh API response
-                        const freshUser = Array.isArray(data) ? data.find((u: User) => u.id === storedUser.id) : null;
-
-                        if (freshUser) {
-                            setCurrentUser(freshUser);
-                            // Update local storage to match fresh data
-                            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(freshUser));
-                        } else {
-                            // If user not found in fresh data (likely legacy ID 'u1'), clear session
-                            console.warn("Stored user not found in fresh data, clearing session.");
-                            setCurrentUser(null);
-                            localStorage.removeItem(LOCAL_STORAGE_KEY);
-                        }
-                    } catch {
-                        localStorage.removeItem(LOCAL_STORAGE_KEY);
-                    }
-                }
-            } catch (error) {
-                console.error('Failed to initialize auth:', error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        init();
-    }, []);
-
-    const login = (user: User) => {
-        setCurrentUser(user);
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(user));
-    };
->>>>>>> main
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [users] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const supabase = getSupabase();
+    let listener: { subscription: { unsubscribe: () => void } } | null = null;
 
     const loadSession = async () => {
       try {
+        const supabase = getSupabase();
+
         const { data } = await supabase.auth.getSession();
 
         if (!data.session?.user) {
           setCurrentUser(null);
+          setIsLoading(false);
           return;
         }
 
@@ -136,6 +83,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           data.session.user.id,
           data.session.user.email ?? null
         );
+
+        // Set up auth state listener after successful init
+        const { data: listenerData } = supabase.auth.onAuthStateChange(
+          async (_event, session) => {
+            try {
+              if (!session?.user) {
+                setCurrentUser(null);
+                return;
+              }
+
+              await loadProfile(
+                session.user.id,
+                session.user.email ?? null
+              );
+
+            } catch (err) {
+              console.error('Auth state change error:', err);
+              setCurrentUser(null);
+            }
+          }
+        );
+        listener = listenerData;
 
       } catch (err) {
         console.error('Auth init error:', err);
@@ -146,28 +115,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     loadSession();
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        try {
-          if (!session?.user) {
-            setCurrentUser(null);
-            return;
-          }
-
-          await loadProfile(
-            session.user.id,
-            session.user.email ?? null
-          );
-
-        } catch (err) {
-          console.error('Auth state change error:', err);
-          setCurrentUser(null);
-        } finally {
-          setIsLoading(false);
-        }
-      }
-    );
 
     return () => {
       listener?.subscription.unsubscribe();
@@ -249,7 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCurrentUser(mappedUser);
   };
 
-  const login = (_user: User) => {};
+  const login = (_user: User) => { };
 
   const logout = async () => {
     const supabase = getSupabase();
