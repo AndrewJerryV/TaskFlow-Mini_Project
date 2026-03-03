@@ -28,7 +28,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 type ProfileRow = {
   id: string;
   email: string | null;
-  full_name: string | null;
+  name: string | null;
   avatar_url: string | null;
   role: 'Admin' | 'Manager' | 'Member';
 
@@ -136,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = getSupabase();
 
     let { data, error } = await supabase
-      .from('profiles')
+      .from('users')
       .select('*')
       .eq('id', userId)
       .single<ProfileRow>();
@@ -145,11 +145,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error && error.code === 'PGRST116') {
 
       const { data: created, error: insertError } = await supabase
-        .from('profiles')
+        .from('users')
         .insert({
           id: userId,
           email,
-          full_name: email?.split('@')[0] ?? 'User',
+          name: email?.split('@')[0] ?? 'User',
           role: 'Member',
           skills: [],
           wellness_score: 0,
@@ -174,7 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const mappedUser: User = {
       id: data.id,
-      name: data.full_name ?? email ?? 'User',
+      name: data.name ?? email ?? 'User',
       email: data.email ?? email ?? '',
       avatarUrl: data.avatar_url ?? undefined,
       role: data.role,

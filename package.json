@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently -n \"next,python\" -c \"blue.bold,green.bold\" \"npm run dev:next\" \"npm run dev:python\"",
+    "dev:next": "next dev",
+    "dev:python": "python ML/main.py",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -33,6 +35,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.23",
+    "concurrently": "^9.2.1",
     "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-config-next": "^16.1.6",

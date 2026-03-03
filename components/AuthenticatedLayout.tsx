@@ -143,8 +143,8 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
         return null; // Will redirect to login
     }
 
-    const handleLogout = () => {
-        logout();
+    const handleLogout = async () => {
+        await logout();
         router.push('/login');
     };
 
