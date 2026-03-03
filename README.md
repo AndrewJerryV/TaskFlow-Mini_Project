@@ -77,6 +77,14 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 - **Login:** The app uses Supabase Auth. Users can sign in with Email/Password or OAuth (Google, GitHub) if configured in your Supabase dashboard.
 - **Admin Access:** To add new users to the team, you must be logged in as a user with the `Admin` role in the `public.users` table. Once logged in as an Admin, navigate to the **Team Dashboard** and click **"Add New User"**.
 
+### Test Credentials
+For local testing, you can use the following pre-configured credentials:
+- **Admin:** `vayalilandrew@gmail.com`
+- **Manager:** `jane.sharma@taskflow.in`, `sneha.gupta@taskflow.in`, `23br15392@rit.ac.in`
+- **Member:** `tester@taskflow.in`, `josephfelvin9@gmail.com`, `milan.nair@taskflow.in`, `priya.menon@taskflow.in`, `rahul.krishnan@taskflow.in`, `arun.pillai@taskflow.in`, `divya.reddy@taskflow.in`, `jishnu.vijayan@taskflow.in`, `final.success.user@taskflow.in`, `jishnuvijayan168@gmail.com`, `final_verify_1772516137283@test.com`
+
+**Password for all test accounts:** `password@123`
+
 ## 🛠️ Built With
 
 - [Next.js](https://nextjs.org/) - React Framework
