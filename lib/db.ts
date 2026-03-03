@@ -270,19 +270,21 @@ class Database {
         maxWorkload: number;
     }): Promise<User | null> {
         const skillsArray = userData.skillExperience ? Object.keys(userData.skillExperience) : [];
-        const { data: userId, error } = await getSupabase().rpc('admin_create_user', {
+        const payload = {
             p_email: userData.email,
             p_password: userData.password || 'TaskFlow@123',
             p_full_name: userData.fullName,
             p_user_role: userData.role,
             p_skills: skillsArray,
-            p_dob: userData.dob,
+            p_dob: userData.dob || null,
             p_skill_experience: userData.skillExperience,
             p_max_workload: userData.maxWorkload
-        });
+        };
+        console.log('--- RPC PAYLOAD ---', payload);
+        const { data: userId, error } = await getSupabase().rpc('admin_create_user', payload);
 
         if (error) {
-            console.error('Error creating user via RPC:', error);
+            console.error('Error creating user via RPC. Error object:', JSON.stringify(error, null, 2));
             throw new Error(error.message);
         }
 

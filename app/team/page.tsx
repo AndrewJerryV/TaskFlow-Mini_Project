@@ -107,6 +107,9 @@ export default function TeamPage() {
                         setSelectedUser(null);
                     }
                 }}
+                onUserDeleted={() => {
+                    fetchTeamData();
+                }}
             />
 
             <AddUserDialog

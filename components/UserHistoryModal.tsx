@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Task, ActivityLog, User } from '@/types';
 import { getActionDisplay } from '@/lib/utils';
-import { Calendar, CheckCircle2, Clock, History, PieChart as PieIcon, Phone, Building, Shield, HeartPulse, Pencil } from 'lucide-react';
+import { Calendar, CheckCircle2, Clock, History, PieChart as PieIcon, Phone, Building, Shield, HeartPulse, Pencil, Mail, Trash2, Loader2, AlertTriangle } from 'lucide-react';
 import { PieChart, TaskTimeline } from '@/components/ui/Charts';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -13,16 +13,75 @@ interface UserHistoryModalProps {
     onClose: () => void;
     user: User | null;
     onEditSkills?: () => void;
+    onUserDeleted?: () => void;
 }
 
-export function UserHistoryModal({ isOpen, onClose, user, onEditSkills }: UserHistoryModalProps) {
+export function UserHistoryModal({ isOpen, onClose, user, onEditSkills, onUserDeleted }: UserHistoryModalProps) {
     const [tasks, setTasks] = useState<Task[]>([]);
     const [logs, setLogs] = useState<ActivityLog[]>([]);
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<'tasks' | 'activity' | 'visuals'>('tasks');
+
+    // Deletion Flow State
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [otpValue, setOtpValue] = useState('');
+    const [isSendingOtp, setIsSendingOtp] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+
     const { currentUser } = useAuth();
     const isAdmin = currentUser?.role === 'Admin';
     const canViewHealth = currentUser?.role === 'Admin' || currentUser?.role === 'Manager';
+
+    const handleDeleteRequest = async () => {
+        if (!user || !currentUser?.email) return;
+        setIsSendingOtp(true);
+        setDeleteError(null);
+        try {
+            const res = await fetch(`/api/users/${user.id}/delete/otp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ adminEmail: currentUser.email })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setShowDeleteConfirm(true);
+            } else {
+                setDeleteError(data.error || 'Failed to send OTP');
+            }
+        } catch (err) {
+            setDeleteError('Network error while sending OTP');
+        } finally {
+            setIsSendingOtp(false);
+        }
+    };
+
+    const handleVerifyAndDelete = async () => {
+        if (!user || !currentUser?.email || !otpValue) return;
+        setIsDeleting(true);
+        setDeleteError(null);
+        try {
+            const res = await fetch(`/api/users/${user.id}/delete/verify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    adminEmail: currentUser.email,
+                    otp: otpValue
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                onUserDeleted?.();
+                onClose();
+            } else {
+                setDeleteError(data.error || 'Invalid OTP');
+            }
+        } catch (err) {
+            setDeleteError('Network error during deletion');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     useEffect(() => {
         if (isOpen && user) {
@@ -54,7 +113,66 @@ export function UserHistoryModal({ isOpen, onClose, user, onEditSkills }: UserHi
     if (!user) return null;
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={`History: ${user.name}`}>
+        <Modal isOpen={isOpen} onClose={onClose} title={`History: ${user.name}`} maxWidth="max-w-4xl">
+
+            {/* OTP Verification Overlay */}
+            {showDeleteConfirm && (
+                <div className="absolute inset-0 z-[70] bg-white/95 dark:bg-gray-900/95 flex items-center justify-center p-6 animate-in fade-in zoom-in duration-200">
+                    <div className="max-w-md w-full space-y-6 text-center">
+                        <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <AlertTriangle size={32} className="text-red-600 dark:text-red-400" />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">Verify Deletion</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                            A 6-digit verification code has been sent to <span className="font-semibold text-gray-900 dark:text-gray-100">{currentUser?.email}</span>. Please enter it below to permanently delete <b>{user.name}</b>.
+                        </p>
+
+                        <div className="space-y-4">
+                            <input
+                                type="text"
+                                maxLength={6}
+                                value={otpValue}
+                                onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, ''))}
+                                placeholder="000000"
+                                className="w-full text-center text-3xl font-mono tracking-[0.5em] py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-transparent focus:border-red-500 dark:focus:border-red-500 transition-all outline-none"
+                            />
+
+                            {deleteError && (
+                                <p className="text-xs text-red-500 font-medium">{deleteError}</p>
+                            )}
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => {
+                                        setShowDeleteConfirm(false);
+                                        setOtpValue('');
+                                        setDeleteError(null);
+                                    }}
+                                    className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleVerifyAndDelete}
+                                    disabled={otpValue.length !== 6 || isDeleting}
+                                    className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm shadow-lg shadow-red-200 dark:shadow-none transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    {isDeleting && <Loader2 size={16} className="animate-spin" />}
+                                    {isDeleting ? 'Deleting...' : 'Confirm Deletion'}
+                                </button>
+                            </div>
+
+                            <button
+                                onClick={handleDeleteRequest}
+                                disabled={isSendingOtp}
+                                className="text-xs text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50"
+                            >
+                                Resend Code
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             <div className="mb-6 relative overflow-hidden bg-gradient-to-br from-blue-50/80 via-white to-blue-50/50 dark:from-blue-900/20 dark:via-gray-900 dark:to-blue-900/10 p-5 rounded-xl border border-blue-100/60 dark:border-blue-800/30 shadow-sm flex flex-col md:flex-row gap-6 text-sm transition-all duration-300 hover:shadow-md group/card">
                 {/* Decorative background glow */}
                 <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-400/10 dark:bg-blue-500/10 rounded-full blur-3xl group-hover/card:bg-blue-400/15 transition-all duration-500 pointer-events-none"></div>
@@ -66,6 +184,14 @@ export function UserHistoryModal({ isOpen, onClose, user, onEditSkills }: UserHi
                         <div className="h-[1px] flex-1 bg-gradient-to-r from-blue-200/60 to-transparent dark:from-blue-800/60"></div>
                     </h4>
                     <div className="space-y-3 text-gray-700 dark:text-gray-300">
+                        {user.email && (
+                            <div className="flex items-start gap-3 group">
+                                <div className="p-1.5 rounded-lg bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 group-hover:border-blue-300 dark:group-hover:border-blue-600 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors mt-0.5">
+                                    <Mail size={14} className="text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors" />
+                                </div>
+                                <span className="font-medium pt-1 text-gray-900 dark:text-gray-100 group-hover:text-blue-700 dark:group-hover:text-blue-300 transition-colors break-all">{user.email}</span>
+                            </div>
+                        )}
                         {user.phone && (
                             <div className="flex items-start gap-3 group">
                                 <div className="p-1.5 rounded-lg bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 group-hover:border-blue-300 dark:group-hover:border-blue-600 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors mt-0.5">
@@ -82,12 +208,25 @@ export function UserHistoryModal({ isOpen, onClose, user, onEditSkills }: UserHi
                                 <span className="leading-relaxed pt-0.5 text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-200 transition-colors">{user.officeAddress}</span>
                             </div>
                         )}
-                        {(!user.phone && !user.officeAddress) && (
+                        {(!user.email && !user.phone && !user.officeAddress) && (
                             <div className="flex items-center gap-2 p-2 rounded-lg border border-dashed border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30">
                                 <span className="italic text-xs text-gray-500 dark:text-gray-400">No contact info available</span>
                             </div>
                         )}
                     </div>
+
+                    {isAdmin && (
+                        <div className="pt-2 mt-4 border-t border-red-100/50 dark:border-red-900/20">
+                            <button
+                                onClick={handleDeleteRequest}
+                                disabled={isSendingOtp}
+                                className="w-full flex items-center justify-center gap-2 p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all text-xs font-bold border border-red-100 dark:border-red-900/30 shadow-sm disabled:opacity-50"
+                            >
+                                {isSendingOtp ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                                DELETE USER
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Divider for md screens */}
