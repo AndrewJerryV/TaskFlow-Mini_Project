@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Task, ActivityLog, User } from '@/types';
 import { getActionDisplay } from '@/lib/utils';
-import { Calendar, CheckCircle2, Clock, History, PieChart as PieIcon, Phone, Building, Shield, HeartPulse } from 'lucide-react';
+import { Calendar, CheckCircle2, Clock, History, PieChart as PieIcon, Phone, Building, Shield, HeartPulse, Pencil } from 'lucide-react';
 import { PieChart, TaskTimeline } from '@/components/ui/Charts';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -12,14 +12,16 @@ interface UserHistoryModalProps {
     isOpen: boolean;
     onClose: () => void;
     user: User | null;
+    onEditSkills?: () => void;
 }
 
-export function UserHistoryModal({ isOpen, onClose, user }: UserHistoryModalProps) {
+export function UserHistoryModal({ isOpen, onClose, user, onEditSkills }: UserHistoryModalProps) {
     const [tasks, setTasks] = useState<Task[]>([]);
     const [logs, setLogs] = useState<ActivityLog[]>([]);
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<'tasks' | 'activity' | 'visuals'>('tasks');
     const { currentUser } = useAuth();
+    const isAdmin = currentUser?.role === 'Admin';
     const canViewHealth = currentUser?.role === 'Admin' || currentUser?.role === 'Manager';
 
     useEffect(() => {
@@ -103,16 +105,16 @@ export function UserHistoryModal({ isOpen, onClose, user }: UserHistoryModalProp
                                 <span className="text-indigo-700 dark:text-indigo-300 font-semibold text-xs tracking-wide">{user.role}</span>
                             </div>
                         </div>
-                        
+
                         {canViewHealth && (
                             <div className="flex items-center">
                                 <div className="group relative w-full sm:w-auto flex items-center gap-3 p-2.5 pr-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-md transition-all">
                                     <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gray-50 dark:bg-gray-900/50">
                                         <svg className="w-10 h-10 transform -rotate-90">
                                             <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="3.5" fill="transparent" className="text-gray-100 dark:text-gray-800" />
-                                            <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="3.5" fill="transparent" 
+                                            <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="3.5" fill="transparent"
                                                 strokeDasharray={100.53} strokeDashoffset={100.53 - (100.53 * user.wellnessScore) / 100}
-                                                className={`transition-all duration-1000 ease-out ${user.wellnessScore >= 80 ? 'text-emerald-500' : 'text-amber-500'}`} 
+                                                className={`transition-all duration-1000 ease-out ${user.wellnessScore >= 80 ? 'text-emerald-500' : 'text-amber-500'}`}
                                                 strokeLinecap="round" />
                                         </svg>
                                         <div className="absolute inset-0 flex items-center justify-center flex-col">
@@ -132,10 +134,49 @@ export function UserHistoryModal({ isOpen, onClose, user }: UserHistoryModalProp
                                             {user.wellnessScore >= 80 ? 'Optimal' : 'Needs attention'}
                                         </span>
                                     </div>
-                                    
+
                                     {/* Tooltip-like subtle highlight on hover */}
                                     <div className="absolute inset-0 rounded-xl bg-blue-500/5 dark:bg-blue-400/5 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity"></div>
                                 </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Vertical Divider for md screens */}
+                <div className="hidden md:block w-px bg-gradient-to-b from-transparent via-blue-200/50 dark:via-blue-800/50 to-transparent relative z-10"></div>
+
+                <div className="flex-1 space-y-3 relative z-10">
+                    <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-semibold tracking-wider text-[11px] uppercase text-blue-800/80 dark:text-blue-300/80 flex items-center gap-2">
+                            <span>Skills & Expertise</span>
+                        </h4>
+                        {isAdmin && onEditSkills && (
+                            <button
+                                onClick={onEditSkills}
+                                className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors flex items-center gap-1.5 text-[10px] font-bold"
+                            >
+                                <Pencil size={12} />
+                                EDIT
+                            </button>
+                        )}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                        {user.skills && user.skills.length > 0 ? (
+                            user.skills.map((skill, idx) => {
+                                const exp = user.skillExperience?.[skill];
+                                return (
+                                    <div key={idx} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm text-xs font-medium text-gray-700 dark:text-gray-300">
+                                        {skill}
+                                        {exp !== undefined && (
+                                            <span className="text-gray-400 dark:text-gray-500 font-bold border-l border-gray-100 dark:border-gray-700 pl-1.5 ml-0.5">{exp}y</span>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <div className="flex items-center gap-2 p-2 rounded-lg border border-dashed border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30 w-full text-center justify-center">
+                                <span className="italic text-xs text-gray-500 dark:text-gray-400">No skills listed</span>
                             </div>
                         )}
                     </div>

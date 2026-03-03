@@ -7,6 +7,7 @@ import { ShieldAlert, Plus } from 'lucide-react';
 import { UserHistoryModal } from '@/components/UserHistoryModal';
 import { AddUserDialog } from '@/components/forms/AddUserDialog';
 import { User } from '@/types';
+import { EditSkillsDialog } from '@/components/forms/EditSkillsDialog';
 
 export default function TeamPage() {
     const { currentUser } = useAuth();
@@ -14,6 +15,7 @@ export default function TeamPage() {
     const [loading, setLoading] = useState(true);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+    const [editingSkillsUser, setEditingSkillsUser] = useState<User | null>(null);
 
     const fetchTeamData = () => {
         setLoading(true);
@@ -81,6 +83,10 @@ export default function TeamPage() {
                         key={user.id}
                         user={user}
                         onClick={() => setSelectedUser(user)}
+                        onEditSkills={(e: React.MouseEvent) => {
+                            e.stopPropagation();
+                            setEditingSkillsUser(user);
+                        }}
                     />
                 ))}
             </div>
@@ -95,6 +101,12 @@ export default function TeamPage() {
                 isOpen={!!selectedUser}
                 onClose={() => setSelectedUser(null)}
                 user={selectedUser}
+                onEditSkills={() => {
+                    if (selectedUser) {
+                        setEditingSkillsUser(selectedUser);
+                        setSelectedUser(null);
+                    }
+                }}
             />
 
             <AddUserDialog
@@ -104,6 +116,17 @@ export default function TeamPage() {
                     fetchTeamData();
                 }}
             />
+
+            {editingSkillsUser && (
+                <EditSkillsDialog
+                    isOpen={!!editingSkillsUser}
+                    onClose={() => setEditingSkillsUser(null)}
+                    onSuccess={() => {
+                        fetchTeamData();
+                    }}
+                    user={editingSkillsUser}
+                />
+            )}
         </div>
     );
 }

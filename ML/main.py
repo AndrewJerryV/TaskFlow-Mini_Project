@@ -1,5 +1,10 @@
 import json
 import os
+
+# Suppress TensorFlow logging to avoid clutter in the terminal
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sentence_transformers import SentenceTransformer
@@ -30,7 +35,7 @@ with open(PEOPLE_DB_PATH) as f:
 assigner_ai = TaskAssigner(people_db, sentence_model)
 urgency_ai = UrgencyModel()
 wellness_ai = WellnessModel()
-print("✅ All systems ready!\n")
+print("[SUCCESS] All systems ready!\n")
 
 # ── Endpoint ────────────────────────────────────────────
 

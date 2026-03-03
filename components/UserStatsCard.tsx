@@ -2,6 +2,8 @@
 
 import { User } from '@/types';
 import { calculateAge } from '@/lib/utils';
+import { Pencil } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface UserStatsCardProps {
     user: User & {
@@ -12,9 +14,12 @@ interface UserStatsCardProps {
         }
     };
     onClick?: () => void;
+    onEditSkills?: (e: React.MouseEvent) => void;
 }
 
-export function UserStatsCard({ user, onClick }: UserStatsCardProps) {
+export function UserStatsCard({ user, onClick, onEditSkills }: UserStatsCardProps) {
+    const { currentUser } = useAuth();
+    const isAdmin = currentUser?.role === 'Admin';
     const { stats, dob } = user;
     const age = calculateAge(dob);
 
@@ -77,7 +82,18 @@ export function UserStatsCard({ user, onClick }: UserStatsCardProps) {
             </div>
 
             <div>
-                <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-2">Skills</h4>
+                <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Skills</h4>
+                    {isAdmin && onEditSkills && (
+                        <button
+                            onClick={onEditSkills}
+                            className="p-1 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
+                            title="Edit Skills"
+                        >
+                            <Pencil size={12} />
+                        </button>
+                    )}
+                </div>
                 <div className="flex flex-wrap gap-1">
                     {user.skills && user.skills.length > 0 ? (
                         user.skills.map((skill, idx) => {

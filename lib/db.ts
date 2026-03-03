@@ -244,6 +244,22 @@ class Database {
         return true;
     }
 
+    async updateUserSkills(userId: string, skills: string[], skillExperience: Record<string, number>): Promise<{ success: boolean; error?: any }> {
+        const { error } = await getSupabase()
+            .from('users')
+            .update({
+                skills,
+                skill_experience: skillExperience
+            })
+            .eq('id', userId);
+
+        if (error) {
+            console.error('Error updating user skills:', error);
+            return { success: false, error };
+        }
+        return { success: true };
+    }
+
     async addUser(userData: {
         email: string;
         password?: string;

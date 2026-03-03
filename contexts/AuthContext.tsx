@@ -210,9 +210,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = (_user: User) => { };
 
   const logout = async () => {
-    const supabase = getSupabase();
-    await supabase.auth.signOut();
-    setCurrentUser(null);
+    try {
+      const supabase = getSupabase();
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setCurrentUser(null);
+    }
   };
 
   return (

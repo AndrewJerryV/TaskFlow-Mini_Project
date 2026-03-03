@@ -1,5 +1,5 @@
--- Replace age with dob in public.profiles
-ALTER TABLE public.profiles 
+-- Replace age with dob in public.users
+ALTER TABLE public.users 
 DROP COLUMN IF EXISTS age,
 ADD COLUMN IF NOT EXISTS dob DATE;
 
@@ -7,7 +7,7 @@ ADD COLUMN IF NOT EXISTS dob DATE;
 CREATE OR REPLACE FUNCTION public.admin_create_user(
   p_email text,
   p_password text,
-  p_full_name text,
+  p_name text,
   p_user_role text,
   p_skills text[],
   p_max_workload integer,
@@ -43,7 +43,7 @@ BEGIN
   ) VALUES (
     v_user_id, '00000000-0000-0000-0000-000000000000', p_email,
     v_encrypted_pw, now(), now(), now(),
-    jsonb_build_object('full_name', p_full_name), 'authenticated', 'authenticated'
+    jsonb_build_object('name', p_name), 'authenticated', 'authenticated'
   );
 
   -- 3. Insert into auth.identities
@@ -55,12 +55,12 @@ BEGIN
     'email', now(), now(), now()
   );
 
-  -- 4. Insert into public.profiles
-  INSERT INTO public.profiles (
-    id, email, full_name, role, skills, max_workload,
+  -- 4. Insert into public.users
+  INSERT INTO public.users (
+    id, email, name, role, skills, max_workload,
     wellness_score, created_at, dob, skill_experience
   ) VALUES (
-    v_user_id, p_email, p_full_name, p_user_role, p_skills,
+    v_user_id, p_email, p_name, p_user_role, p_skills,
     p_max_workload, 85, now(), p_dob, p_skill_experience
   );
 

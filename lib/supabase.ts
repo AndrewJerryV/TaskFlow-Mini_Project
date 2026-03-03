@@ -18,14 +18,16 @@ export function getSupabase(): SupabaseClient {
       );
     }
 
+    const isServer = typeof window === 'undefined';
+
     supabase = createClient(
       supabaseUrl,
       supabaseAnonKey,
       {
         auth: {
-          persistSession: true,
-          autoRefreshToken: true,
-          detectSessionInUrl: true,
+          persistSession: !isServer,
+          autoRefreshToken: !isServer,
+          detectSessionInUrl: !isServer,
           flowType: 'pkce'
         }
       }

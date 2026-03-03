@@ -68,8 +68,8 @@ export function AddUserDialog({ isOpen, onClose, onSuccess }: AddUserDialogProps
 
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden">
-                <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col">
+                <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700 shrink-0">
                     <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Add New Team Member</h2>
                     <button
                         onClick={onClose}
@@ -79,160 +79,163 @@ export function AddUserDialog({ isOpen, onClose, onSuccess }: AddUserDialogProps
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-4 space-y-4">
-                    {error && (
-                        <div className="p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-100">
-                            {error}
-                        </div>
-                    )}
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Full Name *
-                        </label>
-                        <input
-                            type="text"
-                            required
-                            value={formData.fullName}
-                            onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            placeholder="e.g. Jane Doe"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Email / GitHub *
-                        </label>
-                        <input
-                            type="email"
-                            required
-                            value={formData.email}
-                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            placeholder="joe@example.com"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Temporary Password
-                        </label>
-                        <input
-                            type="text"
-                            value={formData.password}
-                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            placeholder="Leave blank for TaskFlow@123"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Users can use this to sign in initially.</p>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Role *
-                        </label>
-                        <select
-                            required
-                            value={formData.role}
-                            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        >
-                            <option value="Member">Member</option>
-                            <option value="Manager">Manager</option>
-                            <option value="Admin">Admin</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Date of Birth
-                        </label>
-                        <input
-                            type="date"
-                            max={new Date().toISOString().split('T')[0]}
-                            value={formData.dob}
-                            onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        />
-                    </div>
-
-                    <div>
-                        <div className="flex items-center justify-between mb-1">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Skills & Experience
-                            </label>
-                            <button
-                                type="button"
-                                onClick={() => setSkillInputs([...skillInputs, { name: '', exp: 1 }])}
-                                className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
-                            >
-                                + Add Skill
-                            </button>
-                        </div>
-                        {skillInputs.length === 0 ? (
-                            <p className="text-sm text-gray-500 italic">No skills added yet.</p>
-                        ) : (
-                            <div className="space-y-2">
-                                {skillInputs.map((skill, index) => (
-                                    <div key={index} className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            value={skill.name}
-                                            onChange={(e) => {
-                                                const newInputs = [...skillInputs];
-                                                newInputs[index].name = e.target.value;
-                                                setSkillInputs(newInputs);
-                                            }}
-                                            placeholder="Skill (e.g. React)"
-                                            className="flex-1 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-sm target-white"
-                                        />
-                                        <div className="flex items-center gap-1 w-24">
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                value={skill.exp}
-                                                onChange={(e) => {
-                                                    const newInputs = [...skillInputs];
-                                                    newInputs[index].exp = parseInt(e.target.value) || 0;
-                                                    setSkillInputs(newInputs);
-                                                }}
-                                                className="w-16 px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-sm"
-                                            />
-                                            <span className="text-xs text-gray-500">yrs</span>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const newInputs = [...skillInputs];
-                                                    newInputs.splice(index, 1);
-                                                    setSkillInputs(newInputs);
-                                                }}
-                                                className="text-gray-400 hover:text-red-500 px-1"
-                                            >
-                                                <X size={14} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
+                <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden min-h-0">
+                    <div className="p-4 space-y-4 overflow-y-auto flex-1">
+                        {error && (
+                            <div className="p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-100">
+                                {error}
                             </div>
                         )}
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Full Name *
+                            </label>
+                            <input
+                                type="text"
+                                required
+                                value={formData.fullName}
+                                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                placeholder="e.g. Jane Doe"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Email / GitHub *
+                            </label>
+                            <input
+                                type="email"
+                                required
+                                value={formData.email}
+                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                placeholder="joe@example.com"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Temporary Password
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.password}
+                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                placeholder="Leave blank for TaskFlow@123"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Users can use this to sign in initially.</p>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Role *
+                            </label>
+                            <select
+                                required
+                                value={formData.role}
+                                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            >
+                                <option value="Member">Member</option>
+                                <option value="Manager">Manager</option>
+                                <option value="Admin">Admin</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Date of Birth
+                            </label>
+                            <input
+                                type="date"
+                                max={new Date().toISOString().split('T')[0]}
+                                value={formData.dob}
+                                onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                        </div>
+
+                        <div>
+                            <div className="flex items-center justify-between mb-1">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Skills & Experience
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={() => setSkillInputs([...skillInputs, { name: '', exp: 1 }])}
+                                    className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+                                >
+                                    + Add Skill
+                                </button>
+                            </div>
+                            {skillInputs.length === 0 ? (
+                                <p className="text-sm text-gray-500 italic">No skills added yet.</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {skillInputs.map((skill, index) => (
+                                        <div key={index} className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={skill.name}
+                                                onChange={(e) => {
+                                                    const newInputs = [...skillInputs];
+                                                    newInputs[index].name = e.target.value;
+                                                    setSkillInputs(newInputs);
+                                                }}
+                                                placeholder="Skill (e.g. React)"
+                                                className="flex-1 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-sm target-white"
+                                            />
+                                            <div className="flex items-center gap-1 w-24">
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={skill.exp}
+                                                    onChange={(e) => {
+                                                        const newInputs = [...skillInputs];
+                                                        newInputs[index].exp = parseInt(e.target.value) || 0;
+                                                        setSkillInputs(newInputs);
+                                                    }}
+                                                    className="w-16 px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-sm"
+                                                />
+                                                <span className="text-xs text-gray-500">yrs</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const newInputs = [...skillInputs];
+                                                        newInputs.splice(index, 1);
+                                                        setSkillInputs(newInputs);
+                                                    }}
+                                                    className="text-gray-400 hover:text-red-500 px-1"
+                                                >
+                                                    <X size={14} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Max Workload (tasks)
+                            </label>
+                            <input
+                                type="number"
+                                min="1"
+                                max="20"
+                                value={formData.maxWorkload}
+                                onChange={(e) => setFormData({ ...formData, maxWorkload: parseInt(e.target.value) || 5 })}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                        </div>
+
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Max Workload (tasks)
-                        </label>
-                        <input
-                            type="number"
-                            min="1"
-                            max="20"
-                            value={formData.maxWorkload}
-                            onChange={(e) => setFormData({ ...formData, maxWorkload: parseInt(e.target.value) || 5 })}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        />
-                    </div>
-
-                    <div className="pt-4 flex justify-end gap-3 border-t border-gray-100 dark:border-gray-700">
+                    <div className="p-4 flex justify-end gap-3 border-t border-gray-100 dark:border-gray-700 shrink-0 bg-white dark:bg-gray-800">
                         <button
                             type="button"
                             onClick={onClose}
