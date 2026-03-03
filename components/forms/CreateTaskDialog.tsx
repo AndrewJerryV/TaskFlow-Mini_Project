@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Priority, Status, Task, User } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 
 interface CreateTaskDialogProps {
     isOpen: boolean;
@@ -37,18 +38,25 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
     const [aiReasoning, setAiReasoning] = useState<string | null>(null);
     const [aiRisk, setAiRisk] = useState<'Low' | 'Medium' | 'High'>('Low');
     const dataRef = React.useRef<any>(null); // Store full response for debug
+    const [suggestions, setSuggestions] = useState<{ skills: string[], tags: string[], titles: string[] }>({
+        skills: [],
+        tags: [],
+        titles: []
+    });
 
-    // Fetch users when dialog opens
+    // Fetch users and suggestions when dialog opens
     useEffect(() => {
         if (isOpen) {
             setLoadingUsers(true);
             Promise.all([
                 fetch('/api/users').then(res => res.json()),
-                fetch(`/api/projects/${currentProjectId}/members`).then(res => res.json())
+                fetch(`/api/projects/${currentProjectId}/members`).then(res => res.json()),
+                fetch('/api/autocomplete').then(res => res.json())
             ])
-                .then(([allUsers, memberIds]) => {
+                .then(([allUsers, memberIds, autoData]) => {
                     setUsers(allUsers);
                     setProjectMemberIds(memberIds);
+                    setSuggestions(autoData);
                     const projectUsers = allUsers.filter((u: User) => memberIds.includes(u.id));
                     // Set default assignee to first user if available
                     if (isMember && currentUser) {
@@ -160,8 +168,8 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
             <form onSubmit={handleSubmit} className="p-4 space-y-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Summary <span className="text-red-500">*</span></label>
-                    <input
-                        type="text"
+                    <AutocompleteInput
+                        options={suggestions.titles}
                         className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                         placeholder="What needs to be done?"
                         value={title}
@@ -326,8 +334,8 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
                         ))}
                     </div>
                     <div className="flex gap-2">
-                        <input
-                            type="text"
+                        <AutocompleteInput
+                            options={suggestions.tags}
                             className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                             placeholder="Add tag and press Enter (e.g., ui, backend)"
                             value={tagInput}

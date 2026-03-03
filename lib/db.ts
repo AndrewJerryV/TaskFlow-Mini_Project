@@ -292,6 +292,27 @@ class Database {
         return null;
     }
 
+    async getAutocompleteData(): Promise<{ skills: string[], tags: string[], titles: string[] }> {
+        const { data: users } = await getSupabase().from('users').select('skills');
+        const { data: tasks } = await getSupabase().from('tasks').select('tags, title');
+
+        const allSkills = new Set<string>();
+        users?.forEach(u => (u.skills || []).forEach((s: string) => allSkills.add(s)));
+
+        const allTags = new Set<string>();
+        const allTitles = new Set<string>();
+        tasks?.forEach(t => {
+            (t.tags || []).forEach((tag: string) => allTags.add(tag));
+            if (t.title) allTitles.add(t.title);
+        });
+
+        return {
+            skills: Array.from(allSkills).sort(),
+            tags: Array.from(allTags).sort(),
+            titles: Array.from(allTitles).sort()
+        };
+    }
+
     // Projects
     async getProjects(userId?: string): Promise<Project[]> {
         let user: User | null = null;

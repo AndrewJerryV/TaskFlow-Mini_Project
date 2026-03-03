@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import { db } from '@/lib/db';
+import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
+import { useEffect } from 'react';
 
 interface AddUserDialogProps {
     isOpen: boolean;
@@ -20,6 +22,16 @@ export function AddUserDialog({ isOpen, onClose, onSuccess }: AddUserDialogProps
     const [skillInputs, setSkillInputs] = useState<{ name: string, exp: number }[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [suggestions, setSuggestions] = useState<string[]>([]);
+
+    useEffect(() => {
+        if (isOpen) {
+            fetch('/api/autocomplete')
+                .then(res => res.json())
+                .then(data => setSuggestions(data.skills || []))
+                .catch(console.error);
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -177,8 +189,8 @@ export function AddUserDialog({ isOpen, onClose, onSuccess }: AddUserDialogProps
                                 <div className="space-y-2">
                                     {skillInputs.map((skill, index) => (
                                         <div key={index} className="flex gap-2">
-                                            <input
-                                                type="text"
+                                            <AutocompleteInput
+                                                options={suggestions}
                                                 value={skill.name}
                                                 onChange={(e) => {
                                                     const newInputs = [...skillInputs];
@@ -186,7 +198,7 @@ export function AddUserDialog({ isOpen, onClose, onSuccess }: AddUserDialogProps
                                                     setSkillInputs(newInputs);
                                                 }}
                                                 placeholder="Skill (e.g. React)"
-                                                className="flex-1 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-sm target-white"
+                                                className="flex-1 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-sm dark:text-white"
                                             />
                                             <div className="flex items-center gap-1 w-24">
                                                 <input

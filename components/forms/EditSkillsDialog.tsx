@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { User } from '@/types';
+import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 
 interface EditSkillsDialogProps {
     isOpen: boolean;
@@ -15,6 +16,16 @@ export function EditSkillsDialog({ isOpen, onClose, onSuccess, user }: EditSkill
     const [skillInputs, setSkillInputs] = useState<{ name: string, exp: number }[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [suggestions, setSuggestions] = useState<string[]>([]);
+
+    useEffect(() => {
+        if (isOpen) {
+            fetch('/api/autocomplete')
+                .then(res => res.json())
+                .then(data => setSuggestions(data.skills || []))
+                .catch(console.error);
+        }
+    }, [isOpen]);
 
     useEffect(() => {
         if (isOpen && user) {
@@ -103,8 +114,8 @@ export function EditSkillsDialog({ isOpen, onClose, onSuccess, user }: EditSkill
                             <div className="space-y-2">
                                 {skillInputs.map((skill, index) => (
                                     <div key={index} className="flex gap-2">
-                                        <input
-                                            type="text"
+                                        <AutocompleteInput
+                                            options={suggestions}
                                             value={skill.name}
                                             onChange={(e) => {
                                                 const newInputs = [...skillInputs];
