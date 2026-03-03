@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Task, Comment, Priority, Status } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { Trash2, Calendar, User as UserIcon, MessageSquare, Clock, Sparkles, ArrowRight, Edit } from 'lucide-react';
+import { Trash2, Calendar, User as UserIcon, MessageSquare, Clock, Sparkles, ArrowRight, Edit, Play, Square } from 'lucide-react';
 import { PRIORITY_COLORS, STATUS_COLORS } from '@/lib/constants';
 import { getUserName, getActionDisplay } from '@/lib/utils';
 
@@ -37,11 +37,24 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
     const [activeTab, setActiveTab] = useState<'comments' | 'history' | 'time'>('comments');
     const [newComment, setNewComment] = useState('');
     const [timeLogMinutes, setTimeLogMinutes] = useState('');
+    const [currentTime, setCurrentTime] = useState(new Date());
     const [isDeleting, setIsDeleting] = useState(false);
     const [loadingComments, setLoadingComments] = useState(false);
     const [loadingHistory, setLoadingHistory] = useState(false);
 
     const isMember = currentUser?.role === 'Member';
+
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (editedTask?.activeTimerStart) {
+            interval = setInterval(() => {
+                setCurrentTime(new Date());
+            }, 60000); // UI update every minute is enough
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [editedTask?.activeTimerStart]);
 
     useEffect(() => {
         if (task) {
@@ -136,6 +149,45 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
         } catch (error) {
             console.error('Error adding comment:', error);
         }
+    };
+
+    const handleStartTimer = async () => {
+        if (!task || !currentUser || !editedTask) return;
+
+        const updatedTask = {
+            ...editedTask,
+            activeTimerStart: new Date().toISOString()
+        };
+
+        setEditedTask(updatedTask);
+        onUpdate(updatedTask);
+        setCurrentTime(new Date());
+    };
+
+    const handleStopTimer = async () => {
+        if (!task || !currentUser || !editedTask || !editedTask.activeTimerStart) return;
+
+        const startTime = new Date(editedTask.activeTimerStart);
+        const endTime = new Date();
+        const diffMs = endTime.getTime() - startTime.getTime();
+        const elapsedMinutes = Math.max(1, Math.round(diffMs / 60000));
+
+        const newTimeLog = {
+            userId: currentUser.id,
+            minutes: elapsedMinutes,
+            date: endTime.toISOString()
+        };
+
+        const updatedTimeLogs = [...(editedTask.timeLogs || []), newTimeLog];
+
+        const updatedTask = {
+            ...editedTask,
+            timeLogs: updatedTimeLogs,
+            activeTimerStart: null
+        };
+
+        setEditedTask(updatedTask);
+        onUpdate(updatedTask);
     };
 
     const handleAddTimeLog = async () => {
@@ -268,6 +320,18 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                                 <Clock size={14} />
                                 <span>Created: {new Date(task.createdAt).toLocaleDateString()}</span>
                             </div>
+
+                            {/* Total Time Spent */}
+                            {editedTask.timeLogs && editedTask.timeLogs.length > 0 && (
+                                <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-medium">
+                                    <Clock size={14} />
+                                    <span>
+                                        Time Spent:{' '}
+                                        {Math.floor(editedTask.timeLogs.reduce((acc, log) => acc + log.minutes, 0) / 60)}h{' '}
+                                        {editedTask.timeLogs.reduce((acc, log) => acc + log.minutes, 0) % 60}m
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
@@ -350,6 +414,30 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                         </>
                     ) : activeTab === 'time' ? (
                         <>
+                            {/* Start/Stop Timer Controls */}
+                            <div className="mb-4">
+                                {editedTask.activeTimerStart ? (
+                                    <button
+                                        onClick={handleStopTimer}
+                                        className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 transition"
+                                    >
+                                        <Square size={16} fill="currentColor" />
+                                        <span className="font-medium animate-pulse">
+                                            Stop active timer ({Math.round((currentTime.getTime() - new Date(editedTask.activeTimerStart).getTime()) / 60000)}m)
+                                        </span>
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={handleStartTimer}
+                                        disabled={isMember && editedTask.assigneeId !== currentUser?.id}
+                                        className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                    >
+                                        <Play size={16} fill="currentColor" />
+                                        <span className="font-medium">Start Timer</span>
+                                    </button>
+                                )}
+                            </div>
+
                             <div className="space-y-3 max-h-48 overflow-y-auto">
                                 {editedTask.timeLogs?.map((log, index) => (
                                     <div key={index} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">

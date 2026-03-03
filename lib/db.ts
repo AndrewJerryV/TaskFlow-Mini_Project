@@ -63,6 +63,8 @@ function toTask(dbTask: DbTask): Task {
         createdAt: dbTask.created_at,
         updatedAt: dbTask.updated_at,
         tags: dbTask.tags || [],
+        timeLogs: typeof dbTask.time_logs === 'string' ? JSON.parse(dbTask.time_logs) : (dbTask.time_logs || []),
+        activeTimerStart: dbTask.active_timer_start,
     };
 }
 
@@ -501,6 +503,8 @@ class Database {
                 created_at: task.createdAt,
                 updated_at: task.updatedAt,
                 tags: task.tags,
+                time_logs: task.timeLogs || [],
+                active_timer_start: task.activeTimerStart || null,
             });
 
         if (error) {
@@ -548,6 +552,8 @@ class Database {
         if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate;
         if (updates.startDate !== undefined) dbUpdates.start_date = updates.startDate;
         if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
+        if (updates.timeLogs !== undefined) dbUpdates.time_logs = updates.timeLogs;
+        if (updates.activeTimerStart !== undefined) dbUpdates.active_timer_start = updates.activeTimerStart === null ? null : updates.activeTimerStart; // handle clearing
 
         const { data, error } = await getSupabase()
             .from('tasks')

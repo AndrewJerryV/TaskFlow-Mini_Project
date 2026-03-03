@@ -80,6 +80,7 @@ export interface Task {
   tags: string[];
   isPrivate?: boolean;
   timeLogs?: TimeLog[];
+  activeTimerStart?: string | null; // ISO Date string for when timer started
   dependencies?: string[]; // Array of task IDs this task depends on
 }
 

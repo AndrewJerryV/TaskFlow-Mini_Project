@@ -70,7 +70,9 @@ CREATE TABLE IF NOT EXISTS tasks (
   start_date TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  tags TEXT[] DEFAULT '{}'
+  tags TEXT[] DEFAULT '{}',
+  time_logs JSONB DEFAULT '[]',
+  active_timer_start TIMESTAMPTZ
 );
 
 

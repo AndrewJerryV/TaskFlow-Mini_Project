@@ -1,14 +1,49 @@
 # User Acceptance Testing (UAT) Cases
 
-## 1. Manage Users
+## 1. Authenticate User
 
-### 1.1 Test Scenario #1 (i.e. User Management)
-**1.1.1 Sample Test Case #1 – (i.e. Add New User - Normal)**
+### 1.1 Test Scenario #1 (i.e. User Authentication)
+**1.1.1 Sample Test Case #1 – (i.e. User Login - Normal)**
+
+| Field | Description |
+| :--- | :--- |
+| **Test Case Name:** | User Login – Normal State |
+| **Requirement #:** | 1.1.1 – System shall allow registered users to log in with valid credentials. |
+| **Estimated Time (hours):** | 0.15 |
+| **Object, Function or Procedure Under Test:** | Authentication Module |
+| **Setup:** | • Obtain valid user credentials |
+| **Procedure:** | 1. Launch application<br>2. Navigate to "Login"<br>3. Enter valid email and password<br>4. Click "Login" |
+| **Expected Results:** | 1. User is successfully authenticated<br>2. Redirected to Main Dashboard |
+| **Observed Results:** | |
+| **Approved, Conditionally Approved, or Rejected:** | |
+| **Failure Type:** | |
+
+**1.1.2 Sample Test Case #2 – (i.e. User Login - Error: Invalid Password)**
+
+| Field | Description |
+| :--- | :--- |
+| **Test Case Name:** | User Login – Error State (Invalid Password) |
+| **Requirement #:** | 1.1.2 – System shall prevent login with incorrect credentials. |
+| **Estimated Time (hours):** | 0.10 |
+| **Object, Function or Procedure Under Test:** | Authentication Module - Validation |
+| **Setup:** | • Obtain valid email, invalid password |
+| **Procedure:** | 1. Navigate to "Login"<br>2. Enter valid email and incorrect password<br>3. Click "Login" |
+| **Expected Results:** | 1. Login fails<br>2. Error message appears: "Invalid email or password" |
+| **Observed Results:** | |
+| **Approved, Conditionally Approved, or Rejected:** | |
+| **Failure Type:** | |
+
+<br>
+
+## 2. Manage Users
+
+### 2.1 Test Scenario #1 (i.e. User Management)
+**2.1.1 Sample Test Case #1 – (i.e. Add New User - Normal)**
 
 | Field | Description |
 | :--- | :--- |
 | **Test Case Name:** | Add New User – Normal State |
-| **Requirement #:** | 1.1.1 – System shall allow admin to add a new user and assign a role through the User Management Screen. |
+| **Requirement #:** | 2.1.1 – System shall allow admin to add a new user and assign a role through the User Management Screen. |
 | **Estimated Time (hours):** | 0.25 |
 | **Object, Function or Procedure Under Test:** | User Management System |
 | **Setup:** | • Obtain Administrator credentials |
@@ -18,12 +53,12 @@
 | **Approved, Conditionally Approved, or Rejected:** | |
 | **Failure Type:** | |
 
-**1.1.2 Sample Test Case #2 – (i.e. Add New User - Error: Duplicate Email)**
+**2.1.2 Sample Test Case #2 – (i.e. Add New User - Error: Duplicate Email)**
 
 | Field | Description |
 | :--- | :--- |
 | **Test Case Name:** | Add New User – Error State (Duplicate Email) |
-| **Requirement #:** | 1.1.2 – System shall prevent creation of users with already existing email addresses. |
+| **Requirement #:** | 2.1.2 – System shall prevent creation of users with already existing email addresses. |
 | **Estimated Time (hours):** | 0.15 |
 | **Object, Function or Procedure Under Test:** | User Management System - Validation |
 | **Setup:** | • Obtain Administrator credentials<br>• Know an email address already registered |
@@ -35,15 +70,15 @@
 
 <br>
 
-## 2. Manage projects
+## 3. Manage Projects
 
-### 2.1 Test Scenario #2 (i.e. Project Management)
-**2.1.1 Sample Test Case #1 – (i.e. Create New Project - Normal)**
+### 3.1 Test Scenario #2 (i.e. Project Management)
+**3.1.1 Sample Test Case #1 – (i.e. Create New Project - Normal)**
 
 | Field | Description |
 | :--- | :--- |
 | **Test Case Name:** | Create New Project – Normal State |
-| **Requirement #:** | 2.1.1 – System shall allow managers to create a new project and add members. |
+| **Requirement #:** | 3.1.1 – System shall allow managers to create a new project and add members. |
 | **Estimated Time (hours):** | 0.25 |
 | **Object, Function or Procedure Under Test:** | Project Management Module |
 | **Setup:** | • Obtain Manager credentials |
@@ -53,12 +88,12 @@
 | **Approved, Conditionally Approved, or Rejected:** | |
 | **Failure Type:** | |
 
-**2.1.2 Sample Test Case #2 – (i.e. Create Project - Error: Missing Name)**
+**3.1.2 Sample Test Case #2 – (i.e. Create Project - Error: Missing Name)**
 
 | Field | Description |
 | :--- | :--- |
 | **Test Case Name:** | Create New Project – Error State (Missing Name) |
-| **Requirement #:** | 2.1.2 – System shall enforce required fields on project creation. |
+| **Requirement #:** | 3.1.2 – System shall enforce required fields on project creation. |
 | **Estimated Time (hours):** | 0.10 |
 | **Object, Function or Procedure Under Test:** | Project Creation Validation |
 | **Setup:** | • Obtain Manager credentials |
@@ -70,15 +105,15 @@
 
 <br>
 
-## 3. Manage tasks (Kanban)
+## 4. Manage Tasks & Kanban
 
-### 3.1 Test Scenario #3 (i.e. Task Status Flow)
-**3.1.1 Sample Test Case #1 – (i.e. Move Task to In Progress - Normal)**
+### 4.1 Test Scenario #3 (i.e. Task Status Flow)
+**4.1.1 Sample Test Case #1 – (i.e. Move Task to In Progress - Normal)**
 
 | Field | Description |
 | :--- | :--- |
 | **Test Case Name:** | Move Task Status – Normal State |
-| **Requirement #:** | 3.1.1 – System shall allow users to drag/drop tasks to change status. |
+| **Requirement #:** | 4.1.1 – System shall allow users to drag/drop tasks to change status. |
 | **Estimated Time (hours):** | 0.20 |
 | **Object, Function or Procedure Under Test:** | Kanban Board Drag-and-Drop |
 | **Setup:** | • Have an active project with a task in "To Do" |
@@ -88,12 +123,12 @@
 | **Approved, Conditionally Approved, or Rejected:** | |
 | **Failure Type:** | |
 
-**3.1.2 Sample Test Case #2 – (i.e. Delete Task - Normal)**
+**4.1.2 Sample Test Case #2 – (i.e. Delete Task - Normal)**
 
 | Field | Description |
 | :--- | :--- |
 | **Test Case Name:** | Delete Task – Normal State |
-| **Requirement #:** | 3.1.2 – System shall allow task creators to delete a task. |
+| **Requirement #:** | 4.1.2 – System shall allow task creators to delete a task. |
 | **Estimated Time (hours):** | 0.15 |
 | **Object, Function or Procedure Under Test:** | Task Deletion |
 | **Setup:** | • Task creator credentials, active task |
@@ -105,15 +140,15 @@
 
 <br>
 
-## 4. Assign & prioritize tasks
+## 5. Assign & Prioritize Tasks
 
-### 4.1 Test Scenario #4 (i.e. Task Assignment & Prioritization)
-**4.1.1 Sample Test Case #1 – (i.e. Assign Member and Set High Priority - Normal)**
+### 5.1 Test Scenario #4 (i.e. Task Assignment & Prioritization)
+**5.1.1 Sample Test Case #1 – (i.e. Assign Member and Set High Priority - Normal)**
 
 | Field | Description |
 | :--- | :--- |
 | **Test Case Name:** | Assign Member and Set Priority – Normal State |
-| **Requirement #:** | 4.1.1 – Allow assigning members and adjusting task priority. |
+| **Requirement #:** | 5.1.1 – Allow assigning members and adjusting task priority. |
 | **Estimated Time (hours):** | 0.15 |
 | **Object, Function or Procedure Under Test:** | Task Detail Interface |
 | **Setup:** | • Project with multiple members |
@@ -123,12 +158,12 @@
 | **Approved, Conditionally Approved, or Rejected:** | |
 | **Failure Type:** | |
 
-**4.1.2 Sample Test Case #2 – (i.e. Change Assignee - Normal)**
+**5.1.2 Sample Test Case #2 – (i.e. Change Assignee - Normal)**
 
 | Field | Description |
 | :--- | :--- |
 | **Test Case Name:** | Reassign Task – Normal State |
-| **Requirement #:** | 4.1.2 – Allow updating an existing task assignment. |
+| **Requirement #:** | 5.1.2 – Allow updating an existing task assignment. |
 | **Estimated Time (hours):** | 0.15 |
 | **Object, Function or Procedure Under Test:** | Task Detail Interface |
 | **Setup:** | • Task already assigned to User A |
@@ -140,30 +175,30 @@
 
 <br>
 
-## 5. Track and analyze time
+## 6. Track & Analyze Time
 
-### 5.1 Test Scenario #5 (i.e. Time Tracking)
-**5.1.1 Sample Test Case #1 – (i.e. Log Task Time via Timer - Normal)**
+### 6.1 Test Scenario #5 (i.e. Time Tracking)
+**6.1.1 Sample Test Case #1 – (i.e. Log Task Time via Timer - Normal)**
 
 | Field | Description |
 | :--- | :--- |
 | **Test Case Name:** | Log Task Time – Normal State |
-| **Requirement #:** | 5.1.1 – Allow start/stop timer for tasks. |
+| **Requirement #:** | 6.1.1 – Allow start/stop timer for tasks. |
 | **Estimated Time (hours):** | 0.20 |
 | **Object, Function or Procedure Under Test:** | Time Tracking Module |
 | **Setup:** | • User assigned to task |
 | **Procedure:** | 1. Navigate to Task<br>2. Click "Start Timer"<br>3. Wait 1 min, click "Stop Timer" |
 | **Expected Results:** | 1. Timer counts up visually<br>2. On stop, 1 minute time entry is added to task history under logged time |
-| **Observed Results:** | |
-| **Approved, Conditionally Approved, or Rejected:** | |
-| **Failure Type:** | |
+| **Observed Results:** | Timer counts up visually, and stopping it records a time entry accurately. Total Time Spent matches logged time. |
+| **Approved, Conditionally Approved, or Rejected:** | Approved |
+| **Failure Type:** | N/A |
 
-**5.1.2 Sample Test Case #2 – (i.e. Manual Time Entry - Normal)**
+**6.1.2 Sample Test Case #2 – (i.e. Manual Time Entry - Normal)**
 
 | Field | Description |
 | :--- | :--- |
 | **Test Case Name:** | Manual Add Time – Normal State |
-| **Requirement #:** | 5.1.2 – Allow users to backdate or manually log hours. |
+| **Requirement #:** | 6.1.2 – Allow users to backdate or manually log hours. |
 | **Estimated Time (hours):** | 0.15 |
 | **Object, Function or Procedure Under Test:** | Manual Time Logger |
 | **Setup:** | • User assigned to task |
@@ -175,15 +210,15 @@
 
 <br>
 
-## 6. Generate Productivity Reports
+## 7. Generate Productivity Reports
 
-### 6.1 Test Scenario #6 (i.e. Reporting System)
-**6.1.1 Sample Test Case #1 – (i.e. Generate Weekly Report - Normal)**
+### 7.1 Test Scenario #6 (i.e. Reporting System)
+**7.1.1 Sample Test Case #1 – (i.e. Generate Weekly Report - Normal)**
 
 | Field | Description |
 | :--- | :--- |
 | **Test Case Name:** | Generate Weekly Productivity Report |
-| **Requirement #:** | 6.1.1 – System shall aggregate logged task time into reports. |
+| **Requirement #:** | 7.1.1 – System shall aggregate logged task time into reports. |
 | **Estimated Time (hours):** | 0.20 |
 | **Object, Function or Procedure Under Test:** | Analytics Module |
 | **Setup:** | • System has time log data for the past week |
@@ -193,12 +228,12 @@
 | **Approved, Conditionally Approved, or Rejected:** | |
 | **Failure Type:** | |
 
-**6.1.2 Sample Test Case #2 – (i.e. Export Report - Normal)**
+**7.1.2 Sample Test Case #2 – (i.e. Export Report - Normal)**
 
 | Field | Description |
 | :--- | :--- |
 | **Test Case Name:** | Export Report to CSV |
-| **Requirement #:** | 6.1.2 – System shall allow downloading report data. |
+| **Requirement #:** | 7.1.2 – System shall allow downloading report data. |
 | **Estimated Time (hours):** | 0.15 |
 | **Object, Function or Procedure Under Test:** | Reporting Export |
 | **Setup:** | • Generated report on screen |
@@ -210,15 +245,15 @@
 
 <br>
 
-## 7. Detect Workflow Bottlenecks
+## 8. Detect Workflow Bottlenecks
 
-### 7.1 Test Scenario #7 (i.e. Bottleneck Analytics)
-**7.1.1 Sample Test Case #1 – (i.e. Identify Stalled Stages - Normal)**
+### 8.1 Test Scenario #7 (i.e. Bottleneck Analytics)
+**8.1.1 Sample Test Case #1 – (i.e. Identify Stalled Stages - Normal)**
 
 | Field | Description |
 | :--- | :--- |
 | **Test Case Name:** | Identify Bottleneck Stages |
-| **Requirement #:** | 7.1.1 – System shall analyze flow metrics and highlight stalled workflow stages. |
+| **Requirement #:** | 8.1.1 – System shall analyze flow metrics and highlight stalled workflow stages. |
 | **Estimated Time (hours):** | 0.20 |
 | **Object, Function or Procedure Under Test:** | Workflow Bottleneck Analytics |
 | **Setup:** | • Historical project data where tasks stuck in "Review" |
@@ -228,12 +263,12 @@
 | **Approved, Conditionally Approved, or Rejected:** | |
 | **Failure Type:** | |
 
-**7.1.2 Sample Test Case #2 – (i.e. Cycle Time Graph - Normal)**
+**8.1.2 Sample Test Case #2 – (i.e. Cycle Time Graph - Normal)**
 
 | Field | Description |
 | :--- | :--- |
 | **Test Case Name:** | View Cycle Time Graph |
-| **Requirement #:** | 7.1.2 – Render lead and cycle time distributions. |
+| **Requirement #:** | 8.1.2 – Render lead and cycle time distributions. |
 | **Estimated Time (hours):** | 0.20 |
 | **Object, Function or Procedure Under Test:** | Analytics Scatterplot |
 | **Setup:** | • Project with completed tasks |
@@ -245,15 +280,15 @@
 
 <br>
 
-## 8. ML Task Recommendations
+## 9. ML Task Recommendations
 
-### 8.1 Test Scenario #8 (i.e. ML Prioritization)
-**8.1.1 Sample Test Case #1 – (i.e. View Intelligent Task Suggestions - Normal)**
+### 9.1 Test Scenario #8 (i.e. ML Prioritization)
+**9.1.1 Sample Test Case #1 – (i.e. View Intelligent Task Suggestions - Normal)**
 
 | Field | Description |
 | :--- | :--- |
 | **Test Case Name:** | View Intelligent Task Prioritization |
-| **Requirement #:** | 8.1.1 – Apply ML to recommend focus tasks based on urgency/deadline. |
+| **Requirement #:** | 9.1.1 – Apply ML to recommend focus tasks based on urgency/deadline. |
 | **Estimated Time (hours):** | 0.25 |
 | **Object, Function or Procedure Under Test:** | ML Recommendation Engine |
 | **Setup:** | • User with multiple assigned tasks of varying deadlines/priorities |
@@ -263,12 +298,12 @@
 | **Approved, Conditionally Approved, or Rejected:** | |
 | **Failure Type:** | |
 
-**8.1.2 Sample Test Case #2 – (i.e. Reschedule Action on Overdue - Normal)**
+**9.1.2 Sample Test Case #2 – (i.e. Reschedule Action on Overdue - Normal)**
 
 | Field | Description |
 | :--- | :--- |
 | **Test Case Name:** | Reschedule ML Suggested Task |
-| **Requirement #:** | 8.1.2 – Allow user action (Reschedule) directly from ML recommendation. |
+| **Requirement #:** | 9.1.2 – Allow user action (Reschedule) directly from ML recommendation. |
 | **Estimated Time (hours):** | 0.20 |
 | **Object, Function or Procedure Under Test:** | Recommendation Actions Interface |
 | **Setup:** | • Overdue task showing in recommendations |
@@ -280,15 +315,15 @@
 
 <br>
 
-## 9. Collaborate via Chat / Comments
+## 10. Collaborate via Chat / Comments
 
-### 9.1 Test Scenario #9 (i.e. Task Collaboration)
-**9.1.1 Sample Test Case #1 – (i.e. Mention User in Comment - Normal)**
+### 10.1 Test Scenario #9 (i.e. Task Collaboration)
+**10.1.1 Sample Test Case #1 – (i.e. Mention User in Comment - Normal)**
 
 | Field | Description |
 | :--- | :--- |
 | **Test Case Name:** | Post and Receive Mention Comment |
-| **Requirement #:** | 9.1.1 – Allow commenting on tasks and user mentions. |
+| **Requirement #:** | 10.1.1 – Allow commenting on tasks and user mentions. |
 | **Estimated Time (hours):** | 0.25 |
 | **Object, Function or Procedure Under Test:** | Commenting System |
 | **Setup:** | • User A and B in same project |
@@ -298,12 +333,12 @@
 | **Approved, Conditionally Approved, or Rejected:** | |
 | **Failure Type:** | |
 
-**9.1.2 Sample Test Case #2 – (i.e. Post Image Attachment - Normal)**
+**10.1.2 Sample Test Case #2 – (i.e. Post Image Attachment - Normal)**
 
 | Field | Description |
 | :--- | :--- |
 | **Test Case Name:** | Attach image to comment |
-| **Requirement #:** | 9.1.2 – Support file/image attachments in task threads. |
+| **Requirement #:** | 10.1.2 – Support file/image attachments in task threads. |
 | **Estimated Time (hours):** | 0.15 |
 | **Object, Function or Procedure Under Test:** | Comment Attachment |
 | **Setup:** | • Any valid task URL, sample .png file |

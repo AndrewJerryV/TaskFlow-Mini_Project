@@ -116,6 +116,8 @@ export interface DbTask {
   created_at: string;
   updated_at: string;
   tags: string[];
+  time_logs?: any;
+  active_timer_start?: string;
 }
 
 export interface DbActivityLog {
