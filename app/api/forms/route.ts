@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { Form } from '@/types';
 
+const getErrorMessage = (error: unknown) =>
+    error instanceof Error ? error.message : 'Unknown error';
+
 // GET /api/forms?projectId=...
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
@@ -54,9 +57,9 @@ export async function POST(request: NextRequest) {
         }
 
         return NextResponse.json(form, { status: 201 });
-    } catch (error: any) {
+    } catch (error) {
         console.error('Error creating form:', error);
-        return NextResponse.json({ error: error.message || 'Failed to create form' }, { status: 500 });
+        return NextResponse.json({ error: getErrorMessage(error) || 'Failed to create form' }, { status: 500 });
     }
 }
 

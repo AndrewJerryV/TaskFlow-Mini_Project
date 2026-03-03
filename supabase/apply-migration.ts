@@ -17,7 +17,7 @@ if (!supabaseUrl || !supabaseServiceKey) {
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 async function main() {
-    const sqlFilePath = path.join(process.cwd(), 'supabase', 'migrations', '20260303_add_age_skill_experience.sql');
+    const sqlFilePath = path.join(process.cwd(), 'supabase', 'migrations', '20260303_merge_profiles_into_users.sql');
     const sqlQuery = fs.readFileSync(sqlFilePath, 'utf8');
 
     console.log("Applying migration...");

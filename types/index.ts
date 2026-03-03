@@ -18,6 +18,7 @@ export interface User {
   // Contact Info
   phone?: string;
   officeAddress?: string;
+  age?: number;
   // Settings
   timezone?: string;
   quietHoursStart?: string;
@@ -30,9 +31,7 @@ export interface User {
   skillMatchPriority?: boolean;
   aiDeadlines?: boolean;
   // Notification Settings
-  emailDigestFrequency?: string;
-  pushNotifications?: boolean;
-  soundAlerts?: boolean;
+  authProvider?: string;
 }
 
 export interface Attachment {

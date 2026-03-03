@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { User, Task } from '@/types';
 import { checkMLServerAvailability } from '@/lib/utils';
 
 export async function GET(request: Request) {
@@ -69,8 +68,8 @@ export async function GET(request: Request) {
                         wellnessScore = mlData.score;
                     }
                 }
-            } catch (err) {
-                // Completely silent fallback
+            } catch (error) {
+                console.error('Wellness ML request failed:', error);
             }
 
             const maxLoad = user.maxWorkload || 5;

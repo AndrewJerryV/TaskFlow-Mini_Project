@@ -7,7 +7,7 @@ import { getSupabase } from '../../lib/supabase';
 
 export default function LoginPage() {
 
-  const { currentUser, isLoading } = useAuth();
+  const { currentUser, isLoading, authError, setAuthError } = useAuth();
   const router = useRouter();
 
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
@@ -24,10 +24,17 @@ export default function LoginPage() {
     }
   }, [currentUser, isLoading, router]);
 
+  useEffect(() => {
+    if (authError) {
+      setError(authError);
+    }
+  }, [authError]);
+
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setAuthError('');
     setSubmitting(true);
 
     try {
@@ -72,6 +79,9 @@ export default function LoginPage() {
   };
 
   const signInWithGoogle = async () => {
+    setError('');
+    setSuccess('');
+    setAuthError('');
     const supabase = getSupabase();
     await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -82,6 +92,9 @@ export default function LoginPage() {
   };
 
   const signInWithGithub = async () => {
+    setError('');
+    setSuccess('');
+    setAuthError('');
     const supabase = getSupabase();
     await supabase.auth.signInWithOAuth({
       provider: 'github',
@@ -180,7 +193,7 @@ export default function LoginPage() {
               Don&apos;t have an account?{' '}
               <button
                 type="button"
-                onClick={() => { setMode('signup'); setError(''); setSuccess(''); }}
+                onClick={() => { setMode('signup'); setError(''); setSuccess(''); setAuthError(''); }}
                 className="text-blue-600 hover:text-blue-700 font-medium"
               >
                 Sign Up
@@ -191,7 +204,7 @@ export default function LoginPage() {
               Already have an account?{' '}
               <button
                 type="button"
-                onClick={() => { setMode('signin'); setError(''); setSuccess(''); }}
+                onClick={() => { setMode('signin'); setError(''); setSuccess(''); setAuthError(''); }}
                 className="text-blue-600 hover:text-blue-700 font-medium"
               >
                 Sign In

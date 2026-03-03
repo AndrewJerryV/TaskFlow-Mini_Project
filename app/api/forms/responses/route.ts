@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getSupabase } from '@/lib/supabase';
 import { FormResponse } from '@/types';
+
+type ProjectMemberRow = {
+    user_id: string;
+    role: string;
+};
 
 // GET /api/forms/responses?formId=... OR /api/forms/responses?projectId=...&respondentId=...
 export async function GET(request: NextRequest) {
@@ -67,13 +73,14 @@ export async function POST(request: NextRequest) {
                 });
 
                 // Also notify managers/admins in the project
-                const { data: members } = await (db as any).getSupabase()
+                const { data: members } = await getSupabase()
                     .from('project_members')
                     .select('user_id, role')
                     .eq('project_id', form.projectId);
 
-                if (members) {
-                    for (const member of members) {
+                const memberRows = (members || []) as ProjectMemberRow[];
+                if (memberRows.length > 0) {
+                    for (const member of memberRows) {
                         if ((member.role === 'Manager' || member.role === 'Admin') && member.user_id !== form.createdBy) {
                             await db.addNotification({
                                 userId: member.user_id,

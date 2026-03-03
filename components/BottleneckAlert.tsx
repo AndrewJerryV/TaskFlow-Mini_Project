@@ -24,29 +24,36 @@ export function BottleneckAlert({ tasks = [], users = [] }: BottleneckAlertProps
     const [mlPowered, setMlPowered] = useState(false);
     const [healthScore, setHealthScore] = useState<number | null>(null);
     const [healthSummary, setHealthSummary] = useState<string | null>(null);
+    const [unavailable, setUnavailable] = useState(false);
 
     useEffect(() => {
         async function fetchBottlenecks() {
             setLoading(true);
-
+            setUnavailable(false);
             try {
                 const res = await fetch('/api/analytics/bottlenecks');
-                if (!res.ok) throw new Error('Failed to fetch');
-
                 const data = await res.json();
+                // If API says unavailable or not ML powered, show a friendly message
+                if (data.unavailable || data.mlPowered === false) {
+                    setUnavailable(true);
+                    setBottlenecks([]);
+                    setMlPowered(false);
+                    setHealthScore(data.overallHealthScore ?? null);
+                    setHealthSummary(data.healthSummary ?? null);
+                    return;
+                }
                 setBottlenecks(data.bottlenecks || []);
                 setMlPowered(data.mlPowered || false);
                 setHealthScore(data.overallHealthScore ?? null);
                 setHealthSummary(data.healthSummary ?? null);
             } catch (err) {
                 console.error('Failed to fetch bottlenecks:', err);
-                // strictly rely on API, no local fallback to heuristics
+                setUnavailable(true);
                 setBottlenecks([]);
             } finally {
                 setLoading(false);
             }
         }
-
         fetchBottlenecks();
     }, [tasks.length, users.length]);
 
@@ -55,6 +62,15 @@ export function BottleneckAlert({ tasks = [], users = [] }: BottleneckAlertProps
             <div className="p-6 text-center text-gray-500 text-sm flex items-center justify-center gap-2">
                 <Loader2 size={16} className="animate-spin text-indigo-500" />
                 Analyzing workflow health...
+            </div>
+        );
+    }
+    if (unavailable) {
+        return (
+            <div className="p-6 text-center text-gray-500 text-sm flex flex-col items-center gap-2">
+                <AlertTriangle size={20} className="text-yellow-500" />
+                <span>AI-powered bottleneck detection is currently unavailable.</span>
+                <span className="text-xs text-gray-400">Try again later or contact your admin.</span>
             </div>
         );
     }

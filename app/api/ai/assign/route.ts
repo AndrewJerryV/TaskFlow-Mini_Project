@@ -3,6 +3,18 @@ import { db } from '@/lib/db';
 import { User, Task } from '@/types';
 import { checkMLServerAvailability } from '@/lib/utils';
 
+interface AssignmentCandidate {
+    id: string;
+    name: string;
+    match_percentage: number;
+    matching_skills?: string[];
+}
+
+interface AssignmentResponse {
+    suggested_assignees: AssignmentCandidate[];
+}
+
+
 // Heuristic fallback logic removed to simplify project complexity.
 // The system now relies exclusively on the Python ML server.
 // If the server is offline, the UI handles the unavailability state.
@@ -34,7 +46,7 @@ async function pythonSmartAssignment(users: User[], allTasks: Task[], title: str
             throw new Error(`Python ML server responded with ${response.status}`);
         }
 
-        const data = await response.json();
+        const data = (await response.json()) as AssignmentResponse;
         const bestMatch = data.suggested_assignees[0];
 
         if (!bestMatch) {
@@ -61,7 +73,7 @@ async function pythonSmartAssignment(users: User[], allTasks: Task[], title: str
             suggestedUser,
             candidateId: suggestedUser.id,
             reasoning,
-            allCandidates: data.suggested_assignees.map((c: any) => ({
+            allCandidates: data.suggested_assignees.map((c) => ({
                 name: c.name,
                 id: c.id,
                 score: Math.round(c.match_percentage),
@@ -91,7 +103,7 @@ interface AssignRequest {
 export async function POST(request: Request) {
     try {
         const body: AssignRequest = await request.json();
-        const { title, description, priority, projectId } = body;
+        const { title, description } = body;
 
         const users = await db.getUsers();
         const allTasks = await db.getTasks();
@@ -108,7 +120,7 @@ export async function POST(request: Request) {
             const daysUntilDue = 7; // Default or calculate from task if available
             const result = await pythonSmartAssignment(users, allTasks, title, description, 'To Do', daysUntilDue);
             return NextResponse.json(result);
-        } catch (error: any) {
+        } catch (_error) {
             return NextResponse.json(
                 { error: 'AI Assignment service is currently unavailable. Please try again later or assign manually.', status: 'unavailable' },
                 { status: 503 }

@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendOTPEmail } from '@/lib/email';
 
+type RouteParams = { id: string };
+
+const getErrorMessage = (error: unknown) =>
+    error instanceof Error ? error.message : 'Unknown error';
+
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! // Fallback if service role not set
@@ -9,12 +14,14 @@ const supabaseAdmin = createClient(
 
 export async function POST(
     request: Request,
-    { params }: { params: Promise<{ id: string }> | { id: string } }
+    { params }: { params: Promise<RouteParams> | RouteParams }
 ) {
     try {
-        const resolvedParams = await (params as any);
+        const resolvedParams = await Promise.resolve(params);
         const { id: userIdToDelete } = resolvedParams;
         const { adminEmail } = await request.json();
+
+        console.log(`OTP request for user deletion: ${userIdToDelete}`);
 
         if (!adminEmail) {
             return NextResponse.json({ error: 'Admin email is required' }, { status: 400 });
@@ -42,8 +49,8 @@ export async function POST(
         await sendOTPEmail(adminEmail, otp);
 
         return NextResponse.json({ success: true, message: 'OTP sent successfully' });
-    } catch (error: any) {
+    } catch (error) {
         console.error('API Error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
     }
 }

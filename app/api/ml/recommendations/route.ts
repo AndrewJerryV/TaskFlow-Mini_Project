@@ -5,6 +5,19 @@ import { isOverdue, checkMLServerAvailability } from '@/lib/utils';
 // Heuristic fallback logic removed to simplify project complexity.
 // The system now relies exclusively on the Python ML server.
 
+interface MLAnalysis {
+    predicted_priority: string;
+    urgency_score: number;
+    confidence_score: number;
+}
+
+interface MLResponse {
+    analysis: MLAnalysis;
+}
+
+const getErrorMessage = (error: unknown) =>
+    error instanceof Error ? error.message : String(error);
+
 // =============================================
 // Local ML-powered batch recommendations (Python Backend)
 // =============================================
@@ -41,7 +54,6 @@ async function localMLRecommendations(tasks: Task[], currentUserId: string | nul
             ? Math.ceil((new Date(task.dueDate).getTime() - now) / (1000 * 60 * 60 * 24))
             : -1;
         const daysSinceUpdate = Math.floor((now - new Date(task.updatedAt).getTime()) / (1000 * 60 * 60 * 24));
-        const createdDaysAgo = Math.floor((now - new Date(task.createdAt).getTime()) / (1000 * 60 * 60 * 24));
         const isAssignedToMe = task.assigneeId === currentUserId;
 
         try {
@@ -57,11 +69,11 @@ async function localMLRecommendations(tasks: Task[], currentUserId: string | nul
             });
 
             if (!res.ok) throw new Error(`ML API Error: ${res.status} ${res.statusText}`);
-            const data = await res.json();
+            const data = (await res.json()) as MLResponse;
 
             return { task, mlData: data.analysis, daysUntilDue, daysSinceUpdate, isAssignedToMe };
-        } catch (error: any) {
-            console.error(`Error analyzing task ${task.id}:`, error.message || error);
+        } catch (error) {
+            console.error(`Error analyzing task ${task.id}:`, getErrorMessage(error));
             return null;
         }
     });
@@ -168,7 +180,7 @@ export async function GET(request: Request) {
         try {
             const result = await localMLRecommendations(tasks, userId);
             return NextResponse.json(result);
-        } catch (error: any) {
+        } catch (_error) {
             return NextResponse.json(
                 { recommendations: [], mlPowered: false, unavailable: true },
                 { status: 503 }

@@ -19,6 +19,7 @@ function toUser(dbUser: DbUser): User {
         burnoutRisk: 'Low',
         phone: dbUser.phone,
         officeAddress: dbUser.office_address,
+        age: dbUser.age,
         // Settings
         timezone: dbUser.timezone,
         quietHoursStart: dbUser.quiet_hours_start,
@@ -31,9 +32,6 @@ function toUser(dbUser: DbUser): User {
         skillMatchPriority: dbUser.skill_match_priority,
         aiDeadlines: dbUser.ai_deadlines,
         // Notification Settings
-        emailDigestFrequency: dbUser.email_digest_frequency,
-        pushNotifications: dbUser.push_notifications,
-        soundAlerts: dbUser.sound_alerts,
     } as User;
 }
 
@@ -199,9 +197,6 @@ class Database {
         autoAssign: boolean;
         skillMatchPriority: boolean;
         aiDeadlines: boolean;
-        emailDigestFrequency: string;
-        pushNotifications: boolean;
-        soundAlerts: boolean;
         dob: string;
     }>): Promise<User | null> {
         const { data, error } = await getSupabase()
@@ -219,9 +214,6 @@ class Database {
                 auto_assign: settings.autoAssign,
                 skill_match_priority: settings.skillMatchPriority,
                 ai_deadlines: settings.aiDeadlines,
-                email_digest_frequency: settings.emailDigestFrequency,
-                push_notifications: settings.pushNotifications,
-                sound_alerts: settings.soundAlerts,
                 dob: settings.dob,
             })
             .eq('id', userId)

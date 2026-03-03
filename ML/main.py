@@ -1,3 +1,54 @@
+# ── Bottleneck Analysis Endpoint ───────────────────────
+
+@app.get("/analyze_bottlenecks")
+def analyze_bottlenecks():
+    # Load tasks from data.txt
+    data_path = os.path.join(BASE_DIR, "data.txt")
+    tasks = []
+    with open(data_path, "r", encoding="utf-8") as f:
+        for line in f:
+            if "|" in line:
+                desc, priority = line.strip().split("|", 1)
+                tasks.append({"description": desc.strip(), "priority": priority.strip()})
+
+    bottlenecks = []
+    urgency_threshold = 70  # Threshold for high urgency
+    high_urgency_count = 0
+    total_urgency = 0
+    for task in tasks:
+        # Predict priority using the model
+        pred_priority, _ = priority_ai.predict(task["description"])
+        # For demo, treat all as 'To Do' and not done
+        status = "To Do"
+        days_until_due = 2  # Placeholder, could be parsed from data
+        days_since_update = 6  # Placeholder, could be random or parsed
+        urgency = urgency_ai.predict(pred_priority, status, days_until_due, days_since_update)
+        total_urgency += urgency
+        if urgency >= urgency_threshold:
+            high_urgency_count += 1
+            bottlenecks.append({
+                "type": "process",
+                "location": "General",
+                "taskCount": 1,
+                "avgDaysStuck": days_since_update,
+                "recommendation": f"High-urgency task: {task['description']}",
+                "severity": "high" if urgency > 85 else "medium"
+            })
+
+    # Health score: penalize for each high-urgency bottleneck
+    overallHealthScore = max(0, 100 - high_urgency_count * 10)
+    if high_urgency_count == 0:
+        healthSummary = "Workflow is healthy."
+    elif overallHealthScore < 50:
+        healthSummary = f"Critical: {high_urgency_count} high-urgency bottlenecks detected."
+    else:
+        healthSummary = f"{high_urgency_count} high-urgency bottlenecks detected."
+
+    return {
+        "bottlenecks": bottlenecks,
+        "overallHealthScore": overallHealthScore,
+        "healthSummary": healthSummary
+    }
 import json
 import os
 

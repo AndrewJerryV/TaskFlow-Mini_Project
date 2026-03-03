@@ -10,6 +10,7 @@ export async function GET(
         const members = await db.getProjectMembers(projectId);
         return NextResponse.json(members);
     } catch (error) {
+        console.error('Error fetching project members:', error);
         return NextResponse.json({ error: 'Failed to fetch members' }, { status: 500 });
     }
 }

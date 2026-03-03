@@ -55,6 +55,7 @@ export interface DbUser {
   max_workload?: number;
   phone?: string;
   office_address?: string;
+  age?: number;
 
   timezone?: string;
   quiet_hours_start?: string;
@@ -67,9 +68,6 @@ export interface DbUser {
   skill_match_priority?: boolean;
   ai_deadlines?: boolean;
 
-  email_digest_frequency?: string;
-  push_notifications?: boolean;
-  sound_alerts?: boolean;
 }
 
 export interface DbProjectMember {

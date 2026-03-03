@@ -15,15 +15,17 @@ interface AuthContextType {
   currentUser: User | null;
   users: User[];
   isLoading: boolean;
+  authError: string;
   login: (user: User) => void;
   logout: () => Promise<void>;
   setCurrentUser: (user: User | null) => void;
+  setAuthError: (message: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 /* ---------------------------------------------
-   Type of row in your `profiles` table
+  Type of row in your `users` table
 --------------------------------------------- */
 type ProfileRow = {
   id: string;
@@ -53,9 +55,6 @@ type ProfileRow = {
   skill_match_priority?: boolean | null;
   ai_deadlines?: boolean | null;
 
-  email_digest_frequency?: string | null;
-  push_notifications?: boolean | null;
-  sound_alerts?: boolean | null;
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -63,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [authError, setAuthError] = useState('');
 
   useEffect(() => {
     let listener: { subscription: { unsubscribe: () => void } } | null = null;
@@ -81,7 +81,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         await loadProfile(
           data.session.user.id,
-          data.session.user.email ?? null
+          data.session.user.email ?? null,
+          data.session.user.app_metadata.provider
         );
 
         // Fetch all users after load profile
@@ -106,7 +107,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
               await loadProfile(
                 session.user.id,
-                session.user.email ?? null
+                session.user.email ?? null,
+                session.user.app_metadata.provider
               );
 
             } catch (err) {
@@ -132,7 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const loadProfile = async (userId: string, email: string | null) => {
+  const loadProfile = async (userId: string, email: string | null, provider?: string) => {
     const supabase = getSupabase();
 
     let { data, error } = await supabase
@@ -141,8 +143,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq('id', userId)
       .single<ProfileRow>();
 
-    // First time OAuth login → create profile
+    // If OAuth user isn't in DB, block login and show message on login page
     if (error && error.code === 'PGRST116') {
+      const isOauth = provider && provider !== 'email';
+
+      if (isOauth) {
+        setAuthError('You are not an existing user.');
+        await supabase.auth.signOut();
+        setCurrentUser(null);
+        return;
+      }
 
       const { data: created, error: insertError } = await supabase
         .from('users')
@@ -199,11 +209,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       skillMatchPriority: data.skill_match_priority ?? undefined,
       aiDeadlines: data.ai_deadlines ?? undefined,
 
-      emailDigestFrequency: data.email_digest_frequency ?? undefined,
-      pushNotifications: data.push_notifications ?? undefined,
-      soundAlerts: data.sound_alerts ?? undefined
+      authProvider: provider
     };
 
+    setAuthError('');
     setCurrentUser(mappedUser);
   };
 
@@ -217,6 +226,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Logout error:', error);
     } finally {
       setCurrentUser(null);
+      setAuthError('');
     }
   };
 
@@ -226,9 +236,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         currentUser,
         users,
         isLoading,
+        authError,
         login,
         logout,
-        setCurrentUser
+        setCurrentUser,
+        setAuthError
       }}
     >
       {children}

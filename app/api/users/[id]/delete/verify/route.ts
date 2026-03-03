@@ -12,7 +12,7 @@ export async function POST(
 ) {
     try {
         // Handle params as Promise if needed (Next.js 15+ compatibility)
-        const resolvedParams = await (params as any);
+        const resolvedParams = await Promise.resolve(params);
         const { id: userIdToDelete } = resolvedParams;
 
         console.log(`[DELETE] Verifying OTP and deleting user: ${userIdToDelete}`);
@@ -51,8 +51,9 @@ export async function POST(
         await supabaseAdmin.from('otps').delete().eq('id', otpData.id);
 
         return NextResponse.json({ success: true, message: 'User deleted successfully' });
-    } catch (error: any) {
+    } catch (error) {
         console.error('API Error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }

@@ -52,7 +52,10 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
 ### 4. Database Setup
 
-You will need to run the necessary SQL scripts in your Supabase SQL Editor to set up the tables (`public.users`, `public.profiles`, `public.tasks`, etc.) and the Required RPC functions (e.g., `admin_create_user`). 
+You will need to run the necessary SQL scripts in your Supabase SQL Editor to set up the tables (`public.users`, `public.tasks`, etc.) and the Required RPC functions (e.g., `admin_create_user`).
+
+If you previously used a `profiles` table, run the merge script in supabase/migrations/20260303_merge_profiles_into_users.sql to migrate and drop `profiles`.
+Then run supabase/migrations/20260303_verify_profiles_merge.sql to verify no profile rows were missed.
 
 *(If you have a `schema.sql` or migration file in your project, instruct the user to run it here. Example: copy the contents of `supabase/migrations` into the Supabase SQL editor and run it).*
 

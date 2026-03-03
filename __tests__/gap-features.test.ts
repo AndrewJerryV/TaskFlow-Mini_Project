@@ -37,7 +37,6 @@ describe('Burnout Detection', () => {
 // Bottleneck Detection Logic Tests
 describe('Bottleneck Detection', () => {
     const COLUMN_OVERFLOW_THRESHOLD = 8;
-    const STALE_THRESHOLD_DAYS = 5;
 
     it('should identify process bottleneck when column overflows', () => {
         const columnTaskCount = 10;

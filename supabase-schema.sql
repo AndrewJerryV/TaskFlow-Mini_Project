@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
   phone TEXT,
   office_address TEXT,
   dob DATE,
+  age INTEGER,
   -- Settings fields
   timezone TEXT DEFAULT 'UTC (Coordinated Universal Time)',
   quiet_hours_start TEXT DEFAULT '20:00',
@@ -30,7 +31,8 @@ CREATE TABLE IF NOT EXISTS users (
   -- Notification Settings
   email_digest_frequency TEXT DEFAULT 'Daily Summary',
   push_notifications BOOLEAN DEFAULT true,
-  sound_alerts BOOLEAN DEFAULT true
+  sound_alerts BOOLEAN DEFAULT true,
+  skill_experience JSONB DEFAULT '{}'::jsonb
 );
 
 -- Projects table
@@ -91,12 +93,10 @@ CREATE TABLE IF NOT EXISTS documents (
   type TEXT NOT NULL, -- 'page' or 'file'
   content TEXT, -- Markdown content for pages
   file_path TEXT, -- Storage path for files
-  file_type TEXT, -- MIME type
+  $$;
   size INTEGER, -- File size in bytes
-  created_by UUID REFERENCES users(id),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
-);
 
 -- Storage Bucket (Auto-create if using Supabase)
 INSERT INTO storage.buckets (id, name, public)
@@ -154,18 +154,13 @@ CREATE TABLE IF NOT EXISTS messages (
   user_id TEXT,
   content TEXT NOT NULL,
   timestamp TIMESTAMPTZ DEFAULT NOW()
-);
 
--- Comments table
-CREATE TABLE IF NOT EXISTS comments (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
   user_id TEXT,
   content TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Forms table
 CREATE TABLE IF NOT EXISTS forms (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
@@ -175,7 +170,6 @@ CREATE TABLE IF NOT EXISTS forms (
   status TEXT NOT NULL CHECK (status IN ('draft', 'active', 'closed')) DEFAULT 'draft',
   created_by TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Form responses table
@@ -441,86 +435,131 @@ CREATE TABLE IF NOT EXISTS notifications (
 
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all for notifications" ON notifications FOR ALL USING (true) WITH CHECK (true);
-C R E A T E   O R   R E P L A C E   F U N C T I O N   g e t _ a u t o c o m p l e t e _ d a t a ( ) 
- 
- R E T U R N S   j s o n 
- 
- L A N G U A G E   p l p g s q l 
- 
- A S   $ $ 
- 
- D E C L A R E 
- 
-         s k i l l s _ a r r a y   t e x t [ ] ; 
- 
-         t a g s _ a r r a y   t e x t [ ] ; 
- 
-         t i t l e s _ a r r a y   t e x t [ ] ; 
- 
- B E G I N 
- 
-         - -   A g g r e g a t i n g   d i s t i n c t   s k i l l s 
- 
-         S E L E C T   A R R A Y ( 
- 
-                 S E L E C T   D I S T I N C T   u n n e s t ( s k i l l s ) 
- 
-                 F R O M   u s e r s 
- 
-                 W H E R E   s k i l l s   I S   N O T   N U L L 
- 
-                 O R D E R   B Y   1 
- 
-         )   I N T O   s k i l l s _ a r r a y ; 
- 
- 
- 
-         - -   A g g r e g a t i n g   d i s t i n c t   t a g s 
- 
-         S E L E C T   A R R A Y ( 
- 
-                 S E L E C T   D I S T I N C T   u n n e s t ( t a g s ) 
- 
-                 F R O M   t a s k s 
- 
-                 W H E R E   t a g s   I S   N O T   N U L L 
- 
-                 O R D E R   B Y   1 
- 
-         )   I N T O   t a g s _ a r r a y ; 
- 
- 
- 
-         - -   A g g r e g a t i n g   d i s t i n c t   t i t l e s 
- 
-         S E L E C T   A R R A Y ( 
- 
-                 S E L E C T   D I S T I N C T   t i t l e 
- 
-                 F R O M   t a s k s 
- 
-                 W H E R E   t i t l e   I S   N O T   N U L L 
- 
-                 O R D E R   B Y   1 
- 
-         )   I N T O   t i t l e s _ a r r a y ; 
- 
- 
- 
-         - -   R e t u r n   a s   a   J S O N   o b j e c t 
- 
-         R E T U R N   j s o n _ b u i l d _ o b j e c t ( 
- 
-                 ' s k i l l s ' ,   C O A L E S C E ( s k i l l s _ a r r a y ,   A R R A Y [ ] : : t e x t [ ] ) , 
- 
-                 ' t a g s ' ,   C O A L E S C E ( t a g s _ a r r a y ,   A R R A Y [ ] : : t e x t [ ] ) , 
- 
-                 ' t i t l e s ' ,   C O A L E S C E ( t i t l e s _ a r r a y ,   A R R A Y [ ] : : t e x t [ ] ) 
- 
-         ) ; 
- 
- E N D ; 
- 
- $ $ ; 
- 
- 
+
+-- Create OTPs table for verification
+CREATE TABLE IF NOT EXISTS public.otps (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    email TEXT NOT NULL,
+    otp TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
+
+-- Index for faster lookup
+CREATE INDEX IF NOT EXISTS idx_otps_email_otp ON public.otps(email, otp);
+
+-- Function to admin delete user
+CREATE OR REPLACE FUNCTION public.admin_delete_user(p_user_id UUID)
+RETURNS VOID AS $$
+BEGIN
+    DELETE FROM auth.users WHERE id = p_user_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Recreate the admin_create_user_v2 RPC function to accept dob
+CREATE OR REPLACE FUNCTION public.admin_create_user_v2(
+  p_email text,
+  p_password text,
+  p_name text,
+  p_user_role text,
+  p_skills text[],
+  p_max_workload integer,
+  p_dob date DEFAULT NULL,
+  p_skill_experience jsonb DEFAULT '{}'::jsonb
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+  v_user_id uuid;
+  v_caller_role text;
+  v_encrypted_pw text;
+BEGIN
+  -- 1. Check if the caller is an Admin
+  SELECT role INTO v_caller_role
+  FROM public.users
+  WHERE id = auth.uid();
+
+  IF v_caller_role != 'Admin' THEN
+    RAISE EXCEPTION 'Only Administrators can create new users';
+  END IF;
+
+  v_user_id := gen_random_uuid();
+  v_encrypted_pw := crypt(p_password, gen_salt('bf'));
+
+  -- 2. Insert into auth.users
+  INSERT INTO auth.users (
+    id, instance_id, email, encrypted_password, email_confirmed_at,
+    created_at, updated_at, raw_user_meta_data, role, aud
+  ) VALUES (
+    v_user_id, '00000000-0000-0000-0000-000000000000', p_email,
+    v_encrypted_pw, now(), now(), now(),
+    jsonb_build_object('name', p_name), 'authenticated', 'authenticated'
+  );
+
+  -- 3. Insert into auth.identities
+  INSERT INTO auth.identities (
+    provider_id, user_id, identity_data, provider,
+    last_sign_in_at, created_at, updated_at
+  ) VALUES (
+    v_user_id::text, v_user_id, jsonb_build_object('sub', v_user_id::text, 'email', p_email),
+    'email', now(), now(), now()
+  );
+
+  -- 4. Insert into public.users
+  INSERT INTO public.users (
+    id, email, name, role, skills, max_workload,
+    wellness_score, created_at, dob, skill_experience
+  ) VALUES (
+    v_user_id, p_email, p_name, p_user_role, p_skills,
+    p_max_workload, 85, now(), p_dob, p_skill_experience
+  );
+
+  RETURN v_user_id;
+END;
+$$;
+
+-- Autocomplete data function
+CREATE OR REPLACE FUNCTION get_autocomplete_data()
+RETURNS json
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    skills_array text[];
+    tags_array text[];
+    titles_array text[];
+BEGIN
+    -- Aggregating distinct skills
+    SELECT ARRAY(
+        SELECT DISTINCT unnest(skills)
+        FROM users
+        WHERE skills IS NOT NULL
+        ORDER BY 1
+    ) INTO skills_array;
+
+    -- Aggregating distinct tags
+    SELECT ARRAY(
+        SELECT DISTINCT unnest(tags)
+        FROM tasks
+        WHERE tags IS NOT NULL
+        ORDER BY 1
+    ) INTO tags_array;
+
+    -- Aggregating distinct titles
+    SELECT ARRAY(
+        SELECT DISTINCT title
+        FROM tasks
+        WHERE title IS NOT NULL
+        ORDER BY 1
+    ) INTO titles_array;
+
+    -- Return as a JSON object
+    RETURN json_build_object(
+        'skills', COALESCE(skills_array, ARRAY[]::text[]),
+        'tags', COALESCE(tags_array, ARRAY[]::text[]),
+        'titles', COALESCE(titles_array, ARRAY[]::text[])
+    );
+END;
+$$;

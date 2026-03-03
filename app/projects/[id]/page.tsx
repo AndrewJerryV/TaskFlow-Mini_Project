@@ -514,7 +514,8 @@ export default function ProjectPage() {
             {/* Invite Team Member Modal */}
             <Modal isOpen={isInviteOpen} onClose={() => setIsInviteOpen(false)} title="Add Team Members" maxWidth="max-w-2xl">
                 <div className="p-4">
-                    <div className="flex items-center gap-4 mb-4">
+                    <div className="flex items-center mb-4">
+                        <p className="text-sm text-gray-600 dark:text-gray-400 flex-1">Select team members to add to this project:</p>
                         <button
                             onClick={async () => {
                                 console.log("Done button clicked. Selected members:", selectedMembers);
@@ -550,11 +551,10 @@ export default function ProjectPage() {
                                     alert('Failed to update members - check console for details');
                                 }
                             }}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-md text-sm font-medium transition-colors shadow-sm cursor-pointer"
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-md text-sm font-medium transition-colors shadow-sm cursor-pointer ml-auto"
                         >
                             Done
                         </button>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">Select team members to add to this project:</p>
                     </div>
                     <div className="space-y-2 max-h-[32rem] overflow-y-auto pr-2">
                         {users.filter(u => u.role !== 'Admin').map(user => {
