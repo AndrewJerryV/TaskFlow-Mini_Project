@@ -6,6 +6,8 @@ import { Send, MessageCircle, Paperclip, Image, FileText, X, Download, Calendar,
 import { MiniCalendar } from '@/components/ui/MiniCalendar';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUserName, formatFileSize } from '@/lib/utils';
+import { getSupabase } from '@/lib/supabase';
+import { RealtimePostgresInsertPayload } from '@supabase/supabase-js';
 
 interface ChatViewProps {
     projectId: string;
@@ -67,11 +69,48 @@ export default function ChatView({ projectId }: ChatViewProps) {
     fetchRef.current = fetchMessages;
 
     useEffect(() => {
-        if (projectId) {
-            fetchRef.current?.();
-            const interval = setInterval(() => fetchRef.current?.(), 3000);
-            return () => clearInterval(interval);
-        }
+        if (!projectId) return;
+
+        fetchMessages();
+
+        const supabase = getSupabase();
+        const channel = supabase
+            .channel(`public:messages:project_id=eq.${projectId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'messages',
+                    filter: `project_id=eq.${projectId}`
+                },
+                (payload: RealtimePostgresInsertPayload<any>) => {
+                    // Update messages if not already present (avoid duplicates from optimistic updates)
+                    setMessages(prev => {
+                        if (prev.some(m => m.id === payload.new.id)) return prev;
+
+                        const newMsg: ChatMessage = {
+                            id: payload.new.id,
+                            projectId: payload.new.project_id,
+                            userId: payload.new.user_id,
+                            content: payload.new.content,
+                            timestamp: payload.new.timestamp,
+                            attachment: payload.new.attachment ? JSON.parse(payload.new.attachment) : undefined
+                        };
+
+                        const wasNearBottom = isNearBottom();
+                        if (wasNearBottom) {
+                            scrollToBottom();
+                        }
+                        return [...prev, newMsg];
+                    });
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [projectId]);
 
     const scrollToBottom = () => {

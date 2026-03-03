@@ -10,7 +10,7 @@ erDiagram
     projects ||--o{ forms : "forms.project_id"
     projects ||--o{ shortcuts : "shortcuts.project_id"
     projects ||--o{ repo_links : "repo_links.project_id"
-    projects ||--o{ form_links : "form_links.project_id"
+    projects ||--o{ repo_links : "repo_links.project_id"
     
     tasks ||--o{ comments : "comments.task_id"
     
@@ -148,12 +148,3 @@ erDiagram
         timestamptz added_at
     }
 
-    form_links {
-        uuid id PK
-        uuid project_id FK
-        text title
-        text description
-        text form_url
-        text created_by
-        timestamptz created_at
-    }

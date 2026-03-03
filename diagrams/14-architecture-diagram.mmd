@@ -84,7 +84,6 @@ graph TB
             FormsAPI["/api/forms\nGET, POST, PATCH, DELETE"]
             ShortcutsAPI["/api/shortcuts\nGET, POST, DELETE"]
             ReposAPI["/api/repos\nGET, POST, DELETE"]
-            FormLinksAPI["/api/form-links\nGET, POST, DELETE"]
             MeetingAPI["/api/meeting\nGET, POST"]
         end
 
@@ -151,7 +150,6 @@ graph TB
             ActivityLogsTable["activity_logs"]
             ShortcutsTable["shortcuts"]
             RepoLinksTable["repo_links"]
-            FormLinksTable["form_links"]
         end
 
         subgraph SupabaseServices["Supabase Services"]

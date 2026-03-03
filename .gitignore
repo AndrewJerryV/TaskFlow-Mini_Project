@@ -48,4 +48,5 @@ ML/env/
 venv/
 env/
 ML/my_setfit_model/
+ML/skill_matcher_model/
 *.safetensors

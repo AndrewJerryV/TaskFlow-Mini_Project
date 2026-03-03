@@ -1,4 +1,4 @@
-import { getSupabase, DbUser, DbProject, DbTask, DbActivityLog, DbMessage, DbComment, DbForm, DbFormResponse, DbDocument, DbShortcut, DbRepoLink, DbFormLink, DbNotification } from './supabase';
+import { getSupabase, DbUser, DbProject, DbTask, DbActivityLog, DbMessage, DbComment, DbForm, DbFormResponse, DbDocument, DbShortcut, DbRepoLink, DbNotification } from './supabase';
 import { Project, Task, User, ActivityLog, Message, Comment, Form, FormResponse, Document, Notification } from '@/types';
 
 // Helper functions to convert between snake_case DB and camelCase TS
@@ -202,6 +202,7 @@ class Database {
         emailDigestFrequency: string;
         pushNotifications: boolean;
         soundAlerts: boolean;
+        dob: string;
     }>): Promise<User | null> {
         const { data, error } = await getSupabase()
             .from('users')
@@ -221,6 +222,7 @@ class Database {
                 email_digest_frequency: settings.emailDigestFrequency,
                 push_notifications: settings.pushNotifications,
                 sound_alerts: settings.soundAlerts,
+                dob: settings.dob,
             })
             .eq('id', userId)
             .select()
@@ -275,7 +277,7 @@ class Database {
         const payload = {
             p_email: userData.email,
             p_password: userData.password || 'TaskFlow@123',
-            p_full_name: userData.fullName,
+            p_name: userData.fullName,
             p_user_role: userData.role,
             p_skills: skillsArray,
             p_dob: userData.dob || null,
@@ -283,7 +285,7 @@ class Database {
             p_max_workload: userData.maxWorkload
         };
         console.log('--- RPC PAYLOAD ---', payload);
-        const { data: userId, error } = await getSupabase().rpc('admin_create_user', payload);
+        const { data: userId, error } = await getSupabase().rpc('admin_create_user_v2', payload);
 
         if (error) {
             console.error('Error creating user via RPC. Error object:', JSON.stringify(error, null, 2));
@@ -297,23 +299,15 @@ class Database {
     }
 
     async getAutocompleteData(): Promise<{ skills: string[], tags: string[], titles: string[] }> {
-        const { data: users } = await getSupabase().from('users').select('skills');
-        const { data: tasks } = await getSupabase().from('tasks').select('tags, title');
-
-        const allSkills = new Set<string>();
-        users?.forEach(u => (u.skills || []).forEach((s: string) => allSkills.add(s)));
-
-        const allTags = new Set<string>();
-        const allTitles = new Set<string>();
-        tasks?.forEach(t => {
-            (t.tags || []).forEach((tag: string) => allTags.add(tag));
-            if (t.title) allTitles.add(t.title);
-        });
-
+        const { data, error } = await getSupabase().rpc('get_autocomplete_data');
+        if (error) {
+            console.error('Error fetching autocomplete data:', error);
+            return { skills: [], tags: [], titles: [] };
+        }
         return {
-            skills: Array.from(allSkills).sort(),
-            tags: Array.from(allTags).sort(),
-            titles: Array.from(allTitles).sort()
+            skills: data.skills || [],
+            tags: data.tags || [],
+            titles: data.titles || []
         };
     }
 
@@ -1127,54 +1121,6 @@ class Database {
         return true;
     }
 
-    // Form Links
-    async getFormLinks(projectId: string): Promise<DbFormLink[]> {
-        const { data, error } = await getSupabase()
-            .from('form_links')
-            .select('*')
-            .eq('project_id', projectId)
-            .order('created_at', { ascending: false });
-
-        if (error) {
-            console.error('Error fetching form links:', error);
-            return [];
-        }
-        return data || [];
-    }
-
-    async addFormLink(formLink: { id: string; project_id: string; title: string; description?: string; form_url: string; created_by?: string }): Promise<DbFormLink | null> {
-        const { data, error } = await getSupabase()
-            .from('form_links')
-            .insert({
-                id: formLink.id,
-                project_id: formLink.project_id,
-                title: formLink.title,
-                description: formLink.description || null,
-                form_url: formLink.form_url,
-                created_by: formLink.created_by || null,
-            })
-            .select()
-            .single();
-
-        if (error) {
-            console.error('Error adding form link:', error);
-            return null;
-        }
-        return data;
-    }
-
-    async deleteFormLink(id: string): Promise<boolean> {
-        const { error } = await getSupabase()
-            .from('form_links')
-            .delete()
-            .eq('id', id);
-
-        if (error) {
-            console.error('Error deleting form link:', error);
-            return false;
-        }
-        return true;
-    }
 
     // Meeting URL
     async getMeetingUrl(projectId: string): Promise<string | null> {

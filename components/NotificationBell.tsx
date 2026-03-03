@@ -6,6 +6,8 @@ import { Notification } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { useRouter } from 'next/navigation';
+import { getSupabase } from '@/lib/supabase';
+import { RealtimePostgresInsertPayload } from '@supabase/supabase-js';
 
 const NOTIFICATION_CONFIG: Record<string, {
     icon: React.ElementType;
@@ -78,11 +80,48 @@ export function NotificationBell() {
     };
 
     useEffect(() => {
-        if (currentUser) {
-            fetchNotifications();
-            const interval = setInterval(fetchNotifications, 30000);
-            return () => clearInterval(interval);
-        }
+        if (!currentUser) return;
+
+        // Fetch initial notifications
+        fetchNotifications();
+
+        // Subscribe to changes
+        const supabase = getSupabase();
+        const channel = supabase
+            .channel(`public:notifications:user_id=eq.${currentUser.id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'notifications',
+                    filter: `user_id=eq.${currentUser.id}`
+                },
+                (payload: RealtimePostgresInsertPayload<any>) => {
+                    const newNotif = {
+                        id: payload.new.id,
+                        userId: payload.new.user_id,
+                        type: payload.new.type,
+                        title: payload.new.title,
+                        message: payload.new.message,
+                        isRead: payload.new.is_read,
+                        link: payload.new.link,
+                        entityId: payload.new.entity_id,
+                        projectId: payload.new.project_id,
+                        createdAt: payload.new.created_at,
+                    };
+
+                    setNotifications(prev => [newNotif as Notification, ...prev]);
+                    setUnreadCount(prev => prev + 1);
+                    setAnimateBell(true);
+                    setTimeout(() => setAnimateBell(false), 1000);
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [currentUser]);
 
     useEffect(() => {
@@ -256,8 +295,8 @@ export function NotificationBell() {
                                                         {notification.title}
                                                     </p>
                                                     <span className={`flex-shrink-0 text-[10px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded ${!notification.isRead
-                                                            ? 'bg-blue-100/80 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                                                            : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'
+                                                        ? 'bg-blue-100/80 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                                                        : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'
                                                         }`}>
                                                         {cfg.label}
                                                     </span>

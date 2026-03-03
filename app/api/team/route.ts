@@ -1,10 +1,35 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { User, Task } from '@/types';
+import { checkMLServerAvailability } from '@/lib/utils';
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
-        const users = await db.getUsers();
+        const { searchParams } = new URL(request.url);
+        const userId = searchParams.get('userId');
+
+        let users = await db.getUsers();
+
+        if (userId) {
+            const currentUser = await db.getUser(userId);
+
+            if (currentUser && currentUser.role !== 'Admin') {
+                // Get all projects this manager is part of
+                const userProjects = await db.getProjects(userId);
+                const projectIds = userProjects.map(p => p.id);
+
+                // Get all members of those projects
+                const allowedMemberIds = new Set<string>();
+                for (const pid of projectIds) {
+                    const members = await db.getProjectMembers(pid);
+                    members.forEach(m => allowedMemberIds.add(m));
+                }
+
+                // Filter users to only those in the allowed set
+                users = users.filter(u => allowedMemberIds.has(u.id));
+            }
+        }
+
         const allTasks = await db.getTasks();
 
         const teamStats = await Promise.all(users.map(async user => {
@@ -23,25 +48,29 @@ export async function GET() {
                 return false;
             }).length;
 
-            // Fetch wellness score from ML service
+            // Fetch wellness score from ML service if available
             let wellnessScore = user.wellnessScore || 100;
             try {
-                const mlRes = await fetch('http://127.0.0.1:8000/analyze_wellness', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        active_tasks: activeTasks,
-                        high_priority_count: highPriorityCount,
-                        critical_urgency_count: criticalUrgencyCount
-                    })
-                });
+                // Check if ML server is available (caching result for the request would be better, but simple check for now)
+                const isAvailable = await checkMLServerAvailability();
+                if (isAvailable) {
+                    const mlRes = await fetch('http://127.0.0.1:8000/analyze_wellness', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            active_tasks: activeTasks,
+                            high_priority_count: highPriorityCount,
+                            critical_urgency_count: criticalUrgencyCount
+                        })
+                    });
 
-                if (mlRes.ok) {
-                    const mlData = await mlRes.json();
-                    wellnessScore = mlData.score;
+                    if (mlRes.ok) {
+                        const mlData = await mlRes.json();
+                        wellnessScore = mlData.score;
+                    }
                 }
             } catch (err) {
-                console.warn("Could not reach ML service for wellness score, using default");
+                // Completely silent fallback
             }
 
             const maxLoad = user.maxWorkload || 5;

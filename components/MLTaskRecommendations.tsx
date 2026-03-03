@@ -6,14 +6,6 @@ import { Sparkles, ArrowRight, BrainCircuit, TrendingUp, Calendar, AlertCircle, 
 import { BottleneckAlert } from '@/components/BottleneckAlert';
 import { Modal } from '@/components/ui/Modal';
 
-interface MLTaskRecommendationsProps {
-  tasks: Task[];
-  projectId: string;
-  users: User[];
-  currentUser: User | null;
-  onTaskUpdate?: (task: Task) => void;
-}
-
 interface Recommendation {
   id: string;
   taskId?: string;
@@ -25,35 +17,33 @@ interface Recommendation {
   suggestedAction?: string;
 }
 
+interface MLTaskRecommendationsProps {
+  tasks: Task[];
+  projectId: string;
+  users: User[];
+  currentUser: User | null;
+  onTaskUpdate?: (task: Task) => void;
+}
+
 export default function MLTaskRecommendations({ tasks, projectId, users, currentUser, onTaskUpdate }: MLTaskRecommendationsProps) {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
   const [mlPowered, setMlPowered] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rescheduleData, setRescheduleData] = useState<{ isOpen: boolean, task: Task | null, days: string }>({ isOpen: false, task: null, days: '1' });
+  const [isUnavailable, setIsUnavailable] = useState(false);
   const bottlenecksRef = useRef<HTMLDivElement>(null);
 
-  // Use refs and stringified dependencies to prevent infinite fetch loops
-  // since the parent `tasks` array reference might change on polling
-  const prevTasksLength = useRef<number>(0);
   const tasksSignature = tasks.map(t => `${t.id}-${t.updatedAt}-${t.status}`).join('|');
 
   useEffect(() => {
-    // Only fetch if tasks actually changed meaningfully or it's the first load
-    if (tasks.length === prevTasksLength.current && recommendations.length > 0) {
-      // Just verify if any statuses/dates changed
-      // We do a deep generation but we don't necessarily need to trigger the full ML fetch
-      // unless requested. For now, we'll let it fetch on actual data changes.
-    }
-    prevTasksLength.current = tasks.length;
-
     const fetchRecommendations = async () => {
       setLoading(true);
       setError(null);
+      setIsUnavailable(false);
 
       try {
         const params = new URLSearchParams({ projectId });
-        // The ML endpoint honors 'userId' but let's strictly target the query
         if (currentUser?.id) {
           if (currentUser.role === 'Member') {
             params.set('filterByUserId', "true");
@@ -62,96 +52,28 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
         }
 
         const res = await fetch(`/api/ml/recommendations?${params.toString()}`);
+        const data = await res.json();
+
+        if (res.status === 503 || data.unavailable) {
+          setIsUnavailable(true);
+          setRecommendations([]);
+          return;
+        }
+
         if (!res.ok) throw new Error('Failed to fetch recommendations');
 
-        const data = await res.json();
         setRecommendations(data.recommendations || []);
         setMlPowered(data.mlPowered || false);
       } catch (err) {
         console.error('Failed to fetch ML recommendations:', err);
-        setError('Failed to load recommendations');
-        // Fallback: generate client-side (original logic)
-        generateFallbackRecommendations();
+        setError('Recommendations service is currently offline');
+        setIsUnavailable(true);
       } finally {
         setLoading(false);
       }
     };
 
-    // Client-side fallback (original heuristic logic)
-    const generateFallbackRecommendations = () => {
-      const generated: Recommendation[] = [];
-      const now = new Date();
-
-      const getDueInDays = (dateStr?: string) => {
-        if (!dateStr) return 999;
-        const d = new Date(dateStr);
-        return Math.ceil((d.getTime() - now.getTime()) / (1000 * 3600 * 24));
-      };
-
-      tasks.forEach(task => {
-        if (task.status === 'Done') return;
-
-        let score = 0;
-        let reasons: string[] = [];
-        let type: Recommendation['type'] | null = null;
-        let suggestedAction = 'View Details';
-
-        if (task.priority === 'Critical') { score += 40; reasons.push('Critical priority'); }
-        else if (task.priority === 'High') { score += 25; reasons.push('High priority'); }
-
-        const dueIn = getDueInDays(task.dueDate);
-        if (task.dueDate) {
-          if (dueIn < 0) { score += 50; reasons.push(`Overdue by ${Math.abs(dueIn)} days`); }
-          else if (dueIn === 0) { score += 40; reasons.push('Due today'); }
-          else if (dueIn <= 2) { score += 25; reasons.push(`Due in ${dueIn} days`); }
-        }
-
-        const isAssignedToMe = task.assigneeId === currentUser?.id;
-        if (isAssignedToMe) { score += 20; }
-
-        const daysSinceUpdate = Math.floor((now.getTime() - new Date(task.updatedAt).getTime()) / (1000 * 3600 * 24));
-        if (task.status === 'In Progress' && daysSinceUpdate > 3) {
-          score += 15 + daysSinceUpdate;
-          reasons.push(`No updates for ${daysSinceUpdate} days`);
-        }
-
-        if (task.dueDate && dueIn <= 1) {
-          type = 'overdue_risk';
-          suggestedAction = dueIn < 0 ? 'Reschedule' : 'Prioritize';
-        } else if (task.status === 'In Progress' && daysSinceUpdate > 3) {
-          type = 'bottleneck';
-          suggestedAction = isAssignedToMe ? 'Update Status' : 'Follow Up';
-        } else if (isAssignedToMe && score > 60) {
-          type = 'focus';
-          suggestedAction = task.status === 'To Do' ? 'Start Task' : 'Continue';
-        } else if (task.status === 'To Do' && task.priority === 'Low' && (!task.dueDate || dueIn > 7)) {
-          type = 'quick_win';
-          score = 40;
-          reasons = ['Low effort estimate', 'Clear backlog'];
-          suggestedAction = 'Complete Now';
-        }
-
-        if (type && score > 30) {
-          generated.push({
-            id: `rec-${task.id}`,
-            taskId: task.id,
-            type,
-            title: task.title,
-            description: task.description || 'No description provided',
-            score: Math.min(score, 100),
-            reason: reasons.join(' • '),
-            suggestedAction
-          });
-        }
-      });
-
-      setRecommendations(generated.sort((a, b) => b.score - a.score).slice(0, 6));
-      setMlPowered(false);
-    };
-
     fetchRecommendations();
-    // Only re-run if tasks signature changes (tasks edited/moved/added/removed), not just when reference changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasksSignature, currentUser?.id, projectId]);
 
   const handleAction = (rec: Recommendation) => {
@@ -209,80 +131,90 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
               </span>
             )}
             <span className="text-xs text-gray-500 dark:text-gray-400">
-              {mlPowered ? 'Powered by Local ML' : 'Heuristic analysis'}
+              {isUnavailable ? 'AI Service Offline' : mlPowered ? 'Powered by Local ML' : 'Heuristic analysis'}
             </span>
           </div>
         </div>
 
-        {error && (
-          <div className="p-3 text-sm text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
-            {error} — showing fallback recommendations.
-          </div>
-        )}
-
-        {recommendations.length === 0 ? (
-          <div className="p-8 text-center bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-            <h3 className="text-gray-900 dark:text-white font-medium">No immediate recommendations</h3>
-            <p className="text-gray-500 text-sm mt-1">Your project execution is on track.</p>
+        {isUnavailable ? (
+          <div className="p-8 text-center bg-gray-50 dark:bg-gray-900/40 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
+            <BrainCircuit size={32} className="mx-auto text-gray-400 mb-3 opacity-50" />
+            <h3 className="text-gray-700 dark:text-gray-300 font-medium">AI Recommendations Currently Unavailable</h3>
+            <p className="text-gray-500 text-xs mt-1">Check if the Python ML server is running to see advanced insights.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-3">
-            {recommendations.map(rec => (
-              <div key={rec.id} className="group bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex items-center justify-between hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-sm transition-all">
-                <div className="flex items-start gap-4 overflow-hidden">
-                  <div className={`mt-1 p-2 rounded-md flex-shrink-0 ${rec.type === 'focus' ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' :
-                    rec.type === 'bottleneck' ? 'bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400' :
-                      rec.type === 'overdue_risk' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' :
-                        'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400'
-                    }`}>
-                    {rec.type === 'focus' && <TrendingUp size={18} />}
-                    {rec.type === 'bottleneck' && <AlertCircle size={18} />}
-                    {rec.type === 'overdue_risk' && <Calendar size={18} />}
-                    {rec.type === 'quick_win' && <Sparkles size={18} />}
-                  </div>
+          <>
+            {error && (
+              <div className="p-3 text-sm text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                {error}
+              </div>
+            )}
 
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`text-xs font-bold uppercase tracking-wider ${rec.type === 'focus' ? 'text-blue-700 dark:text-blue-300' :
-                        rec.type === 'bottleneck' ? 'text-orange-700 dark:text-orange-300' :
-                          rec.type === 'overdue_risk' ? 'text-red-700 dark:text-red-300' :
-                            'text-green-700 dark:text-green-300'
+            {recommendations.length === 0 ? (
+              <div className="p-8 text-center bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                <h3 className="text-gray-900 dark:text-white font-medium">No immediate recommendations</h3>
+                <p className="text-gray-500 text-sm mt-1">Your project execution is on track.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3">
+                {recommendations.map(rec => (
+                  <div key={rec.id} className="group bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex items-center justify-between hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-sm transition-all">
+                    <div className="flex items-start gap-4 overflow-hidden">
+                      <div className={`mt-1 p-2 rounded-md flex-shrink-0 ${rec.type === 'focus' ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' :
+                        rec.type === 'bottleneck' ? 'bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400' :
+                          rec.type === 'overdue_risk' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' :
+                            'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400'
                         }`}>
-                        {rec.type.replace('_', ' ')}
-                      </span>
-                      <span className="text-gray-300 dark:text-gray-600">•</span>
-                      <span className="text-xs text-gray-500 font-medium">Match: {rec.score}%</span>
+                        {rec.type === 'focus' && <TrendingUp size={18} />}
+                        {rec.type === 'bottleneck' && <AlertCircle size={18} />}
+                        {rec.type === 'overdue_risk' && <Calendar size={18} />}
+                        {rec.type === 'quick_win' && <Sparkles size={18} />}
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`text-xs font-bold uppercase tracking-wider ${rec.type === 'focus' ? 'text-blue-700 dark:text-blue-300' :
+                            rec.type === 'bottleneck' ? 'text-orange-700 dark:text-orange-300' :
+                              rec.type === 'overdue_risk' ? 'text-red-700 dark:text-red-300' :
+                                'text-green-700 dark:text-green-300'
+                            }`}>
+                            {rec.type.replace('_', ' ')}
+                          </span>
+                          <span className="text-gray-300 dark:text-gray-600">•</span>
+                          <span className="text-xs text-gray-500 font-medium">Match: {rec.score}%</span>
+                        </div>
+
+                        <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate pr-4">{rec.title}</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{rec.reason}</p>
+                        {mlPowered && rec.description && rec.description !== 'No description provided' && (
+                          <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1 italic line-clamp-2 flex items-start gap-1">
+                            <Lightbulb size={12} className="mt-0.5 flex-shrink-0" />
+                            <span>{rec.description}</span>
+                          </p>
+                        )}
+                      </div>
                     </div>
 
-                    <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate pr-4">{rec.title}</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{rec.reason}</p>
-                    {mlPowered && rec.description && rec.description !== 'No description provided' && (
-                      <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1 italic line-clamp-2 flex items-start gap-1">
-                        <Lightbulb size={12} className="mt-0.5 flex-shrink-0" />
-                        <span>{rec.description}</span>
-                      </p>
-                    )}
+                    <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3 pl-4 border-l border-gray-100 dark:border-gray-700">
+                      <button
+                        onClick={() => handleAction(rec)}
+                        className="whitespace-nowrap px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md hover:bg-white dark:hover:bg-gray-600 hover:border-gray-300 dark:hover:border-gray-500 hover:shadow-sm transition-all flex items-center gap-2"
+                      >
+                        {rec.suggestedAction}
+                        <ArrowRight size={14} className="text-gray-400 group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3 pl-4 border-l border-gray-100 dark:border-gray-700">
-                  <button
-                    onClick={() => handleAction(rec)}
-                    className="whitespace-nowrap px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md hover:bg-white dark:hover:bg-gray-600 hover:border-gray-300 dark:hover:border-gray-500 hover:shadow-sm transition-all flex items-center gap-2"
-                  >
-                    {rec.suggestedAction}
-                    <ArrowRight size={14} className="text-gray-400 group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300" />
-                  </button>
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            )}
 
-      {/* Bottlenecks Section */}
-      <div ref={bottlenecksRef}>
-        <BottleneckAlert tasks={tasks} users={users} />
+            {/* Bottlenecks Section nested under main recommendations content */}
+            <div ref={bottlenecksRef} className="mt-8 border-t border-gray-100 dark:border-gray-800 pt-8">
+              <BottleneckAlert tasks={tasks} users={users} />
+            </div>
+          </>
+        )}
       </div>
 
       {/* Reschedule Modal */}

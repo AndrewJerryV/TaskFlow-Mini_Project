@@ -5,16 +5,16 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState, useRef, ReactNode } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { NotificationBell } from '@/components/NotificationBell';
-import { LogOut, Search, Folder, CheckSquare, X } from 'lucide-react';
+import { LogOut, Search, Folder, CheckSquare, X, Users } from 'lucide-react';
 import { getRoleColor } from '@/lib/utils';
-import { Project, Task } from '@/types';
+import { Project, Task, User } from '@/types';
 
 interface AuthenticatedLayoutProps {
     children: ReactNode;
 }
 
 interface SearchResult {
-    type: 'project' | 'task';
+    type: 'project' | 'task' | 'user';
     id: string;
     title: string;
     subtitle?: string;
@@ -80,19 +80,45 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
                         });
                 }
 
-                // Fetch tasks from all projects (or use a global endpoint if available)
+                // Fetch teams/users
+                const teamRes = await fetch(`/api/team?userId=${currentUser?.id}`);
+                if (teamRes.ok) {
+                    const users: any[] = await teamRes.json();
+                    users
+                        .filter(u =>
+                            u.name.toLowerCase().includes(query) ||
+                            u.email.toLowerCase().includes(query) ||
+                            u.role.toLowerCase().includes(query) ||
+                            (u.skills && u.skills.some((s: string) => s.toLowerCase().includes(query)))
+                        )
+                        .slice(0, 5)
+                        .forEach(u => {
+                            results.push({
+                                type: 'user',
+                                id: u.id,
+                                title: u.name,
+                                subtitle: `${u.role} • ${u.skills?.slice(0, 2).join(', ')}${u.skills?.length > 2 ? '...' : ''}`
+                            });
+                        });
+                }
+
+                // Fetch tasks
                 const tasksRes = await fetch('/api/tasks');
                 if (tasksRes.ok) {
                     const tasks: Task[] = await tasksRes.json();
                     tasks
-                        .filter(t => t.title.toLowerCase().includes(query) || t.description?.toLowerCase().includes(query))
+                        .filter(t =>
+                            t.title.toLowerCase().includes(query) ||
+                            t.description?.toLowerCase().includes(query) ||
+                            (t.tags && t.tags.some(tag => tag.toLowerCase().includes(query)))
+                        )
                         .slice(0, 5)
                         .forEach(t => {
                             results.push({
                                 type: 'task',
                                 id: t.id,
                                 title: t.title,
-                                subtitle: `${t.status} • ${t.priority}`,
+                                subtitle: `${t.status} • ${t.priority}${t.tags?.length ? ` • ${t.tags.join(', ')}` : ''}`,
                                 projectId: t.projectId
                             });
                         });
@@ -115,6 +141,8 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
             router.push(`/projects/${result.id}`);
         } else if (result.type === 'task' && result.projectId) {
             router.push(`/projects/${result.projectId}?task=${result.id}`);
+        } else if (result.type === 'user') {
+            router.push(`/team?user=${result.id}`);
         }
         setSearchQuery('');
         setShowResults(false);
@@ -145,7 +173,6 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
 
     const handleLogout = async () => {
         await logout();
-        router.push('/login');
     };
 
     return (
@@ -161,14 +188,14 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
                         <div className="relative" ref={searchRef}>
                             <input
                                 type="text"
-                                placeholder="Search projects & tasks..."
+                                placeholder="Search . . ."
                                 value={searchQuery}
                                 onChange={(e) => {
                                     setSearchQuery(e.target.value);
                                     setShowResults(true);
                                 }}
                                 onFocus={() => setShowResults(true)}
-                                className="w-64 p-1.5 pl-8 pr-8 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400"
+                                className="w-full max-w-md p-1.5 pl-8 pr-8 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400"
                             />
                             <Search className="absolute w-4 h-4 text-gray-400 left-2.5 top-1/2 transform -translate-y-1/2" />
                             {searchQuery && (
@@ -201,9 +228,11 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
                                                 >
                                                     <div className={`w-8 h-8 rounded flex items-center justify-center flex-shrink-0 ${result.type === 'project'
                                                         ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'
-                                                        : 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400'
+                                                        : result.type === 'user'
+                                                            ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400'
+                                                            : 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400'
                                                         }`}>
-                                                        {result.type === 'project' ? <Folder size={16} /> : <CheckSquare size={16} />}
+                                                        {result.type === 'project' ? <Folder size={16} /> : result.type === 'user' ? <Users size={16} /> : <CheckSquare size={16} />}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <p className="text-sm font-medium text-gray-900 dark:text-white truncate">

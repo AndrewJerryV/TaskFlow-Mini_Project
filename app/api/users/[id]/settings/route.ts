@@ -25,6 +25,7 @@ export async function PATCH(
             emailDigestFrequency: body.emailDigestFrequency,
             pushNotifications: body.pushNotifications,
             soundAlerts: body.soundAlerts,
+            dob: body.dob,
         });
 
         if (!updatedUser) {

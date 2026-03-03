@@ -188,15 +188,6 @@ export interface DbRepoLink {
   added_at: string;
 }
 
-export interface DbFormLink {
-  id: string;
-  project_id: string;
-  title: string;
-  description?: string;
-  form_url: string;
-  created_by?: string;
-  created_at: string;
-}
 
 export interface DbNotification {
   id: string;

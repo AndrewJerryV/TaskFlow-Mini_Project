@@ -14,7 +14,6 @@ from wellness_model import WellnessModel
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "my_setfit_model")
 SKILL_MODEL_PATH = os.path.join(BASE_DIR, "skill_matcher_model")
-PEOPLE_DB_PATH = os.path.join(BASE_DIR, "people.json")
 
 # ── App & Init ──────────────────────────────────────────
 
@@ -30,19 +29,26 @@ app.add_middleware(
 print("\n--- INITIALIZING AI ENGINE ---")
 priority_ai = TaskPriorityModel(MODEL_PATH)
 sentence_model = SentenceTransformer(SKILL_MODEL_PATH)
-with open(PEOPLE_DB_PATH) as f:
-    people_db = json.load(f)
-assigner_ai = TaskAssigner(people_db, sentence_model)
+assigner_ai = TaskAssigner(sentence_model)
 urgency_ai = UrgencyModel()
 wellness_ai = WellnessModel()
 print("[SUCCESS] All systems ready!\n")
+
+@app.get("/")
+def health_check():
+    return {"status": "ok"}
+
 
 # ── Endpoint ────────────────────────────────────────────
 
 @app.post("/analyze_task")
 def analyze_task(task: FullTaskRequest):
+    print(f"Analyzing task: {task.description[:50]}...")
     priority, confidence = priority_ai.predict(task.description)
-    ranked_people, skills = assigner_ai.find_best_match(task.description)
+    
+    # Use candidates from request
+    ranked_people, skills = assigner_ai.find_best_match(task.description, task.candidates)
+    
     urgency_score = urgency_ai.predict(priority, task.status, task.days_until_due, task.days_since_update)
 
     return {
@@ -53,7 +59,7 @@ def analyze_task(task: FullTaskRequest):
             "urgency_label": urgency_ai.label(urgency_score),
             "detected_skills": skills,
         },
-        "suggested_assignees": ranked_people[:3],
+        "suggested_assignees": ranked_people[:5], # Return up to 5 suggested assignees
     }
 
 @app.post("/analyze_wellness")

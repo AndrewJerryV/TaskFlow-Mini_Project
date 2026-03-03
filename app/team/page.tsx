@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSearchParams } from 'next/navigation';
 import { UserStatsCard } from '@/components/UserStatsCard';
 import { ShieldAlert, Plus } from 'lucide-react';
 import { UserHistoryModal } from '@/components/UserHistoryModal';
@@ -11,6 +12,7 @@ import { EditSkillsDialog } from '@/components/forms/EditSkillsDialog';
 
 export default function TeamPage() {
     const { currentUser } = useAuth();
+    const searchParams = useSearchParams();
     const [teamData, setTeamData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -20,7 +22,7 @@ export default function TeamPage() {
     const fetchTeamData = () => {
         setLoading(true);
         if (currentUser?.role === 'Admin' || currentUser?.role === 'Manager') {
-            fetch('/api/team')
+            fetch(`/api/team?userId=${currentUser.id}`)
                 .then(res => res.json())
                 .then(data => {
                     if (currentUser) {
@@ -42,6 +44,17 @@ export default function TeamPage() {
     useEffect(() => {
         fetchTeamData();
     }, [currentUser]);
+
+    // Handle search parameter for specific user
+    useEffect(() => {
+        const userId = searchParams.get('user');
+        if (userId && teamData.length > 0) {
+            const user = teamData.find(u => u.id === userId);
+            if (user) {
+                setSelectedUser(user);
+            }
+        }
+    }, [searchParams, teamData]);
 
     if (loading) {
         return <div className="p-8 text-center text-gray-500">Loading team data...</div>;

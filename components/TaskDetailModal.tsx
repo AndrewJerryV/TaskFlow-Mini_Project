@@ -7,10 +7,22 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Trash2, Calendar, User as UserIcon, MessageSquare, Clock, Sparkles, ArrowRight, Edit, Play, Square } from 'lucide-react';
 import { PRIORITY_COLORS, STATUS_COLORS } from '@/lib/constants';
 import { getUserName, getActionDisplay } from '@/lib/utils';
+import { getSupabase } from '@/lib/supabase';
+import { RealtimePostgresInsertPayload } from '@supabase/supabase-js';
 
 // Icon component to render Lucide icons by name
 const ActionIcon = ({ iconName, size = 14 }: { iconName: string; size?: number }) => {
     switch (iconName) {
+        case 'trash': return <Trash2 size={size} />;
+        case 'calendar': return <Calendar size={size} />;
+        case 'user': return <UserIcon size={size} />;
+        case 'message': return <MessageSquare size={size} />;
+        case 'clock': return <Clock size={size} />;
+        case 'sparkles': return <Sparkles size={size} />;
+        case 'arrow-right': return <ArrowRight size={size} />;
+        case 'edit': return <Edit size={size} />;
+        case 'play': return <Play size={size} />;
+        case 'square': return <Square size={size} />;
         case 'Sparkles': return <Sparkles size={size} />;
         case 'ArrowRight': return <ArrowRight size={size} />;
         case 'Trash2': return <Trash2 size={size} />;
@@ -57,11 +69,54 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
     }, [editedTask?.activeTimerStart]);
 
     useEffect(() => {
-        if (task) {
-            setEditedTask(task);
-            fetchComments(task.id);
-            fetchHistory(task.id);
-        }
+        if (!task) return;
+
+        setEditedTask(task);
+        fetchComments(task.id);
+        fetchHistory(task.id);
+
+        const supabase = getSupabase();
+        const channel = supabase
+            .channel(`public:comments:task_id=eq.${task.id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'comments',
+                    filter: `task_id=eq.${task.id}`
+                },
+                (payload: RealtimePostgresInsertPayload<any>) => {
+                    setComments(prev => {
+                        if (prev.some(c => c.id === payload.new.id)) return prev;
+                        const newCommentObj: Comment = {
+                            id: payload.new.id,
+                            taskId: payload.new.task_id,
+                            userId: payload.new.user_id,
+                            content: payload.new.content,
+                            createdAt: payload.new.created_at
+                        };
+                        return [...prev, newCommentObj];
+                    });
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: 'DELETE',
+                    schema: 'public',
+                    table: 'comments',
+                    filter: `task_id=eq.${task.id}`
+                },
+                (payload) => {
+                    setComments(prev => prev.filter(c => c.id !== payload.old.id));
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [task]);
 
     const fetchComments = async (taskId: string) => {

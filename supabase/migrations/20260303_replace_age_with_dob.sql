@@ -3,8 +3,8 @@ ALTER TABLE public.users
 DROP COLUMN IF EXISTS age,
 ADD COLUMN IF NOT EXISTS dob DATE;
 
--- Recreate the admin_create_user RPC function to accept dob instead of age
-CREATE OR REPLACE FUNCTION public.admin_create_user(
+-- Recreate the admin_create_user_v2 RPC function to accept dob instead of age
+CREATE OR REPLACE FUNCTION public.admin_create_user_v2(
   p_email text,
   p_password text,
   p_name text,

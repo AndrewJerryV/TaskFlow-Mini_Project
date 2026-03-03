@@ -183,3 +183,24 @@ export function getRoleColor(role: string): string {
 export function getActionDisplay(action: string): { iconName: string; bgColor: string } {
     return ACTION_DISPLAY[action] || ACTION_DISPLAY.Updated;
 }
+
+/**
+ * Check if the local ML server (Python) is reachable.
+ * Uses a short timeout to prevent blocking the Node.js event loop/request for too long.
+ */
+export async function checkMLServerAvailability(url: string = 'http://127.0.0.1:8000/'): Promise<boolean> {
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 1000); // 1 second timeout
+
+        const response = await fetch(url, {
+            method: 'GET', // Use global health check
+            signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+        return response.ok;
+    } catch (error) {
+        return false;
+    }
+}

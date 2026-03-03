@@ -20,6 +20,7 @@ import { Modal } from '@/components/ui/Modal';
 import VideoRoom from '@/components/VideoRoom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Video, Folder, FileText, BarChart3, Plus, UserPlus, Check, Rocket, Calendar, PieChart } from 'lucide-react';
+import { getSupabase } from '@/lib/supabase';
 
 // Nav Items definition
 const NAV_ITEMS = ['Recommendations', 'Summary', 'Backlog', 'Board', 'Timeline', 'Code', 'Pages', 'Deployments', 'Calendar', 'Reports', 'Chat', 'Forms', 'Shortcuts'] as const;
@@ -45,7 +46,6 @@ export default function ProjectPage() {
     const [projectMembers, setProjectMembers] = useState<string[]>([]);
     const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
     const [lastSyncTime, setLastSyncTime] = useState(0);
-    const [hasNewFormsActivity, setHasNewFormsActivity] = useState(false);
     const { users, currentUser } = useAuth();
     // ... (rest of the component state and effects remain the same until the return statement)
 
@@ -65,18 +65,6 @@ export default function ProjectPage() {
         setActiveTab(tab);
         if (id && typeof window !== 'undefined') {
             localStorage.setItem(`project-${id}-activeTab`, tab);
-            if (tab === 'Forms') {
-                setHasNewFormsActivity(false);
-                // We'll update the seen count to the current count in the background or right away if we had it, but for simplicity, we do another fetch or just let the next polling update it.
-                fetch(`/api/projects/${id}/forms-activity`)
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.count !== undefined) {
-                            localStorage.setItem(`project-${id}-seenFormResponsesCount`, data.count.toString());
-                        }
-                    })
-                    .catch(console.error);
-            }
         }
     };
 
@@ -134,23 +122,6 @@ export default function ProjectPage() {
                 }
             }
 
-            // Check Forms Activity for Notifications
-            const formsActivityRes = await fetch(`/api/projects/${id}/forms-activity`);
-            if (formsActivityRes.ok) {
-                const activityData = await formsActivityRes.json();
-                if (activityData.count !== undefined) {
-                    const seenCountStr = localStorage.getItem(`project-${id}-seenFormResponsesCount`);
-                    const seenCount = seenCountStr ? parseInt(seenCountStr, 10) : 0;
-
-                    if (activityData.count > seenCount && activeTab !== 'Forms') {
-                        setHasNewFormsActivity(true);
-                    } else if (activeTab === 'Forms' && activityData.count > seenCount) {
-                        // User is currently viewing forms, automatically update seen count
-                        localStorage.setItem(`project-${id}-seenFormResponsesCount`, activityData.count.toString());
-                        setHasNewFormsActivity(false);
-                    }
-                }
-            }
 
         } catch (err) {
             console.error("API error fetching data:", err);
@@ -166,14 +137,84 @@ export default function ProjectPage() {
     }, [id, currentUser?.id, fetchData]);
 
     useEffect(() => {
-        if (id && currentUser?.id) {
-            // Setup polling every 3 seconds
-            const interval = setInterval(() => {
-                fetchData(true);
-            }, 3000);
+        if (!id || !currentUser?.id) return;
 
-            return () => clearInterval(interval);
-        }
+        // Subscribe to tasks
+        const supabase = getSupabase();
+        const tasksChannel = supabase
+            .channel(`public:tasks:project_id=eq.${id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'tasks',
+                    filter: `project_id=eq.${id}`
+                },
+                (payload) => {
+                    if (payload.eventType === 'INSERT') {
+                        const newTask: Task = {
+                            id: payload.new.id,
+                            projectId: payload.new.project_id,
+                            title: payload.new.title,
+                            description: payload.new.description,
+                            status: payload.new.status,
+                            priority: payload.new.priority,
+                            assigneeId: payload.new.assignee_id,
+                            dueDate: payload.new.due_date,
+                            startDate: payload.new.start_date,
+                            createdAt: payload.new.created_at,
+                            updatedAt: payload.new.updated_at,
+                            tags: payload.new.tags || [],
+                            timeLogs: payload.new.time_logs ? (typeof payload.new.time_logs === 'string' ? JSON.parse(payload.new.time_logs) : payload.new.time_logs) : []
+                        };
+                        setTasks(prev => {
+                            if (prev.some(t => t.id === newTask.id)) return prev;
+                            return [...prev, newTask];
+                        });
+                    } else if (payload.eventType === 'UPDATE') {
+                        setTasks(prev => prev.map(t => t.id === payload.new.id ? {
+                            ...t,
+                            title: payload.new.title,
+                            description: payload.new.description,
+                            status: payload.new.status,
+                            priority: payload.new.priority,
+                            assigneeId: payload.new.assignee_id,
+                            dueDate: payload.new.due_date,
+                            startDate: payload.new.start_date,
+                            updatedAt: payload.new.updated_at,
+                            tags: payload.new.tags || [],
+                            timeLogs: payload.new.time_logs ? (typeof payload.new.time_logs === 'string' ? JSON.parse(payload.new.time_logs) : payload.new.time_logs) : t.timeLogs
+                        } : t));
+                    } else if (payload.eventType === 'DELETE') {
+                        setTasks(prev => prev.filter(t => t.id !== payload.old.id));
+                    }
+                }
+            )
+            .subscribe();
+
+        // Subscribe to project members
+        const membersChannel = supabase
+            .channel(`public:project_members:project_id=eq.${id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'project_members',
+                    filter: `project_id=eq.${id}`
+                },
+                () => {
+                    // Refetch members on any change to members table for this project
+                    fetchData(true);
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(tasksChannel);
+            supabase.removeChannel(membersChannel);
+        };
     }, [id, currentUser?.id, fetchData]);
 
     const handleTaskMove = async (taskId: string, newStatus: Status) => {
@@ -415,9 +456,6 @@ export default function ProjectPage() {
                             >
                                 <span className="flex items-center gap-1.5">
                                     {item}
-                                    {item === 'Forms' && hasNewFormsActivity && (
-                                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500 mt-0.5" title="New Activity"></span>
-                                    )}
                                 </span>
                             </button>
                         ))}

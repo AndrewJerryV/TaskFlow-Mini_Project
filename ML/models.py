@@ -15,18 +15,22 @@ class TaskPriorityModel:
         return self.ID2LABEL[pred_id.item()], confidence.item()
 
 class TaskAssigner:
-    def __init__(self, people, sentence_model):
+    def __init__(self, sentence_model):
         self.model = sentence_model
-        self.people = people
-        self.all_skills = list({s for p in people for s in p["skills"]})
-        self.skill_embeddings = self.model.encode(self.all_skills, convert_to_tensor=True)
 
-    def find_best_match(self, task_text, max_skills=5, min_gap=0.10):
+    def find_best_match(self, task_text, candidates, max_skills=5, min_gap=0.10):
+        # Extract all unique skills from the provided candidates
+        all_skills = list({s for p in candidates for s in p.get("skills", [])})
+        if not all_skills:
+            return [], []
+
+        skill_embeddings = self.model.encode(all_skills, convert_to_tensor=True)
+
         scores = util.cos_sim(
             self.model.encode(task_text, convert_to_tensor=True),
-            self.skill_embeddings,
+            skill_embeddings,
         )[0]
-        ranked = sorted(zip(self.all_skills, scores.tolist()), key=lambda x: x[1], reverse=True)
+        ranked = sorted(zip(all_skills, scores.tolist()), key=lambda x: x[1], reverse=True)
 
         # Find the biggest gap in the top candidates to separate signal from noise
         top = ranked[:max_skills * 2]
@@ -42,11 +46,12 @@ class TaskAssigner:
         req_set = set(required)
 
         results = []
-        for p in self.people:
-            ps = set(p["skills"])
+        for p in candidates:
+            ps = set(p.get("skills", []))
             matched = list(ps & req_set)
             results.append({
                 "name": p["name"],
+                "id": p.get("id"),
                 "match_percentage": round(len(matched) / len(req_set) * 100, 1) if req_set else 0.0,
                 "matching_skills": matched,
                 "missing_skills": list(req_set - ps),
@@ -80,6 +85,7 @@ class FullTaskRequest(BaseModel):
     status: str
     days_until_due: int
     days_since_update: int
+    candidates: list[dict] = []
 
 class WellnessRequest(BaseModel):
     active_tasks: int

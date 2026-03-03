@@ -87,6 +87,27 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
         setTags(tags.filter(t => t !== tagToRemove));
     };
 
+    const [aiUnavailable, setAiUnavailable] = useState(false);
+
+    useEffect(() => {
+        const checkAiHealth = async () => {
+            try {
+                // Quick check to see if AI service is reachable
+                const res = await fetch('/api/ai/assign', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ healthCheck: true })
+                });
+                if (res.status === 503) {
+                    setAiUnavailable(true);
+                }
+            } catch (err) {
+                setAiUnavailable(true);
+            }
+        };
+        checkAiHealth();
+    }, []);
+
     const handleSmartAssign = async () => {
         if (!title) {
             alert('Please enter a summary first so the AI can analyze requirements.');
@@ -104,20 +125,23 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
             });
             const data = await res.json();
 
+            if (res.status === 503 || data.status === 'unavailable') {
+                setAiUnavailable(true);
+                throw new Error(data.error || 'AI Service Unavailable');
+            }
+
             if (data.error) throw new Error(data.error);
 
             dataRef.current = data;
             setAssigneeId(data.candidateId);
             setAiReasoning(data.reasoning);
-            // Check if reasoning string contains "High burnout risk" or similar keywords if distinct field not sent
-            // But we can parse the risk from the response if we included it in the root or details
-            // The API returns `allCandidates` with risk, let's look at the first one
+
             const topCandidate = data.allCandidates?.[0];
             if (topCandidate) setAiRisk(topCandidate.risk);
 
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            alert('Failed to get AI suggestion');
+            alert(error.message || 'Failed to get AI suggestion');
         } finally {
             setIsAnalyzing(false);
         }
@@ -182,14 +206,18 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
                 <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md border border-blue-100 dark:border-blue-800">
                     <div className="flex justify-between items-center mb-2">
                         <label className="block text-sm font-medium text-blue-900 dark:text-blue-100">Assignee</label>
-                        <button
-                            type="button"
-                            onClick={handleSmartAssign}
-                            disabled={isAnalyzing || isMember}
-                            className={`text-xs px-2 py-1 rounded flex items-center gap-1 text-white transition-colors ${isAnalyzing || isMember ? 'bg-blue-300 dark:bg-blue-700 opacity-50 cursor-not-allowed' : 'bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:opacity-90'}`}
-                        >
-                            {isAnalyzing ? 'Analyzing...' : '✨ Smart Assign'}
-                        </button>
+                        {aiUnavailable ? (
+                            <span className="text-[10px] text-gray-400 italic">AI Service Unavailable</span>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={handleSmartAssign}
+                                disabled={isAnalyzing || isMember}
+                                className={`text-xs px-2 py-1 rounded flex items-center gap-1 text-white transition-colors ${isAnalyzing || isMember ? 'bg-blue-300 dark:bg-blue-700 opacity-50 cursor-not-allowed' : 'bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:opacity-90'}`}
+                            >
+                                {isAnalyzing ? 'Analyzing...' : '✨ Smart Assign'}
+                            </button>
+                        )}
                     </div>
 
                     <div className="flex gap-2 mb-2">

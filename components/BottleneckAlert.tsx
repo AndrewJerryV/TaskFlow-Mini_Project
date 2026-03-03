@@ -2,13 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { Task, User } from '@/types';
-import { AlertTriangle, Activity, Users, ArrowRight, CheckCircle2, Loader2, Zap } from 'lucide-react';
+import { AlertTriangle, Activity, Users, CheckCircle2, Loader2, Zap } from 'lucide-react';
 
 interface BottleneckAlertProps {
     tasks?: Task[];
     users?: User[];
 }
-
 
 interface BottleneckResult {
     type: 'person' | 'process';
@@ -41,75 +40,14 @@ export function BottleneckAlert({ tasks = [], users = [] }: BottleneckAlertProps
                 setHealthSummary(data.healthSummary ?? null);
             } catch (err) {
                 console.error('Failed to fetch bottlenecks:', err);
-                // Fallback to client-side analysis
-                analyzeLocally();
+                // strictly rely on API, no local fallback to heuristics
+                setBottlenecks([]);
             } finally {
                 setLoading(false);
             }
         }
 
-        function analyzeLocally() {
-            const now = new Date();
-            const localBottlenecks: BottleneckResult[] = [];
-
-            const columns = [
-                { status: 'To Do', label: 'To Do' },
-                { status: 'In Progress', label: 'In Progress' },
-                { status: 'Review', label: 'Review' }
-            ];
-
-            columns.forEach(({ status, label }) => {
-                const columnTasks = tasks.filter(t => t.status === status);
-                if (columnTasks.length >= 8) {
-                    const avgDays = Math.round(
-                        columnTasks.reduce((sum, t) => {
-                            const diff = Math.floor((now.getTime() - new Date(t.updatedAt).getTime()) / 86400000);
-                            return sum + diff;
-                        }, 0) / columnTasks.length
-                    );
-                    localBottlenecks.push({
-                        type: 'process',
-                        location: label,
-                        taskCount: columnTasks.length,
-                        avgDaysStuck: avgDays,
-                        severity: columnTasks.length >= 12 ? 'high' : 'medium',
-                        recommendation: `The "${label}" column has ${columnTasks.length} tasks averaging ${avgDays} days. Consider breaking down tasks or adding capacity.`
-                    });
-                }
-            });
-
-            users.forEach(user => {
-                const userTasks = tasks.filter(t =>
-                    t.assigneeId === user.id && t.status !== 'Done'
-                );
-                const staleTasks = userTasks.filter(t => {
-                    const days = Math.floor((now.getTime() - new Date(t.updatedAt).getTime()) / 86400000);
-                    return days > 5;
-                });
-                if (staleTasks.length >= 3) {
-                    const avgDays = Math.round(
-                        staleTasks.reduce((sum, t) => {
-                            const diff = Math.floor((now.getTime() - new Date(t.updatedAt).getTime()) / 86400000);
-                            return sum + diff;
-                        }, 0) / staleTasks.length
-                    );
-                    localBottlenecks.push({
-                        type: 'person',
-                        location: user.name || 'Unknown',
-                        taskCount: staleTasks.length,
-                        avgDaysStuck: avgDays,
-                        severity: staleTasks.length >= 5 ? 'high' : 'medium',
-                        recommendation: `${user.name} has ${staleTasks.length} stale tasks. Check for blockers or redistribute work.`
-                    });
-                }
-            });
-
-            setBottlenecks(localBottlenecks);
-            setMlPowered(false);
-        }
-
         fetchBottlenecks();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tasks.length, users.length]);
 
     if (loading) {

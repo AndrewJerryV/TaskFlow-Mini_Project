@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
   max_workload INTEGER DEFAULT 5,
   phone TEXT,
   office_address TEXT,
+  dob DATE,
   -- Settings fields
   timezone TEXT DEFAULT 'UTC (Coordinated Universal Time)',
   quiet_hours_start TEXT DEFAULT '20:00',
@@ -51,6 +52,11 @@ CREATE TABLE IF NOT EXISTS project_members (
   joined_at TIMESTAMPTZ DEFAULT NOW(),
   PRIMARY KEY (project_id, user_id)
 );
+
+-- Enforce at most 1 admin/owner per project
+CREATE UNIQUE INDEX IF NOT EXISTS idx_single_admin_owner_per_project 
+ON project_members (project_id) 
+WHERE (role = 'Admin' OR role = 'Owner');
 
 -- Seed initial memberships (owners of existing projects)
 INSERT INTO project_members (project_id, user_id, role)
@@ -418,19 +424,6 @@ CREATE TABLE IF NOT EXISTS repo_links (
 ALTER TABLE repo_links ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all for repo_links" ON repo_links FOR ALL USING (true) WITH CHECK (true);
 
--- Form links table
-CREATE TABLE IF NOT EXISTS form_links (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  description TEXT,
-  form_url TEXT NOT NULL,
-  created_by TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE form_links ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow all for form_links" ON form_links FOR ALL USING (true) WITH CHECK (true);
 
 -- Notifications table
 CREATE TABLE IF NOT EXISTS notifications (
@@ -448,3 +441,86 @@ CREATE TABLE IF NOT EXISTS notifications (
 
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all for notifications" ON notifications FOR ALL USING (true) WITH CHECK (true);
+C R E A T E   O R   R E P L A C E   F U N C T I O N   g e t _ a u t o c o m p l e t e _ d a t a ( ) 
+ 
+ R E T U R N S   j s o n 
+ 
+ L A N G U A G E   p l p g s q l 
+ 
+ A S   $ $ 
+ 
+ D E C L A R E 
+ 
+         s k i l l s _ a r r a y   t e x t [ ] ; 
+ 
+         t a g s _ a r r a y   t e x t [ ] ; 
+ 
+         t i t l e s _ a r r a y   t e x t [ ] ; 
+ 
+ B E G I N 
+ 
+         - -   A g g r e g a t i n g   d i s t i n c t   s k i l l s 
+ 
+         S E L E C T   A R R A Y ( 
+ 
+                 S E L E C T   D I S T I N C T   u n n e s t ( s k i l l s ) 
+ 
+                 F R O M   u s e r s 
+ 
+                 W H E R E   s k i l l s   I S   N O T   N U L L 
+ 
+                 O R D E R   B Y   1 
+ 
+         )   I N T O   s k i l l s _ a r r a y ; 
+ 
+ 
+ 
+         - -   A g g r e g a t i n g   d i s t i n c t   t a g s 
+ 
+         S E L E C T   A R R A Y ( 
+ 
+                 S E L E C T   D I S T I N C T   u n n e s t ( t a g s ) 
+ 
+                 F R O M   t a s k s 
+ 
+                 W H E R E   t a g s   I S   N O T   N U L L 
+ 
+                 O R D E R   B Y   1 
+ 
+         )   I N T O   t a g s _ a r r a y ; 
+ 
+ 
+ 
+         - -   A g g r e g a t i n g   d i s t i n c t   t i t l e s 
+ 
+         S E L E C T   A R R A Y ( 
+ 
+                 S E L E C T   D I S T I N C T   t i t l e 
+ 
+                 F R O M   t a s k s 
+ 
+                 W H E R E   t i t l e   I S   N O T   N U L L 
+ 
+                 O R D E R   B Y   1 
+ 
+         )   I N T O   t i t l e s _ a r r a y ; 
+ 
+ 
+ 
+         - -   R e t u r n   a s   a   J S O N   o b j e c t 
+ 
+         R E T U R N   j s o n _ b u i l d _ o b j e c t ( 
+ 
+                 ' s k i l l s ' ,   C O A L E S C E ( s k i l l s _ a r r a y ,   A R R A Y [ ] : : t e x t [ ] ) , 
+ 
+                 ' t a g s ' ,   C O A L E S C E ( t a g s _ a r r a y ,   A R R A Y [ ] : : t e x t [ ] ) , 
+ 
+                 ' t i t l e s ' ,   C O A L E S C E ( t i t l e s _ a r r a y ,   A R R A Y [ ] : : t e x t [ ] ) 
+ 
+         ) ; 
+ 
+ E N D ; 
+ 
+ $ $ ; 
+ 
+ 

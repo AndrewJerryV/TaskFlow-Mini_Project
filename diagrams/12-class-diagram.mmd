@@ -168,18 +168,6 @@ classDiagram
         +deleteRepoLink(id: string) Promise~boolean~
     }
 
-    class FormLink {
-        +id : uuid
-        +project_id : text
-        +title : text
-        +description : text
-        +form_url : text
-        +created_by : text
-        +created_at : timestamptz
-        +getFormLinks(projectId: string) Promise~FormLink[]~
-        +addFormLink(form: FormLink) Promise~void~
-        +deleteFormLink(id: string) Promise~boolean~
-    }
 
     User "1" --> "0..*" Project : owns
     User "1" --> "0..*" Task : assigned to
@@ -190,6 +178,5 @@ classDiagram
     Project "1" --> "0..*" Form : has
     Project "1" --> "0..*" Shortcut : has
     Project "1" --> "0..*" RepoLink : has
-    Project "1" --> "0..*" FormLink : has
     Task "1" --> "0..*" Comment : has
     Form "1" --> "0..*" FormResponse : receives

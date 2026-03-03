@@ -20,6 +20,7 @@ export default function SettingsPage() {
     const [quietHoursEnd, setQuietHoursEnd] = useState('08:00');
     const [quietHoursWeekends, setQuietHoursWeekends] = useState(true);
     const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+    const [dob, setDob] = useState('');
 
     // Notification Settings
     const [emailDigest, setEmailDigest] = useState('Daily Summary');
@@ -51,6 +52,7 @@ export default function SettingsPage() {
             if (currentUser.emailDigestFrequency) setEmailDigest(currentUser.emailDigestFrequency);
             if (currentUser.pushNotifications !== undefined) setPushNotifications(currentUser.pushNotifications);
             if (currentUser.soundAlerts !== undefined) setSoundAlerts(currentUser.soundAlerts);
+            setDob(currentUser.dob || '');
         }
     }, [currentUser]);
 
@@ -78,6 +80,7 @@ export default function SettingsPage() {
                     emailDigestFrequency: emailDigest,
                     pushNotifications,
                     soundAlerts,
+                    dob,
                 }),
             });
             if (res.ok) {
@@ -139,6 +142,15 @@ export default function SettingsPage() {
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Workspace Name</label>
                                         <input type="text" defaultValue="My Software Team" className="max-w-md w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                                    </div>
+                                    <div className="max-w-md">
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date of Birth</label>
+                                        <input
+                                            type="date"
+                                            value={dob}
+                                            onChange={(e) => setDob(e.target.value)}
+                                            className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                        />
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>

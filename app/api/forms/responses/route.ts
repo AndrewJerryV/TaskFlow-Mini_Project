@@ -44,6 +44,55 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Failed to save response' }, { status: 500 });
         }
 
+        // Trigger notification
+        try {
+            const form = await db.getFormById(body.formId);
+            if (form) {
+                const respondent = await db.getUser(body.respondentId);
+                const respondentName = respondent ? respondent.name : 'A user';
+
+                const notificationTitle = 'New Form Response';
+                const notificationMessage = `${respondentName} submitted a response to "${form.title}"`;
+                const notificationLink = `/projects/${form.projectId}?tab=Forms`;
+
+                // Notify form creator
+                await db.addNotification({
+                    userId: form.createdBy,
+                    type: 'new_form',
+                    title: notificationTitle,
+                    message: notificationMessage,
+                    link: notificationLink,
+                    entityId: form.id,
+                    projectId: form.projectId,
+                });
+
+                // Also notify managers/admins in the project
+                const { data: members } = await (db as any).getSupabase()
+                    .from('project_members')
+                    .select('user_id, role')
+                    .eq('project_id', form.projectId);
+
+                if (members) {
+                    for (const member of members) {
+                        if ((member.role === 'Manager' || member.role === 'Admin') && member.user_id !== form.createdBy) {
+                            await db.addNotification({
+                                userId: member.user_id,
+                                type: 'new_form',
+                                title: notificationTitle,
+                                message: notificationMessage,
+                                link: notificationLink,
+                                entityId: form.id,
+                                projectId: form.projectId,
+                            });
+                        }
+                    }
+                }
+            }
+        } catch (notifError) {
+            console.error('Error triggering form notification:', notifError);
+            // Don't fail the response if notification fails
+        }
+
         return NextResponse.json(result, { status: 201 });
     } catch (error) {
         console.error('Error submitting form response:', error);
