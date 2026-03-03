@@ -281,6 +281,29 @@ export default function ProjectPage() {
         setTasks(prev => prev.filter(t => t.id !== taskId));
     };
 
+    const handleRemoveMember = async (userIdToRemove: string) => {
+        if (!confirm('Are you sure you want to remove this member from the project?')) return;
+
+        try {
+            const res = await fetch(`/api/projects/${id}/members/${userIdToRemove}?requestUserId=${currentUser?.id}`, {
+                method: 'DELETE',
+            });
+
+            if (res.ok) {
+                // Remove from local state
+                setProjectMembers(prev => prev.filter(uid => uid !== userIdToRemove));
+                setSelectedMembers(prev => prev.filter(uid => uid !== userIdToRemove));
+                setLastSyncTime(Date.now());
+            } else {
+                const data = await res.json();
+                alert(data.error || 'Failed to remove member');
+            }
+        } catch (error) {
+            console.error('Error removing member:', error);
+            alert('Failed to remove member');
+        }
+    };
+
     if (loading) return <div className="p-10 text-center text-gray-500 dark:text-gray-400">Loading Workspace...</div>;
     if (!project) return (
         <div className="flex flex-col items-center justify-center h-[calc(100vh-64px)] p-10 bg-gray-50 dark:bg-gray-900">
@@ -451,50 +474,9 @@ export default function ProjectPage() {
             </div>
 
             {/* Invite Team Member Modal */}
-            <Modal isOpen={isInviteOpen} onClose={() => setIsInviteOpen(false)} title="Add Team Members">
+            <Modal isOpen={isInviteOpen} onClose={() => setIsInviteOpen(false)} title="Add Team Members" maxWidth="max-w-2xl">
                 <div className="p-4">
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Select team members to add to this project:</p>
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                        {users.filter(u => u.role !== 'Admin').map(user => {
-                            const isSelected = selectedMembers.includes(user.id);
-                            return (
-                                <div
-                                    key={user.id}
-                                    className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${isSelected ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700' : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
-                                        }`}
-                                    onClick={() => {
-                                        if (isSelected) {
-                                            setSelectedMembers(prev => prev.filter(id => id !== user.id));
-                                        } else {
-                                            setSelectedMembers(prev => [...prev, user.id]);
-                                        }
-                                    }}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center text-white font-medium">
-                                            {user.name.charAt(0).toUpperCase()}
-                                        </div>
-                                        <div>
-                                            <p className="font-medium text-gray-900 dark:text-white">{user.name}</p>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
-                                        </div>
-                                    </div>
-                                    {isSelected && (
-                                        <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                                            <Check size={14} className="text-white" />
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                    <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                        <button
-                            onClick={() => setIsInviteOpen(false)}
-                            className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
-                        >
-                            Cancel
-                        </button>
+                    <div className="flex items-center gap-4 mb-4">
                         <button
                             onClick={async () => {
                                 console.log("Done button clicked. Selected members:", selectedMembers);
@@ -530,11 +512,51 @@ export default function ProjectPage() {
                                     alert('Failed to update members - check console for details');
                                 }
                             }}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-md text-sm font-medium transition-colors shadow-sm cursor-pointer"
                         >
                             Done
                         </button>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">Select team members to add to this project:</p>
                     </div>
+                    <div className="space-y-2 max-h-[32rem] overflow-y-auto pr-2">
+                        {users.filter(u => u.role !== 'Admin').map(user => {
+                            const isSelected = selectedMembers.includes(user.id);
+                            return (
+                                <div
+                                    key={user.id}
+                                    className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${isSelected ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700' : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                                        }`}
+                                    onClick={() => {
+                                        if (isSelected) {
+                                            setSelectedMembers(prev => prev.filter(id => id !== user.id));
+                                        } else {
+                                            setSelectedMembers(prev => [...prev, user.id]);
+                                        }
+                                    }}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center text-white font-medium overflow-hidden">
+                                            {user.avatarUrl ? (
+                                                <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                                            ) : (
+                                                user.name.charAt(0).toUpperCase()
+                                            )}
+                                        </div>
+                                        <div>
+                                            <p className="font-medium text-gray-900 dark:text-white">{user.name}</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
+                                        </div>
+                                    </div>
+                                    {isSelected && (
+                                        <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
+                                            <Check size={14} className="text-white" />
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                    {/* Done and Cancel buttons moved to the top header area of this modal */}
                 </div>
             </Modal>
 
@@ -561,8 +583,12 @@ export default function ProjectPage() {
                             })
                             .map((user, idx) => (
                                 <div key={user!.id} className="flex items-start gap-4 p-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg shadow-sm">
-                                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-lg border border-indigo-200 dark:border-indigo-800 relative">
-                                        {user!.name.charAt(0).toUpperCase()}
+                                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-lg border border-indigo-200 dark:border-indigo-800 relative overflow-hidden">
+                                        {user!.avatarUrl ? (
+                                            <img src={user!.avatarUrl} alt={user!.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            user!.name.charAt(0).toUpperCase()
+                                        )}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center justify-between">
@@ -606,6 +632,15 @@ export default function ProjectPage() {
                                             </div>
                                         )}
                                     </div>
+
+                                    {(currentUser?.role === 'Admin' || currentUser?.role === 'Manager') && user!.id !== currentUser?.id && (
+                                        <button
+                                            onClick={() => handleRemoveMember(user!.id)}
+                                            className="ml-2 px-3 py-1.5 text-xs font-medium text-red-600 hover:text-white border border-red-200 hover:bg-red-600 dark:hover:bg-red-700 dark:border-red-900/50 rounded-md transition-colors flex-shrink-0"
+                                        >
+                                            Remove
+                                        </button>
+                                    )}
                                 </div>
                             ))}
 
