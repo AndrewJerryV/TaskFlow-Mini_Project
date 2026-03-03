@@ -46,6 +46,8 @@ export interface DbUser {
   avatar_url?: string;
   role: 'Admin' | 'Manager' | 'Member';
   created_at?: string;
+  dob?: string;
+  skill_experience?: Record<string, number>;
   skills?: string[];
   wellness_score?: number;
   max_workload?: number;

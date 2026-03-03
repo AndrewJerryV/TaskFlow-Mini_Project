@@ -36,6 +36,29 @@ export function formatDateTime(dateStr: string): string {
 }
 
 /**
+ * Calculates current age from a Date of Birth string
+ * @param dob Date of birth string (e.g., "1990-01-01")
+ * @returns number representing age, or null if dob is invalid/missing
+ */
+export function calculateAge(dob: string | undefined | null): number | null {
+    if (!dob) return null;
+
+    const birthDate = new Date(dob);
+    if (isNaN(birthDate.getTime())) return null;
+
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+
+    // If birth month hasn't occurred yet this year, or it's the birth month but the day hasn't occurred yet
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+    }
+
+    return age;
+}
+
+/**
  * Format a date as relative time (e.g., "2 hours ago")
  */
 export function formatRelativeTime(dateStr: string): string {

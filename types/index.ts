@@ -10,6 +10,8 @@ export interface User {
   role: 'Admin' | 'Manager' | 'Member';
   // AI/Health Extensions
   skills: string[];
+  dob?: string;
+  skillExperience?: Record<string, number>;
   wellnessScore: number; // 0-100
   maxWorkload: number;
   burnoutRisk?: 'Low' | 'Medium' | 'High'; // Derived

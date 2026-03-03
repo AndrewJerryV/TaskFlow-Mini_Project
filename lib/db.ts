@@ -10,6 +10,8 @@ function toUser(dbUser: DbUser): User {
         avatarUrl: dbUser.avatar_url,
         role: dbUser.role,
         createdAt: dbUser.created_at,
+        dob: dbUser.dob,
+        skillExperience: typeof dbUser.skill_experience === 'string' ? JSON.parse(dbUser.skill_experience) : dbUser.skill_experience,
         // Use actual skills from database
         skills: dbUser.skills || [],
         wellnessScore: dbUser.wellness_score || 85,
@@ -247,15 +249,19 @@ class Database {
         password?: string;
         fullName: string;
         role: string;
-        skills: string[];
+        dob?: string;
+        skillExperience?: Record<string, number>;
         maxWorkload: number;
     }): Promise<User | null> {
+        const skillsArray = userData.skillExperience ? Object.keys(userData.skillExperience) : [];
         const { data: userId, error } = await getSupabase().rpc('admin_create_user', {
             p_email: userData.email,
             p_password: userData.password || 'TaskFlow@123',
             p_full_name: userData.fullName,
             p_user_role: userData.role,
-            p_skills: userData.skills,
+            p_skills: skillsArray,
+            p_dob: userData.dob,
+            p_skill_experience: userData.skillExperience,
             p_max_workload: userData.maxWorkload
         });
 

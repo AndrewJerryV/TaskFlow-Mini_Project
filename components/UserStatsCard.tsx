@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
 import { User } from '@/types';
+import { calculateAge } from '@/lib/utils';
 
 interface UserStatsCardProps {
     user: User & {
@@ -15,7 +15,8 @@ interface UserStatsCardProps {
 }
 
 export function UserStatsCard({ user, onClick }: UserStatsCardProps) {
-    const { stats } = user;
+    const { stats, dob } = user;
+    const age = calculateAge(dob);
 
     // Determine color based on status/wellness
     const getWellnessColor = (score: number) => {
@@ -46,7 +47,15 @@ export function UserStatsCard({ user, onClick }: UserStatsCardProps) {
                     )}
                     <div>
                         <h3 className="font-semibold text-gray-900 dark:text-white">{user.name}</h3>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">{user.role}</span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">{user.role}</span>
+                            {age !== null && (
+                                <>
+                                    <span className="text-xs text-gray-300 dark:text-gray-600">•</span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">{age} yrs</span>
+                                </>
+                            )}
+                        </div>
                     </div>
                 </div>
                 <div className={`text-xs font-semibold px-2 py-1 rounded-full ${getWellnessColor(user.wellnessScore)}`}>
@@ -71,11 +80,17 @@ export function UserStatsCard({ user, onClick }: UserStatsCardProps) {
                 <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-2">Skills</h4>
                 <div className="flex flex-wrap gap-1">
                     {user.skills && user.skills.length > 0 ? (
-                        user.skills.map((skill, idx) => (
-                            <span key={idx} className="text-[10px] bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded">
-                                {skill}
-                            </span>
-                        ))
+                        user.skills.map((skill, idx) => {
+                            const exp = user.skillExperience ? user.skillExperience[skill] : undefined;
+                            return (
+                                <span key={idx} className="text-[10px] bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded inline-flex items-center gap-1">
+                                    {skill}
+                                    {exp !== undefined && (
+                                        <span className="text-gray-400 dark:text-gray-500 font-medium">({exp}y)</span>
+                                    )}
+                                </span>
+                            );
+                        })
                     ) : (
                         <span className="text-xs text-gray-400 italic">No skills listed</span>
                     )}
