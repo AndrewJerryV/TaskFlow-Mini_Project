@@ -1,3 +1,39 @@
+import json
+import os
+
+# Suppress TensorFlow logging to avoid clutter in the terminal
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from sentence_transformers import SentenceTransformer
+from models import TaskPriorityModel, TaskAssigner, UrgencyModel, FullTaskRequest, WellnessRequest
+from wellness_model import WellnessModel
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, "my_setfit_model")
+SKILL_MODEL_PATH = os.path.join(BASE_DIR, "skill_matcher_model")
+
+# ── App & Init ──────────────────────────────────────────
+
+app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+print("\n--- INITIALIZING AI ENGINE ---")
+priority_ai = TaskPriorityModel(MODEL_PATH)
+sentence_model = SentenceTransformer(SKILL_MODEL_PATH)
+assigner_ai = TaskAssigner(sentence_model)
+urgency_ai = UrgencyModel()
+wellness_ai = WellnessModel()
+print("[SUCCESS] All systems ready!\n")
+
 # ── Bottleneck Analysis Endpoint ───────────────────────
 
 @app.get("/analyze_bottlenecks")

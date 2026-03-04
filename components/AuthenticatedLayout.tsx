@@ -22,7 +22,7 @@ interface SearchResult {
 }
 
 export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
-    const { currentUser, isLoading, logout } = useAuth();
+    const { currentUser, isLoading, logout, authError, setAuthError, isLoggingOut } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
 
@@ -178,6 +178,27 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
     return (
         <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
             <div className="flex-1 overflow-y-auto">
+                {/* Logout Loading Overlay */}
+                {isLoggingOut && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                        <div className="bg-white dark:bg-gray-800 px-6 py-4 rounded shadow text-lg font-semibold text-gray-700 dark:text-gray-200">
+                            Logging out...
+                        </div>
+                    </div>
+                )}
+                {/* Error Banner */}
+                {authError && (
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 text-center relative">
+                        <span>{authError}</span>
+                        <button
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-red-700 hover:text-red-900"
+                            onClick={() => setAuthError('')}
+                            aria-label="Dismiss error"
+                        >
+                            &times;
+                        </button>
+                    </div>
+                )}
                 {/* Top Navbar */}
                 <div className="h-12 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between px-4">
                     <div className="flex items-center space-x-4">

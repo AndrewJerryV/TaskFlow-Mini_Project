@@ -384,7 +384,7 @@ export default function ProjectPage() {
                     >
                         <Video size={16} /> Join Meeting
                     </button>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
                         <div
                             className="flex -space-x-2 cursor-pointer hover:opacity-80 transition-opacity"
                             onClick={() => setIsMembersListOpen(true)}

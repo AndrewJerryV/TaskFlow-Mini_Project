@@ -20,6 +20,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   setCurrentUser: (user: User | null) => void;
   setAuthError: (message: string) => void;
+  isLoggingOut: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -70,15 +71,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const loadSession = async () => {
       try {
         const supabase = getSupabase();
-
+        console.log('[SignIn] Getting session...');
         const { data } = await supabase.auth.getSession();
+        console.log('[SignIn] Session data:', data);
 
         if (!data.session?.user) {
+          console.log('[SignIn] No user session found.');
           setCurrentUser(null);
           setIsLoading(false);
           return;
         }
 
+        console.log('[SignIn] Loading user profile for:', data.session.user.id);
         await loadProfile(
           data.session.user.id,
           data.session.user.email ?? null,
@@ -87,10 +91,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Fetch all users after load profile
         try {
+          console.log('[SignIn] Fetching all users...');
           const res = await fetch('/api/users');
           if (res.ok) {
             const allUsers = await res.json();
             setUsers(allUsers);
+            console.log('[SignIn] All users loaded.');
           }
         } catch (e) {
           console.error('Failed to fetch users in context', e);
@@ -104,13 +110,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setCurrentUser(null);
                 return;
               }
-
+              console.log('[SignIn] Auth state changed, loading profile for:', session.user.id);
               await loadProfile(
                 session.user.id,
                 session.user.email ?? null,
                 session.user.app_metadata.provider
               );
-
             } catch (err) {
               console.error('Auth state change error:', err);
               setCurrentUser(null);
@@ -136,12 +141,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadProfile = async (userId: string, email: string | null, provider?: string) => {
     const supabase = getSupabase();
-
+    console.log('[SignIn] Loading profile for user:', userId);
     let { data, error } = await supabase
       .from('users')
       .select('*')
       .eq('id', userId)
       .single<ProfileRow>();
+
+    if (error) {
+      console.error('[SignIn] Error loading user profile:', error);
+    }
 
     // If OAuth user isn't in DB, block login and show message on login page
     if (error && error.code === 'PGRST116') {
@@ -154,6 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      console.log('[SignIn] Creating new user profile for:', userId);
       const { data: created, error: insertError } = await supabase
         .from('users')
         .insert({
@@ -169,7 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single<ProfileRow>();
 
       if (insertError) {
-        console.error('Failed to create profile:', insertError);
+        console.error('[SignIn] Failed to create profile:', insertError);
         setCurrentUser(null);
         return;
       }
@@ -178,6 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (!data) {
+      console.error('[SignIn] No user data returned after profile load.');
       setCurrentUser(null);
       return;
     }
@@ -214,20 +225,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setAuthError('');
     setCurrentUser(mappedUser);
+    console.log('[SignIn] User profile loaded and set:', mappedUser);
   };
 
   const login = (_user: User) => { };
 
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const logout = async () => {
-    try {
-      const supabase = getSupabase();
-      await supabase.auth.signOut();
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      setCurrentUser(null);
-      setAuthError('');
-    }
+    console.log('[Logout] Initiating logout process');
+    setIsLoggingOut(true);
+    // Instantly clear user state and stop loading
+    setCurrentUser(null);
+    setIsLoggingOut(false);
+    // Run signOut in the background
+    const supabase = getSupabase();
+    supabase.auth.signOut({ scope: 'local' })
+      .then(() => {
+        console.log('[Logout] supabase.auth.signOut() completed');
+      })
+      .catch((error) => {
+        console.error('Logout error:', error);
+        setAuthError('Supabase server is currently unavailable. Please try again later.');
+      });
+    // No await, UI is instant
   };
 
   return (
@@ -240,7 +260,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         setCurrentUser,
-        setAuthError
+        setAuthError,
+        isLoggingOut
       }}
     >
       {children}
