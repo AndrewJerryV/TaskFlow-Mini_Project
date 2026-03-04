@@ -448,7 +448,7 @@ export default function SummaryView({ tasks, projectId, currentUser }: SummaryVi
             <h2 className="text-lg font-bold text-gray-800 dark:text-white">Recent Activity</h2>
             <Activity size={16} className="text-gray-400 dark:text-gray-500" />
           </div>
-          <div className="space-y-1 max-h-48 overflow-y-auto">
+          <div className="space-y-1 overflow-y-auto" style={{ maxHeight: '260px', minHeight: '260px' }}>
             {activityLogs.length > 0 ? (
               activityLogs.map((log) => (
                 <ActivityItem
@@ -490,14 +490,6 @@ export default function SummaryView({ tasks, projectId, currentUser }: SummaryVi
           </div>
         </div>
       )}
-
-      {/* Tags Row */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-gray-800 dark:text-white">Popular Tags</h2>
-        </div>
-        <TagCloud tasks={tasks} />
-      </div>
     </div>
   );
 }

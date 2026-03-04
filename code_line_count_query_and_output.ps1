@@ -8,13 +8,20 @@ $fileLineCounts = @()
 
 foreach ($file in $files) {
     if (Test-Path $file) {
-        $lines = (Get-Content $file | Measure-Object -Line).Lines
-        $fileLineCounts += [PSCustomObject]@{ File = $file; Lines = $lines }
+        # Count only non-empty lines
+        $nonEmptyLines = (Get-Content $file | Where-Object { $_.Trim() -ne "" } | Measure-Object -Line).Lines
+        $fileLineCounts += [PSCustomObject]@{ File = $file; Lines = $nonEmptyLines }
     }
 }
 
 # Sort and display
-$fileLineCounts | Sort-Object Lines -Descending | Format-Table -AutoSize
+$sorted = $fileLineCounts | Sort-Object Lines -Descending
+$sorted | Format-Table -AutoSize
 
-# Save output to a file
-$fileLineCounts | Sort-Object Lines -Descending | Out-File code_line_counts.txt
+# Calculate total non-empty lines
+$totalLines = ($fileLineCounts | Measure-Object -Property Lines -Sum).Sum
+Write-Host "`nTotal non-empty lines of code: $totalLines`n" -ForegroundColor Cyan
+
+# Save output to a file (including total)
+$sorted | Out-File code_line_counts.txt
+Add-Content code_line_counts.txt "`nTotal non-empty lines of code: $totalLines`n"

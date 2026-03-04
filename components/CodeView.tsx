@@ -168,13 +168,6 @@ export default function CodeView({ projectId }: CodeViewProps) {
                         Quick access to your GitHub repositories
                     </p>
                 </div>
-                <button
-                    onClick={() => setIsAddOpen(true)}
-                    className="flex items-center gap-2 bg-gray-900 dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-100 text-white dark:text-gray-900 px-4 py-2 rounded-lg font-medium transition-colors"
-                >
-                    <Plus size={18} />
-                    Add Repository
-                </button>
             </div>
 
             {/* Repos Grid */}

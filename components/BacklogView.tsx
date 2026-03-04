@@ -235,7 +235,20 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskD
             <span className="ml-2 text-gray-400 dark:text-gray-500 font-normal text-xs">({sprintTasks.length} items)</span>
           </div>
           <div className="flex space-x-2 text-xs">
-            <button className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-1 rounded shadow-sm transition-all">Complete sprint</button>
+            <button
+              className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-1 rounded shadow-sm transition-all"
+              onClick={(e) => {
+                e.stopPropagation();
+                // Move all non-done sprint tasks to backlog (set status to 'To Do')
+                const incomplete = sprintTasks.filter(t => t.status !== 'Done');
+                incomplete.forEach(t => {
+                  onTaskUpdate && onTaskUpdate({ ...t, status: 'To Do' });
+                });
+                alert('Sprint completed! All incomplete tasks have been moved to the backlog.');
+              }}
+            >
+              Complete sprint
+            </button>
           </div>
         </div>
 

@@ -172,7 +172,7 @@ function ActivityFeedList({ users }: { users: any[] }) {
 
   return (
     <>
-      {logs.slice(0, 10).map((log: any) => {
+      {logs.slice(0, 5).map((log: any) => {
         const actionInfo = getActionDisplay(log.action);
         return (
           <div key={log.id} className="p-4 flex items-center hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-default">
