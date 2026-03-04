@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
-import { db } from '@/lib/db';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { useEffect } from 'react';
 
@@ -49,15 +48,24 @@ export function AddUserDialog({ isOpen, onClose, onSuccess }: AddUserDialogProps
                 }
             });
 
-            await db.addUser({
-                fullName: formData.fullName,
-                email: formData.email,
-                password: formData.password || 'TaskFlow@123',
-                role: formData.role,
-                dob: formData.dob || undefined,
-                skillExperience,
-                maxWorkload: formData.maxWorkload,
+            const res = await fetch('/api/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    fullName: formData.fullName,
+                    email: formData.email,
+                    password: formData.password || 'TaskFlow@123',
+                    role: formData.role,
+                    dob: formData.dob || undefined,
+                    skillExperience,
+                    maxWorkload: formData.maxWorkload,
+                }),
             });
+
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.error || 'Failed to create user');
+            }
 
             onSuccess();
             onClose();

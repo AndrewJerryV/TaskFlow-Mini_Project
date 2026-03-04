@@ -13,12 +13,25 @@ import { format, formatDistanceToNow, subDays, subMonths, subYears, addDays, isA
 // Date Formatting Utilities (using date-fns)
 // ============================================
 
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+/**
+ * Helper to get a Date object forced to IST
+ */
+function getISTDate(dateStr: string | Date): Date {
+    const date = new Date(dateStr);
+    // Get UTC time
+    const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
+    // Add IST offset
+    return new Date(utc + IST_OFFSET_MS);
+}
+
 /**
  * Format a date string for display (e.g., "Feb 8, 2026")
  */
 export function formatDate(dateStr: string): string {
     try {
-        return format(new Date(dateStr), 'MMM d, yyyy');
+        return format(getISTDate(dateStr), 'MMM d, yyyy');
     } catch {
         return 'Unknown date';
     }
@@ -29,7 +42,7 @@ export function formatDate(dateStr: string): string {
  */
 export function formatDateTime(dateStr: string): string {
     try {
-        return format(new Date(dateStr), 'MMM d, yyyy, h:mm a');
+        return format(getISTDate(dateStr), 'MMM d, yyyy, h:mm a');
     } catch {
         return 'Unknown date';
     }

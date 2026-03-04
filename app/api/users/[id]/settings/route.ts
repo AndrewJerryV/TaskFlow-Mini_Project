@@ -12,19 +12,12 @@ export async function PATCH(
         const updatedUser = await db.updateUserSettings(id, {
             phone: body.phone,
             officeAddress: body.officeAddress,
-            timezone: body.timezone,
             quietHoursStart: body.quietHoursStart,
             quietHoursEnd: body.quietHoursEnd,
             quietHoursWeekends: body.quietHoursWeekends,
             twoFactorEnabled: body.twoFactorEnabled,
             maxWorkload: body.maxWorkload,
             burnoutSensitivity: body.burnoutSensitivity,
-            autoAssign: body.autoAssign,
-            skillMatchPriority: body.skillMatchPriority,
-            aiDeadlines: body.aiDeadlines,
-            emailDigestFrequency: body.emailDigestFrequency,
-            pushNotifications: body.pushNotifications,
-            soundAlerts: body.soundAlerts,
             dob: body.dob,
         });
 

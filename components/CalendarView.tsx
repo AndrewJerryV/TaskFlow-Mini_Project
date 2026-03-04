@@ -34,10 +34,11 @@ const eventTypeColors = {
     milestone: 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 border-green-200 dark:border-green-700',
 };
 
+const ST_OFFSET_MS = 5.5 * 60 * 60 * 1000; // IST is UTC+5.5
+
 const toLocalISOString = (date: Date): string => {
-    const offset = date.getTimezoneOffset();
-    const localDate = new Date(date.getTime() - (offset * 60 * 1000));
-    return localDate.toISOString().split('T')[0];
+    const istDate = new Date(date.getTime() + ST_OFFSET_MS);
+    return istDate.toISOString().split('T')[0];
 };
 
 export default function CalendarView({ projectId, tasks = [] }: CalendarViewProps) {

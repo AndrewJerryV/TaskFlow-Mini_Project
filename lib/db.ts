@@ -18,16 +18,12 @@ function toUser(dbUser: DbUser): User {
         officeAddress: dbUser.office_address,
         age: dbUser.age,
         // Settings
-        timezone: dbUser.timezone,
         quietHoursStart: dbUser.quiet_hours_start,
         quietHoursEnd: dbUser.quiet_hours_end,
         quietHoursWeekends: dbUser.quiet_hours_weekends,
         twoFactorEnabled: dbUser.two_factor_enabled,
         // AI Settings
         burnoutSensitivity: dbUser.burnout_sensitivity,
-        autoAssign: dbUser.auto_assign,
-        skillMatchPriority: dbUser.skill_match_priority,
-        aiDeadlines: dbUser.ai_deadlines,
         // Notification Settings
     } as User;
 }
@@ -185,16 +181,12 @@ class Database {
     async updateUserSettings(userId: string, settings: Partial<{
         phone: string;
         officeAddress: string;
-        timezone: string;
         quietHoursStart: string;
         quietHoursEnd: string;
         quietHoursWeekends: boolean;
         twoFactorEnabled: boolean;
         maxWorkload: number;
         burnoutSensitivity: number;
-        autoAssign: boolean;
-        skillMatchPriority: boolean;
-        aiDeadlines: boolean;
         dob: string;
     }>): Promise<User | null> {
         const { data, error } = await getSupabase()
@@ -202,16 +194,12 @@ class Database {
             .update({
                 phone: settings.phone,
                 office_address: settings.officeAddress,
-                timezone: settings.timezone,
                 quiet_hours_start: settings.quietHoursStart,
                 quiet_hours_end: settings.quietHoursEnd,
                 quiet_hours_weekends: settings.quietHoursWeekends,
                 two_factor_enabled: settings.twoFactorEnabled,
                 max_workload: settings.maxWorkload,
                 burnout_sensitivity: settings.burnoutSensitivity,
-                auto_assign: settings.autoAssign,
-                skill_match_priority: settings.skillMatchPriority,
-                ai_deadlines: settings.aiDeadlines,
                 dob: settings.dob,
             })
             .eq('id', userId)

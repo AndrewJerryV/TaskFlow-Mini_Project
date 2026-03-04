@@ -15,37 +15,27 @@ export default function SettingsPage() {
     // Form state
     const [phone, setPhone] = useState('');
     const [officeAddress, setOfficeAddress] = useState('');
-    const [timezone, setTimezone] = useState('UTC (Coordinated Universal Time)');
     const [quietHoursStart, setQuietHoursStart] = useState('20:00');
     const [quietHoursEnd, setQuietHoursEnd] = useState('08:00');
     const [quietHoursWeekends, setQuietHoursWeekends] = useState(true);
     const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
     const [dob, setDob] = useState('');
 
-    // Notification Settings (legacy, now removed)
-
     // AI Settings
     const [maxWorkload, setMaxWorkload] = useState(5);
     const [burnoutSensitivity, setBurnoutSensitivity] = useState(2); // 1=Low, 2=Med, 3=High
-    const [autoAssign, setAutoAssign] = useState(true);
-    const [skillMatchPriority, setSkillMatchPriority] = useState(true);
-    const [aiDeadlines, setAiDeadlines] = useState(false);
 
     // Initialize form with currentUser data
     useEffect(() => {
         if (currentUser) {
             setPhone(currentUser.phone || '');
             setOfficeAddress(currentUser.officeAddress || '');
-            setTimezone(currentUser.timezone || 'UTC (Coordinated Universal Time)');
             setQuietHoursStart(currentUser.quietHoursStart || '20:00');
             setQuietHoursEnd(currentUser.quietHoursEnd || '08:00');
             setQuietHoursWeekends(currentUser.quietHoursWeekends ?? true);
             setTwoFactorEnabled(currentUser.twoFactorEnabled ?? false);
             if (currentUser.maxWorkload) setMaxWorkload(currentUser.maxWorkload);
             if (currentUser.burnoutSensitivity) setBurnoutSensitivity(currentUser.burnoutSensitivity);
-            if (currentUser.autoAssign !== undefined) setAutoAssign(currentUser.autoAssign);
-            if (currentUser.skillMatchPriority !== undefined) setSkillMatchPriority(currentUser.skillMatchPriority);
-            if (currentUser.aiDeadlines !== undefined) setAiDeadlines(currentUser.aiDeadlines);
             setDob(currentUser.dob || '');
         }
     }, [currentUser]);
@@ -61,16 +51,12 @@ export default function SettingsPage() {
                 body: JSON.stringify({
                     phone,
                     officeAddress,
-                    timezone,
                     quietHoursStart,
                     quietHoursEnd,
                     quietHoursWeekends,
                     twoFactorEnabled,
                     maxWorkload,
                     burnoutSensitivity,
-                    autoAssign,
-                    skillMatchPriority,
-                    aiDeadlines,
                     dob,
                 }),
             });
@@ -93,6 +79,7 @@ export default function SettingsPage() {
     const tabs = [
         { id: 'general', label: 'General', icon: Building },
         { id: 'notifications', label: 'Notifications', icon: Bell },
+        { id: 'ai', label: 'AI Settings', icon: Sparkles },
         { id: 'security', label: 'Security', icon: Shield },
     ];
 
@@ -252,6 +239,44 @@ export default function SettingsPage() {
                                                 <span className="text-sm text-gray-600 dark:text-gray-300">Enable on Weekends</span>
                                             </label>
                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* AI Settings */}
+                    {activeTab === 'ai' && (
+                        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+                            <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-6">AI Configuration</h2>
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Max Daily Workload (Tasks)</label>
+                                    <input
+                                        type="number"
+                                        value={maxWorkload}
+                                        onChange={(e) => setMaxWorkload(parseInt(e.target.value))}
+                                        className="max-w-xs w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500">AI will avoid assigning more than this number of tasks to you per day.</p>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Burnout Sensitivity</label>
+                                    <div className="flex gap-4">
+                                        {[1, 2, 3].map((val) => (
+                                            <button
+                                                key={val}
+                                                onClick={() => setBurnoutSensitivity(val)}
+                                                className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all flex flex-col items-center gap-1 ${burnoutSensitivity === val
+                                                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
+                                                    : 'border-gray-100 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-200 dark:hover:border-gray-600'
+                                                    }`}
+                                            >
+                                                <span className="font-bold">{val === 1 ? 'Low' : val === 2 ? 'Medium' : 'High'}</span>
+                                                <span className="text-[10px] opacity-70 text-center">{val === 1 ? 'Relaxed AI warnings' : val === 2 ? 'Standard balance' : 'Aggressive protection'}</span>
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
                             </div>

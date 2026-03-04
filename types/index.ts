@@ -20,16 +20,12 @@ export interface User {
   officeAddress?: string;
   age?: number;
   // Settings
-  timezone?: string;
   quietHoursStart?: string;
   quietHoursEnd?: string;
   quietHoursWeekends?: boolean;
   twoFactorEnabled?: boolean;
   // AI Settings
   burnoutSensitivity?: number;
-  autoAssign?: boolean;
-  skillMatchPriority?: boolean;
-  aiDeadlines?: boolean;
   // Notification Settings
   authProvider?: string;
 }

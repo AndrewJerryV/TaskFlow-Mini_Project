@@ -20,41 +20,39 @@ export default function ChatView({ projectId }: ChatViewProps) {
     const { currentUser } = useAuth();
     const [projectUsers, setProjectUsers] = useState<any[]>([]);
     const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
-        // Presence: update own presence and poll online users
-        useEffect(() => {
-            let interval: NodeJS.Timeout;
-            const updatePresence = async () => {
-                if (!currentUser) return;
-                await fetch('/api/presence', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: currentUser.id })
-                });
-            };
-            const fetchOnline = async () => {
-                const res = await fetch('/api/presence');
-                if (res.ok) {
-                    const data = await res.json();
-                    setOnlineUserIds(data.onlineUserIds || []);
-                }
-            };
-            // Initial
-            updatePresence();
-            fetchOnline();
-            interval = setInterval(() => {
-                updatePresence();
-                fetchOnline();
-            }, 20000); // every 20s
-            return () => clearInterval(interval);
-        }, [currentUser]);
 
-        // Fetch project users
-        useEffect(() => {
-            if (!projectId) return;
-            fetch(`/api/project-members?projectId=${projectId}`)
-                .then(res => res.json())
-                .then(setProjectUsers);
-        }, [projectId]);
+    // Supabase Realtime Presence
+    useEffect(() => {
+        if (!currentUser) return;
+
+        const supabase = getSupabase();
+        const channel = supabase.channel('online-users', {
+            config: { presence: { key: currentUser.id } },
+        });
+
+        channel
+            .on('presence', { event: 'sync' }, () => {
+                const state = channel.presenceState();
+                setOnlineUserIds(Object.keys(state));
+            })
+            .subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    await channel.track({ user_id: currentUser.id, online_at: new Date().toISOString() });
+                }
+            });
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [currentUser]);
+
+    // Fetch project users
+    useEffect(() => {
+        if (!projectId) return;
+        fetch(`/api/project-members?projectId=${projectId}`)
+            .then(res => res.json())
+            .then(setProjectUsers);
+    }, [projectId]);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [loading, setLoading] = useState(true);
