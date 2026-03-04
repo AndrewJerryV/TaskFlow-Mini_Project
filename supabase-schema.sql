@@ -557,6 +557,7 @@ BEGIN
         ORDER BY 1
     ) INTO titles_array;
 
+
     -- Return as a JSON object
     RETURN json_build_object(
         'skills', COALESCE(skills_array, ARRAY[]::text[]),
@@ -565,3 +566,32 @@ BEGIN
     );
 END;
 $$;
+
+-- Deployments table
+CREATE TABLE IF NOT EXISTS deployments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  version TEXT NOT NULL,
+  environment TEXT NOT NULL CHECK (environment IN ('Development', 'Staging', 'Production')),
+  status TEXT NOT NULL CHECK (status IN ('In Progress', 'Completed', 'Failed')),
+  release_notes TEXT,
+  created_by TEXT, -- User ID pointing to users table (or potentially auth.users)
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Deployment tasks (Many-to-Many mapping table linking deployments and tasks)
+CREATE TABLE IF NOT EXISTS deployment_tasks (
+  deployment_id UUID REFERENCES deployments(id) ON DELETE CASCADE,
+  task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
+  linked_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (deployment_id, task_id)
+);
+
+-- RLS for Deployments 
+ALTER TABLE deployments ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all for deployments" ON deployments FOR ALL USING (true) WITH CHECK (true);
+
+-- RLS for Deployment Tasks
+ALTER TABLE deployment_tasks ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all for deployment_tasks" ON deployment_tasks FOR ALL USING (true) WITH CHECK (true);

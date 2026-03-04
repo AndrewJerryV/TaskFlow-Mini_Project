@@ -19,6 +19,7 @@ export interface User {
   phone?: string;
   officeAddress?: string;
   age?: number;
+  timezone?: string;
   // Settings
   quietHoursStart?: string;
   quietHoursEnd?: string;
@@ -26,6 +27,9 @@ export interface User {
   twoFactorEnabled?: boolean;
   // AI Settings
   burnoutSensitivity?: number;
+  autoAssign?: boolean;
+  skillMatchPriority?: boolean;
+  aiDeadlines?: boolean;
   // Notification Settings
   authProvider?: string;
 }
@@ -169,6 +173,24 @@ export interface Notification {
   createdAt: string;
 }
 
+export interface Deployment {
+  id: string;
+  projectId: string;
+  version: string;
+  environment: 'Development' | 'Staging' | 'Production';
+  status: 'In Progress' | 'Completed' | 'Failed';
+  releaseNotes?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DeploymentTask {
+  deploymentId: string;
+  taskId: string;
+  linkedAt: string;
+}
+
 export interface DbSchema {
   users: User[];
   projects: Project[];
@@ -178,4 +200,6 @@ export interface DbSchema {
   forms: Form[];
   formResponses: FormResponse[];
   notifications: Notification[];
+  deployments: Deployment[];
+  deploymentTasks: DeploymentTask[];
 }

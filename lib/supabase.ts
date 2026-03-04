@@ -200,3 +200,20 @@ export interface DbNotification {
   created_at: string;
 }
 
+export interface DbDeployment {
+  id: string;
+  project_id: string;
+  version: string;
+  environment: 'Development' | 'Staging' | 'Production';
+  status: 'In Progress' | 'Completed' | 'Failed';
+  release_notes?: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbDeploymentTask {
+  deployment_id: string;
+  task_id: string;
+  linked_at: string;
+}

@@ -146,8 +146,22 @@ function toNotification(dbNotif: DbNotification): Notification {
         createdAt: dbNotif.created_at,
     };
 }
-import { getSupabase, DbUser, DbProject, DbTask, DbActivityLog, DbMessage, DbComment, DbForm, DbFormResponse, DbDocument, DbShortcut, DbRepoLink, DbNotification } from './supabase';
-import { Project, Task, User, ActivityLog, Message, Comment, Form, FormResponse, Document, Notification } from '@/types';
+
+function toDeployment(dbDep: DbDeployment): Deployment {
+    return {
+        id: dbDep.id,
+        projectId: dbDep.project_id,
+        version: dbDep.version,
+        environment: dbDep.environment,
+        status: dbDep.status,
+        releaseNotes: dbDep.release_notes || '',
+        createdBy: dbDep.created_by,
+        createdAt: dbDep.created_at,
+        updatedAt: dbDep.updated_at,
+    };
+}
+import { getSupabase, DbUser, DbProject, DbTask, DbActivityLog, DbMessage, DbComment, DbForm, DbFormResponse, DbDocument, DbShortcut, DbRepoLink, DbNotification, DbDeployment, DbDeploymentTask } from './supabase';
+import { Project, Task, User, ActivityLog, Message, Comment, Form, FormResponse, Document, Notification, Deployment, DeploymentTask } from '@/types';
 
 // Database class with async Supabase operations
 class Database {
@@ -1243,6 +1257,96 @@ class Database {
             return false;
         }
         return true;
+    }
+
+    // Deployments
+    async getDeployments(projectId: string): Promise<Deployment[]> {
+        const { data, error } = await getSupabase()
+            .from('deployments')
+            .select('*')
+            .eq('project_id', projectId)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching deployments:', error);
+            return [];
+        }
+        return (data || []).map(toDeployment);
+    }
+
+    async createDeployment(deployment: Deployment, taskIds: string[]): Promise<boolean> {
+        const { error } = await getSupabase()
+            .from('deployments')
+            .insert({
+                id: deployment.id,
+                project_id: deployment.projectId,
+                version: deployment.version,
+                environment: deployment.environment,
+                status: deployment.status,
+                release_notes: deployment.releaseNotes,
+                created_by: deployment.createdBy,
+                created_at: deployment.createdAt,
+                updated_at: deployment.updatedAt,
+            });
+
+        if (error) {
+            console.error('Error creating deployment:', error);
+            return false;
+        }
+
+        // Add tasks mapping
+        if (taskIds.length > 0) {
+            const mappings = taskIds.map(taskId => ({
+                deployment_id: deployment.id,
+                task_id: taskId,
+                linked_at: new Date().toISOString()
+            }));
+
+            const { error: mappingError } = await getSupabase()
+                .from('deployment_tasks')
+                .insert(mappings);
+
+            if (mappingError) {
+                console.error('Error adding deployment tasks mapping:', mappingError);
+            }
+        }
+
+        // Add activity log
+        await this.createLog({
+            id: crypto.randomUUID(),
+            entityType: 'Project',
+            entityId: deployment.projectId,
+            action: 'Updated',
+            details: `Deployment ${deployment.version} created for environment ${deployment.environment}.`,
+            userId: deployment.createdBy,
+            timestamp: new Date().toISOString()
+        });
+
+        return true;
+    }
+
+    async getTaskDeployments(taskId: string): Promise<Deployment[]> {
+        const { data: mappings, error: mapErr } = await getSupabase()
+            .from('deployment_tasks')
+            .select('deployment_id')
+            .eq('task_id', taskId);
+
+        if (mapErr || !mappings || mappings.length === 0) return [];
+
+        const deploymentIds = mappings.map(m => m.deployment_id);
+
+        const { data, error } = await getSupabase()
+            .from('deployments')
+            .select('*')
+            .in('id', deploymentIds)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching deployments for task:', error);
+            return [];
+        }
+
+        return (data || []).map(toDeployment);
     }
 }
 

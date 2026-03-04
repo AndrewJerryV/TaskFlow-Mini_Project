@@ -289,9 +289,7 @@ export default function TimeTrackingView({ projectId, tasks: propTasks }: TimeTr
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-white dark:bg-gray-800 rounded-xl p-5 ring-1 ring-gray-200 dark:ring-gray-700 shadow-sm hover:shadow-md transition-shadow">
                     <div className="flex items-center gap-3 mb-3">
-                        <div className="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
-                            <Clock size={18} className="text-blue-600 dark:text-blue-400" />
-                        </div>
+                        <Clock size={18} className="text-blue-600 dark:text-blue-400" />
                         <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Hours</span>
                     </div>
                     <p className="text-3xl font-bold text-gray-900 dark:text-white">{data.summary.totalHours}</p>
@@ -300,9 +298,7 @@ export default function TimeTrackingView({ projectId, tasks: propTasks }: TimeTr
 
                 <div className="bg-white dark:bg-gray-800 rounded-xl p-5 ring-1 ring-gray-200 dark:ring-gray-700 shadow-sm hover:shadow-md transition-shadow">
                     <div className="flex items-center gap-3 mb-3">
-                        <div className="w-9 h-9 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
-                            <TrendingUp size={18} className="text-emerald-600 dark:text-emerald-400" />
-                        </div>
+                        <TrendingUp size={18} className="text-emerald-600 dark:text-emerald-400" />
                         <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Avg / Task</span>
                     </div>
                     <p className="text-3xl font-bold text-gray-900 dark:text-white">{data.summary.avgHoursPerTask}h</p>
@@ -311,9 +307,7 @@ export default function TimeTrackingView({ projectId, tasks: propTasks }: TimeTr
 
                 <div className="bg-white dark:bg-gray-800 rounded-xl p-5 ring-1 ring-gray-200 dark:ring-gray-700 shadow-sm hover:shadow-md transition-shadow">
                     <div className="flex items-center gap-3 mb-3">
-                        <div className="w-9 h-9 rounded-lg bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
-                            <Timer size={18} className="text-violet-600 dark:text-violet-400" />
-                        </div>
+                        <Timer size={18} className="text-violet-600 dark:text-violet-400" />
                         <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Active Timers</span>
                     </div>
                     <p className="text-3xl font-bold text-gray-900 dark:text-white">{data.summary.activeTimerCount}</p>
@@ -324,9 +318,7 @@ export default function TimeTrackingView({ projectId, tasks: propTasks }: TimeTr
 
                 <div className="bg-white dark:bg-gray-800 rounded-xl p-5 ring-1 ring-gray-200 dark:ring-gray-700 shadow-sm hover:shadow-md transition-shadow">
                     <div className="flex items-center gap-3 mb-3">
-                        <div className="w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
-                            <BarChart3 size={18} className="text-amber-600 dark:text-amber-400" />
-                        </div>
+                        <BarChart3 size={18} className="text-amber-600 dark:text-amber-400" />
                         <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tasks Tracked</span>
                     </div>
                     <p className="text-3xl font-bold text-gray-900 dark:text-white">{data.summary.tasksWithTimeLogs}</p>

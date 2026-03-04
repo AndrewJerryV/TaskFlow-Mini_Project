@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
-import { Task, Comment, Priority, Status } from '@/types';
+import { Task, Comment, Priority, Status, Deployment } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { Trash2, Calendar, User as UserIcon, MessageSquare, Clock, Sparkles, ArrowRight, Edit, Play, Square } from 'lucide-react';
+import { Trash2, Calendar, User as UserIcon, MessageSquare, Clock, Sparkles, ArrowRight, Edit, Play, Square, Rocket } from 'lucide-react';
 import { PRIORITY_COLORS, STATUS_COLORS } from '@/lib/constants';
 import { getUserName, getActionDisplay } from '@/lib/utils';
 import { getSupabase } from '@/lib/supabase';
@@ -46,13 +46,15 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
     const [editedTask, setEditedTask] = useState<Task | null>(null);
     const [comments, setComments] = useState<Comment[]>([]);
     const [history, setHistory] = useState<any[]>([]);
-    const [activeTab, setActiveTab] = useState<'comments' | 'history' | 'time'>('comments');
+    const [deployments, setDeployments] = useState<Deployment[]>([]);
+    const [activeTab, setActiveTab] = useState<'comments' | 'history' | 'time' | 'deployments'>('comments');
     const [newComment, setNewComment] = useState('');
     const [timeLogMinutes, setTimeLogMinutes] = useState('');
     const [currentTime, setCurrentTime] = useState(new Date());
     const [isDeleting, setIsDeleting] = useState(false);
     const [loadingComments, setLoadingComments] = useState(false);
     const [loadingHistory, setLoadingHistory] = useState(false);
+    const [loadingDeployments, setLoadingDeployments] = useState(false);
 
     const isMember = currentUser?.role === 'Member';
 
@@ -74,6 +76,7 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
         setEditedTask(task);
         fetchComments(task.id);
         fetchHistory(task.id);
+        fetchDeployments(task.id);
 
         const supabase = getSupabase();
         const channel = supabase
@@ -153,6 +156,21 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
             console.error('Error fetching history:', error);
         } finally {
             setLoadingHistory(false);
+        }
+    };
+
+    const fetchDeployments = async (taskId: string) => {
+        setLoadingDeployments(true);
+        try {
+            const res = await fetch(`/api/deployments?taskId=${taskId}`);
+            if (res.ok) {
+                const data = await res.json();
+                setDeployments(Array.isArray(data) ? data : []);
+            }
+        } catch (error) {
+            console.error('Error fetching deployments:', error);
+        } finally {
+            setLoadingDeployments(false);
         }
     };
 
@@ -413,6 +431,15 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                             </span>
                         </button>
                         <button
+                            className={`pb-2 text-sm font-medium ${activeTab === 'deployments' ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600' : 'text-gray-500 dark:text-gray-400'}`}
+                            onClick={() => setActiveTab('deployments')}
+                        >
+                            <span className="flex items-center gap-2">
+                                <Rocket size={14} />
+                                Deployments ({deployments.length})
+                            </span>
+                        </button>
+                        <button
                             className={`pb-2 text-sm font-medium ${activeTab === 'history' ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600' : 'text-gray-500 dark:text-gray-400'}`}
                             onClick={() => setActiveTab('history')}
                         >
@@ -532,6 +559,47 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                                 </button>
                             </div>
                         </>
+                    ) : activeTab === 'deployments' ? (
+                        <div className="space-y-3 max-h-64 overflow-y-auto">
+                            {loadingDeployments ? (
+                                <div className="text-sm text-gray-400 dark:text-gray-500">Loading deployments...</div>
+                            ) : deployments.length === 0 ? (
+                                <p className="text-sm text-gray-400 dark:text-gray-500 italic">No deployments linked to this task yet</p>
+                            ) : (
+                                deployments.map((deployment) => (
+                                    <div key={deployment.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 border border-gray-100 dark:border-gray-700">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <Rocket size={14} className="text-indigo-500" />
+                                                <span className="font-semibold text-gray-900 dark:text-white">{deployment.version}</span>
+                                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${deployment.environment === 'Production' ? 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200 dark:bg-fuchsia-900/30 dark:text-fuchsia-400 dark:border-fuchsia-800' :
+                                                        deployment.environment === 'Staging' ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800' :
+                                                            'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800'
+                                                    }`}>
+                                                    {deployment.environment}
+                                                </span>
+                                            </div>
+                                            <span className="text-xs text-gray-400 dark:text-gray-500">
+                                                {new Date(deployment.createdAt).toLocaleDateString()}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${deployment.status === 'Completed' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800' :
+                                                    deployment.status === 'Failed' ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800' :
+                                                        'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800'
+                                                }`}>
+                                                {deployment.status}
+                                            </span>
+                                        </div>
+                                        {deployment.releaseNotes && (
+                                            <p className="text-xs text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 p-2 rounded border border-gray-100 dark:border-gray-700">
+                                                {deployment.releaseNotes}
+                                            </p>
+                                        )}
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     ) : (
                         <div className="space-y-3 max-h-64 overflow-y-auto">
                             {loadingHistory ? (
