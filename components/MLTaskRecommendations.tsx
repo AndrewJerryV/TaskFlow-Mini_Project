@@ -88,6 +88,9 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
       onTaskUpdate({ ...task, status: 'In Progress' });
     } else if (rec.suggestedAction === 'Reschedule') {
       setRescheduleData({ isOpen: true, task, days: '1' });
+    } else if (rec.suggestedAction === 'Prioritize') {
+      // Set priority to High when prioritizing
+      onTaskUpdate({ ...task, priority: 'High' });
     } else {
       alert(`Action: ${rec.suggestedAction}\nTask: ${task.title}`);
     }

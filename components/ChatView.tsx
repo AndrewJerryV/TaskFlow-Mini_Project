@@ -17,7 +17,44 @@ interface ChatViewProps {
 type ChatMessage = Message;
 
 export default function ChatView({ projectId }: ChatViewProps) {
-    const { currentUser, users } = useAuth();
+    const { currentUser } = useAuth();
+    const [projectUsers, setProjectUsers] = useState<any[]>([]);
+    const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
+        // Presence: update own presence and poll online users
+        useEffect(() => {
+            let interval: NodeJS.Timeout;
+            const updatePresence = async () => {
+                if (!currentUser) return;
+                await fetch('/api/presence', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: currentUser.id })
+                });
+            };
+            const fetchOnline = async () => {
+                const res = await fetch('/api/presence');
+                if (res.ok) {
+                    const data = await res.json();
+                    setOnlineUserIds(data.onlineUserIds || []);
+                }
+            };
+            // Initial
+            updatePresence();
+            fetchOnline();
+            interval = setInterval(() => {
+                updatePresence();
+                fetchOnline();
+            }, 20000); // every 20s
+            return () => clearInterval(interval);
+        }, [currentUser]);
+
+        // Fetch project users
+        useEffect(() => {
+            if (!projectId) return;
+            fetch(`/api/project-members?projectId=${projectId}`)
+                .then(res => res.json())
+                .then(setProjectUsers);
+        }, [projectId]);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [loading, setLoading] = useState(true);
@@ -336,16 +373,24 @@ export default function ChatView({ projectId }: ChatViewProps) {
             )}
 
             {/* Thin Header Banner */}
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 flex items-center justify-between flex-shrink-0">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-1 flex items-center justify-between flex-shrink-0">
                 <div className="flex items-center gap-3">
-                    <MessageCircle size={16} className="text-white" />
                     <span className="text-white text-sm font-medium">Team Chat</span>
-                    <span className="text-blue-200 text-xs">• {users.length} members</span>
+                    <span className="text-blue-200 text-xs">• {projectUsers.length} members</span>
                 </div>
                 <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2">
                         <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                        <span className="text-blue-200 text-xs">{Math.min(users.length, 1)} online</span>
+                        <span className="text-blue-200 text-xs">{
+                            (() => {
+                                const onlineCount = projectUsers.filter(u => onlineUserIds.includes(u.id)).length;
+                                // If current user is a project member, always show at least 1 online
+                                if (currentUser && projectUsers.some(u => u.id === currentUser.id)) {
+                                    return Math.max(onlineCount, 1);
+                                }
+                                return onlineCount;
+                            })()
+                        } online</span>
                     </div>
                     {/* Date Jump */}
                     <div className="relative">
@@ -420,7 +465,7 @@ export default function ChatView({ projectId }: ChatViewProps) {
                             {/* Messages */}
                             {group.messages.map((msg, mi) => {
                                 const isSender = isCurrentUser(msg.userId);
-                                const senderName = getUserName(users, msg.userId);
+                                const senderName = projectUsers.find(u => u.id === msg.userId)?.name || 'Unknown';
                                 const showName = !isSender && (mi === 0 || group.messages[mi - 1].userId !== msg.userId);
                                 const showAvatar = !isSender && (mi === group.messages.length - 1 || group.messages[mi + 1].userId !== msg.userId);
 

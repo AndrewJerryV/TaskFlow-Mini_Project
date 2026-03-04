@@ -390,7 +390,6 @@ export default function ProjectPage() {
                             onClick={() => setIsMembersListOpen(true)}
                             title="View all project members"
                         >
-                            {/* Show project members */}
                             {projectMembers.slice(0, 3).map((memberId, idx) => {
                                 const member = users.find(u => u.id === memberId);
                                 return (
@@ -404,7 +403,7 @@ export default function ProjectPage() {
                                 );
                             })}
                             {projectMembers.length > 3 && (
-                                <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-500 text-white flex items-center justify-center text-xs bg-opacity-90">
+                                <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-500 text-white flex items-center justify-center text-xs">
                                     +{projectMembers.length - 3}
                                 </div>
                             )}

@@ -54,12 +54,6 @@ export function UserStatsCard({ user, onClick, onEditSkills }: UserStatsCardProp
                         <h3 className="font-semibold text-gray-900 dark:text-white">{user.name}</h3>
                         <div className="flex items-center gap-2">
                             <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">{user.role}</span>
-                            {age !== null && (
-                                <>
-                                    <span className="text-xs text-gray-300 dark:text-gray-600">•</span>
-                                    <span className="text-xs text-gray-500 dark:text-gray-400">{age} yrs</span>
-                                </>
-                            )}
                         </div>
                     </div>
                 </div>
