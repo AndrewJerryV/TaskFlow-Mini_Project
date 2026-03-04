@@ -42,7 +42,6 @@ function Column({ id, title, tasks, currentUser }: { id: Status, title: string, 
                     <TaskCard
                         key={task.id}
                         task={task}
-                        disableDrag={currentUser?.role === 'Member' && task.assigneeId !== currentUser?.id}
                     />
                 ))}
                 {tasks.length === 0 && (
@@ -92,7 +91,7 @@ export function TaskBoard({ tasks, onTaskMove }: TaskBoardProps) {
 
                 const allowedNextStates = validTransitions[oldStatus] || [];
 
-                if (allowedNextStates.includes(newStatus) || currentUser?.role === 'Admin') {
+                if (allowedNextStates.includes(newStatus) || currentUser?.role === 'Admin' || currentUser?.role === 'Manager') {
                     onTaskMove(active.id as string, newStatus);
                 } else {
                     alert(`Invalid transition from ${oldStatus} to ${newStatus}`);

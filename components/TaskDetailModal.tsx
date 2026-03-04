@@ -285,9 +285,44 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
     if (!task || !editedTask) return null;
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={isEditing ? 'Edit Task' : task.title}>
-            <div className="p-4 space-y-6 max-h-[70vh] overflow-y-auto">
-                {/* Header with badges and timer */}
+        <Modal
+            isOpen={isOpen}
+            onClose={onClose}
+            maxWidth="max-w-4xl"
+            title={
+                <div className="flex items-center justify-between w-full pr-4">
+                    <span>{isEditing ? 'Edit Task' : task.title}</span>
+
+                    {/* Start/Stop Timer Controls in Header */}
+                    {!isEditing && (
+                        <div className="ml-4">
+                            {editedTask.activeTimerStart ? (
+                                <button
+                                    onClick={handleStopTimer}
+                                    className="flex items-center space-x-2 px-3 py-1.5 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 transition shadow-sm"
+                                >
+                                    <Square size={14} fill="currentColor" />
+                                    <span className="text-sm font-medium animate-pulse">
+                                        Stop ({Math.round((currentTime.getTime() - new Date(editedTask.activeTimerStart).getTime()) / 60000)}m)
+                                    </span>
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={handleStartTimer}
+                                    disabled={editedTask.assigneeId !== currentUser?.id}
+                                    className="flex items-center space-x-2 px-3 py-1.5 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-sm"
+                                >
+                                    <Play size={14} fill="currentColor" />
+                                    <span className="text-sm font-medium">Start Timer</span>
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
+            }
+        >
+            <div className="p-4 space-y-6 max-h-[85vh] overflow-y-auto">
+                {/* Header with badges */}
                 <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-2 flex-wrap">
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${STATUS_COLORS[task.status]}`}>
@@ -301,30 +336,6 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                                 {tag}
                             </span>
                         ))}
-                    </div>
-
-                    {/* Start/Stop Timer Controls */}
-                    <div className="flex-shrink-0">
-                        {editedTask.activeTimerStart ? (
-                            <button
-                                onClick={handleStopTimer}
-                                className="flex items-center space-x-2 px-4 py-2 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 transition"
-                            >
-                                <Square size={14} fill="currentColor" />
-                                <span className="text-sm font-medium animate-pulse">
-                                    Stop ({Math.round((currentTime.getTime() - new Date(editedTask.activeTimerStart).getTime()) / 60000)}m)
-                                </span>
-                            </button>
-                        ) : (
-                            <button
-                                onClick={handleStartTimer}
-                                disabled={isMember && editedTask.assigneeId !== currentUser?.id}
-                                className="flex items-center space-x-2 px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                            >
-                                <Play size={14} fill="currentColor" />
-                                <span className="text-sm font-medium">Start Timer</span>
-                            </button>
-                        )}
                     </div>
                 </div>
 
@@ -544,15 +555,16 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                                 <input
                                     type="number"
                                     min="1"
+                                    disabled={currentUser?.role !== 'Admin' && editedTask.assigneeId !== currentUser?.id}
                                     placeholder="Minutes spent..."
-                                    className="flex-1 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                                    className="flex-1 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
                                     value={timeLogMinutes}
                                     onChange={(e) => setTimeLogMinutes(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleAddTimeLog()}
                                 />
                                 <button
                                     onClick={handleAddTimeLog}
-                                    disabled={!timeLogMinutes || isNaN(Number(timeLogMinutes)) || Number(timeLogMinutes) <= 0}
+                                    disabled={!timeLogMinutes || isNaN(Number(timeLogMinutes)) || Number(timeLogMinutes) <= 0 || (currentUser?.role !== 'Admin' && editedTask.assigneeId !== currentUser?.id)}
                                     className="px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
                                 >
                                     Log Time

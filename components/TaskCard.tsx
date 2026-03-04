@@ -16,6 +16,7 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, isOverlay, onClick, disableDrag }: TaskCardProps) {
+    const { currentUser } = useAuth();
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: task.id,
         data: { task },
@@ -33,10 +34,13 @@ export function TaskCard({ task, isOverlay, onClick, disableDrag }: TaskCardProp
         }
     };
 
+    const canDrag = currentUser?.role === 'Admin' || currentUser?.role === 'Manager' || task.assigneeId === currentUser?.id;
+    const isDragDisabled = disableDrag || !canDrag;
+
     // If overlay, we force opacity 1 and maybe add shadow
     if (isOverlay) {
         return (
-            <div className="bg-white dark:bg-gray-700 p-3 rounded-md shadow-xl border border-blue-500 cursor-grabbing mb-3 scale-105">
+            <div className="bg-white dark:bg-gray-700 p-3 rounded-md shadow-xl border border-blue-500 cursor-grabbing mb-3 scale-105 min-h-[140px]">
                 <CardContent task={task} />
             </div>
         );
@@ -44,12 +48,12 @@ export function TaskCard({ task, isOverlay, onClick, disableDrag }: TaskCardProp
 
     return (
         <div
-            ref={disableDrag ? undefined : setNodeRef}
+            ref={isDragDisabled ? undefined : setNodeRef}
             style={style}
-            {...(disableDrag ? {} : listeners)}
-            {...(disableDrag ? {} : attributes)}
+            {...(isDragDisabled ? {} : listeners)}
+            {...(isDragDisabled ? {} : attributes)}
             onClick={handleClick}
-            className={`bg-white dark:bg-gray-700 p-3 rounded-md shadow-sm border ${disableDrag
+            className={`bg-white dark:bg-gray-700 p-3 rounded-md shadow-sm border min-h-[140px] flex flex-col justify-between ${isDragDisabled
                 ? 'border-gray-200 dark:border-gray-600 cursor-not-allowed opacity-60 bg-gray-50 dark:bg-gray-800/80'
                 : 'border-l-4 border-l-blue-500 border-gray-200 dark:border-gray-600 cursor-grab hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500'
                 } transition-all ${isDragging ? 'opacity-30' : ''} mb-3`}
