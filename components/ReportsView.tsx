@@ -165,27 +165,74 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
     // Unassigned tasks count (real data)
     const unassignedTasks = filteredTasks.filter(t => !t.assigneeId).length;
 
-    // Export to CSV
-    const handleExport = () => {
-        const headers = ['Title', 'Status', 'Priority', 'Assignee', 'Due Date', 'Created At'];
-        const rows = filteredTasks.map(task => {
+    // Export to CSV (combined: task details + time tracking)
+    const handleExport = async () => {
+        // Fetch time tracking data for this project
+        let timeData: { perTask: any[]; perUser: any[]; perProject: any[] } = { perTask: [], perUser: [], perProject: [] };
+        try {
+            const res = await fetch(`/api/time-tracking?projectId=${projectId}`);
+            if (res.ok) {
+                timeData = await res.json();
+            }
+        } catch { /* proceed without time data */ }
+
+        // Build a lookup of time per task
+        const timeByTask = new Map<string, { totalMinutes: number; lastEntry: string }>();
+        (timeData.perTask || []).forEach((t: any) => {
+            timeByTask.set(t.taskId, { totalMinutes: t.totalMinutes, lastEntry: t.lastEntry });
+        });
+
+        // Section 1: Task Details + Time
+        const taskHeaders = ['Title', 'Status', 'Priority', 'Assignee', 'Due Date', 'Created At', 'Time Logged (min)', 'Time Logged (hrs)', 'Last Time Entry'];
+        const taskRows = filteredTasks.map(task => {
             const assignee = users.find(u => u.id === task.assigneeId);
+            const time = timeByTask.get(task.id);
             return [
                 task.title,
                 task.status,
                 task.priority,
                 assignee?.name || 'Unassigned',
                 task.dueDate ? new Date(task.dueDate).toLocaleDateString() : '',
-                task.createdAt ? new Date(task.createdAt).toLocaleDateString() : ''
+                task.createdAt ? new Date(task.createdAt).toLocaleDateString() : '',
+                time ? time.totalMinutes.toString() : '0',
+                time ? (time.totalMinutes / 60).toFixed(1) : '0',
+                time?.lastEntry ? new Date(time.lastEntry).toLocaleDateString() : '-',
             ];
         });
 
-        const csv = [headers.join(','), ...rows.map(row => row.map(cell => `"${cell}"`).join(','))].join('\n');
+        // Section 2: User Time Summary
+        const userHeaders = ['User', 'Tasks with Time', 'Total Minutes', 'Total Hours'];
+        const userRows = (timeData.perUser || []).map((u: any) => [
+            u.userName, u.taskCount?.toString() || '0', u.totalMinutes?.toString() || '0', (u.totalMinutes / 60).toFixed(1),
+        ]);
+
+        // Section 3: Project Time Summary (only if global)
+        const projHeaders = ['Project', 'Tasks', 'Total Minutes', 'Total Hours'];
+        const projRows = (timeData.perProject || []).map((p: any) => [
+            p.projectName, p.taskCount?.toString() || '0', p.totalMinutes?.toString() || '0', (p.totalMinutes / 60).toFixed(1),
+        ]);
+
+        const esc = (c: string) => `"${(c || '').replace(/"/g, '""')}"`;
+        const lines = [
+            '--- Task Report ---',
+            taskHeaders.map(esc).join(','),
+            ...taskRows.map(r => r.map(esc).join(',')),
+            '',
+            '--- User Time Summary ---',
+            userHeaders.map(esc).join(','),
+            ...userRows.map((r: string[]) => r.map(esc).join(',')),
+            '',
+            '--- Project Time Summary ---',
+            projHeaders.map(esc).join(','),
+            ...projRows.map((r: string[]) => r.map(esc).join(',')),
+        ];
+
+        const csv = lines.join('\n');
         const blob = new Blob([csv], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `report-${projectId}-${new Date().toISOString().split('T')[0]}.csv`;
+        a.download = `full-report-${projectId}-${new Date().toISOString().split('T')[0]}.csv`;
         a.click();
         URL.revokeObjectURL(url);
     };

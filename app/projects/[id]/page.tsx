@@ -12,6 +12,7 @@ import PagesView from '@/components/PagesView';
 import DeploymentsView from '@/components/DeploymentsView';
 import CalendarView from '@/components/CalendarView';
 import ReportsView from '@/components/ReportsView';
+import TimeTrackingView from '@/components/TimeTrackingView';
 import ShortcutsView from '@/components/ShortcutsView';
 import FormsView from '@/components/FormsView';
 import CodeView from '@/components/CodeView';
@@ -23,7 +24,7 @@ import { Video, Folder, FileText, BarChart3, Plus, UserPlus, Check, Rocket, Cale
 import { getSupabase } from '@/lib/supabase';
 
 // Nav Items definition
-const NAV_ITEMS = ['Recommendations', 'Summary', 'Backlog', 'Board', 'Timeline', 'Code', 'Pages', 'Deployments', 'Calendar', 'Reports', 'Chat', 'Forms', 'Shortcuts'] as const;
+const NAV_ITEMS = ['Recommendations', 'Summary', 'Backlog', 'Board', 'Timeline', 'Code', 'Pages', 'Deployments', 'Calendar', 'Reports', 'Time Tracking', 'Chat', 'Forms', 'Shortcuts'] as const;
 type Tab = typeof NAV_ITEMS[number];
 
 import MLTaskRecommendations from '@/components/MLTaskRecommendations';
@@ -499,6 +500,10 @@ export default function ProjectPage() {
 
                 {activeTab === 'Reports' && (
                     <ReportsView projectId={id} tasks={tasks} />
+                )}
+
+                {activeTab === 'Time Tracking' && (
+                    <TimeTrackingView projectId={id} tasks={tasks} />
                 )}
 
                 {activeTab === 'Forms' && (
