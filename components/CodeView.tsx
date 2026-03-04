@@ -1,10 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import {
-    Plus, X, ExternalLink, Github, Trash2, Star,
-    GitBranch, Clock, FolderGit2, Copy, Check
-} from 'lucide-react';
+import { Plus, ExternalLink, Github, Trash2, Clock, FolderGit2, Copy, Check } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { formatDate } from '@/lib/utils';
 
@@ -138,27 +135,14 @@ export default function CodeView({ projectId }: CodeViewProps) {
         }
     };
 
-    const openInNewTab = (url: string) => {
-        window.open(url, '_blank', 'noopener,noreferrer');
-    };
+    const openInNewTab = (url: string) => window.open(url, '_blank', 'noopener,noreferrer');
 
     const copyLink = async (repoId: string, url: string) => {
         try {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                await navigator.clipboard.writeText(url);
-            } else {
-                const textarea = document.createElement('textarea');
-                textarea.value = url;
-                textarea.style.position = 'fixed';
-                textarea.style.left = '-9999px';
-                document.body.appendChild(textarea);
-                textarea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textarea);
-            }
+            await navigator.clipboard.writeText(url);
             setCopiedId(repoId);
             setTimeout(() => setCopiedId(null), 2000);
-        } catch (err) {
+        } catch {
             prompt('Copy this link:', url);
         }
     };

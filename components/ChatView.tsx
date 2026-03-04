@@ -85,7 +85,7 @@ export default function ChatView({ projectId }: ChatViewProps) {
                     filter: `project_id=eq.${projectId}`
                 },
                 (payload: RealtimePostgresInsertPayload<any>) => {
-                    // Update messages if not already present (avoid duplicates from optimistic updates)
+
                     setMessages(prev => {
                         if (prev.some(m => m.id === payload.new.id)) return prev;
 

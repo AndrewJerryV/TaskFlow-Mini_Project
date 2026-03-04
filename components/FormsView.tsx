@@ -3,22 +3,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Form, FormField, FormFieldType, FormResponse, User } from '@/types';
-import {
-    Plus, FileText, Trash2, Edit3, BarChart3, ClipboardList,
-    ChevronLeft, Send, CheckCircle2, GripVertical, Copy, X,
-    Calendar, Eye, EyeOff, Users, AlertCircle, Inbox
-} from 'lucide-react';
+import { Plus, FileText, Trash2, Edit3, BarChart3, ClipboardList, ChevronLeft, Send, CheckCircle2, Copy, X, Calendar, Users, AlertCircle, Inbox } from 'lucide-react';
 
 interface FormsViewProps { projectId: string; }
 
 type ViewMode = 'list' | 'builder' | 'fill' | 'results';
 
+
 const FIELD_TYPES: Record<FormFieldType, string> = {
     text: 'Short answer', comment: 'Paragraph', radiogroup: 'Multiple choice',
     checkbox: 'Checkboxes', dropdown: 'Dropdown', rating: 'Linear scale', date: 'Date',
 };
-
-function esc(s: string) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
 export default function FormsView({ projectId }: FormsViewProps) {
     const { currentUser } = useAuth();
@@ -120,9 +115,8 @@ export default function FormsView({ projectId }: FormsViewProps) {
         setViewMode('builder');
     };
 
-    let fieldCounter = 0;
     const makeField = (type: FormFieldType = 'radiogroup'): FormField => ({
-        id: `f_${Date.now()}_${fieldCounter++}`,
+        id: `f_${Date.now()}_${Math.floor(Math.random()*10000)}`,
         type, label: '', required: false,
         choices: ['radiogroup', 'checkbox', 'dropdown'].includes(type) ? ['Option 1'] : undefined,
         rateMin: type === 'rating' ? 1 : undefined,
@@ -144,52 +138,32 @@ export default function FormsView({ projectId }: FormsViewProps) {
         setBuilderFields(prev => prev.filter(f => f.id !== id));
     };
 
-    const duplicateField = (id: string) => {
-        const idx = builderFields.findIndex(f => f.id === id);
-        if (idx < 0) return;
-        const copy = { ...JSON.parse(JSON.stringify(builderFields[idx])), id: `f_${Date.now()}_dup` };
-        copy.label = copy.label ? copy.label + ' (copy)' : '';
-        const next = [...builderFields];
-        next.splice(idx + 1, 0, copy);
-        setBuilderFields(next);
-        setFocusedFieldId(copy.id);
-        showToast('Question duplicated');
-    };
+
 
     const changeFieldType = (id: string, type: FormFieldType) => {
         setBuilderFields(prev => prev.map(f => {
             if (f.id !== id) return f;
             const updated = { ...f, type };
-            if (['radiogroup', 'checkbox', 'dropdown'].includes(type) && (!updated.choices || !updated.choices.length))
-                updated.choices = ['Option 1'];
+            if (['radiogroup', 'checkbox', 'dropdown'].includes(type))
+                updated.choices = updated.choices && updated.choices.length ? updated.choices : ['Option 1'];
             if (type === 'rating') { updated.rateMin = updated.rateMin ?? 1; updated.rateMax = updated.rateMax ?? 5; }
             return updated;
         }));
     };
 
     const addChoice = (fieldId: string) => {
-        setBuilderFields(prev => prev.map(f => {
-            if (f.id !== fieldId) return f;
-            const choices = [...(f.choices || []), `Option ${(f.choices?.length || 0) + 1}`];
-            return { ...f, choices };
-        }));
+        setBuilderFields(prev => prev.map(f => f.id === fieldId ? { ...f, choices: [...(f.choices || []), `Option ${(f.choices?.length || 0) + 1}`] } : f));
     };
 
     const updateChoice = (fieldId: string, idx: number, val: string) => {
-        setBuilderFields(prev => prev.map(f => {
-            if (f.id !== fieldId) return f;
-            const choices = [...(f.choices || [])];
-            choices[idx] = val;
-            return { ...f, choices };
-        }));
+        setBuilderFields(prev => prev.map(f => f.id === fieldId ? { ...f, choices: f.choices?.map((c, i) => i === idx ? val : c) } : f));
     };
 
     const removeChoice = (fieldId: string, idx: number) => {
-        setBuilderFields(prev => prev.map(f => {
-            if (f.id !== fieldId || !f.choices || f.choices.length <= 1) return f;
-            const choices = f.choices.filter((_, i) => i !== idx);
-            return { ...f, choices };
-        }));
+        setBuilderFields(prev => prev.map(f => (f.id === fieldId && f.choices && f.choices.length > 1)
+            ? { ...f, choices: f.choices.filter((_, i) => i !== idx) }
+            : f
+        ));
     };
 
     const saveForm = async (status?: 'draft' | 'active' | 'closed') => {
@@ -241,7 +215,7 @@ export default function FormsView({ projectId }: FormsViewProps) {
     const toggleCheckbox = (fieldId: string, val: string, checked: boolean) => {
         setFillAnswers(prev => {
             const arr = Array.isArray(prev[fieldId]) ? [...prev[fieldId]] : [];
-            if (checked) { if (!arr.includes(val)) arr.push(val); } else { const i = arr.indexOf(val); if (i >= 0) arr.splice(i, 1); }
+            if (checked) arr.push(val); else arr.splice(arr.indexOf(val), 1);
             return { ...prev, [fieldId]: arr };
         });
         setFillErrors(prev => { const n = new Set(prev); n.delete(fieldId); return n; });
@@ -482,9 +456,7 @@ export default function FormsView({ projectId }: FormsViewProps) {
                         </div>
                         {/* Field footer */}
                         <div className="flex items-center justify-end gap-1 pt-3 mt-3 border-t border-gray-100 dark:border-gray-700">
-                            <button onClick={(e) => { e.stopPropagation(); duplicateField(field.id); }} className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors" title="Duplicate">
-                                <Copy size={16} />
-                            </button>
+
                             <button onClick={(e) => { e.stopPropagation(); removeField(field.id); }} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors" title="Delete">
                                 <Trash2 size={16} />
                             </button>

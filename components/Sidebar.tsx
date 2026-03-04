@@ -15,11 +15,10 @@ export function Sidebar() {
     const pathname = usePathname();
 
     useEffect(() => {
-        if (currentUser?.id) {
-            fetch(`/api/projects?userId=${currentUser.id}`)
-                .then(res => res.json())
-                .then(setProjects);
-        }
+        if (!currentUser?.id) return;
+        fetch(`/api/projects?userId=${currentUser.id}`)
+            .then(res => res.json())
+            .then(setProjects);
     }, [currentUser?.id]);
 
     return (

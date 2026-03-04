@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Video, ExternalLink, X, Copy, Check, Link2, Users, Settings, Save, Trash2 } from 'lucide-react';
+import { Video, ExternalLink, X, Copy, Check, Users, Settings, Save, Trash2 } from 'lucide-react';
 
 interface VideoRoomProps {
     projectId: string;
@@ -93,18 +93,7 @@ export default function VideoRoom({ projectId, onLeave }: VideoRoomProps) {
     const copyLink = async () => {
         if (!meetingUrl) return;
         try {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                await navigator.clipboard.writeText(meetingUrl);
-            } else {
-                const textarea = document.createElement('textarea');
-                textarea.value = meetingUrl;
-                textarea.style.position = 'fixed';
-                textarea.style.left = '-9999px';
-                document.body.appendChild(textarea);
-                textarea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textarea);
-            }
+            await navigator.clipboard.writeText(meetingUrl);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch {
@@ -112,9 +101,7 @@ export default function VideoRoom({ projectId, onLeave }: VideoRoomProps) {
         }
     };
 
-    const createNewMeet = () => {
-        window.open('https://meet.google.com/new', '_blank', 'noopener,noreferrer');
-    };
+    const createNewMeet = () => window.open('https://meet.google.com/new', '_blank', 'noopener,noreferrer');
 
     return (
         <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center backdrop-blur-sm">

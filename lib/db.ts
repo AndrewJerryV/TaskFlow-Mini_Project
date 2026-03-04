@@ -1,6 +1,3 @@
-import { getSupabase, DbUser, DbProject, DbTask, DbActivityLog, DbMessage, DbComment, DbForm, DbFormResponse, DbDocument, DbShortcut, DbRepoLink, DbNotification } from './supabase';
-import { Project, Task, User, ActivityLog, Message, Comment, Form, FormResponse, Document, Notification } from '@/types';
-
 // Helper functions to convert between snake_case DB and camelCase TS
 function toUser(dbUser: DbUser): User {
     return {
@@ -123,7 +120,6 @@ function toFormResponse(dbResponse: DbFormResponse): FormResponse {
     };
 }
 
-
 function toDocument(dbDoc: DbDocument): Document {
     return {
         id: dbDoc.id,
@@ -154,6 +150,8 @@ function toNotification(dbNotif: DbNotification): Notification {
         createdAt: dbNotif.created_at,
     };
 }
+import { getSupabase, DbUser, DbProject, DbTask, DbActivityLog, DbMessage, DbComment, DbForm, DbFormResponse, DbDocument, DbShortcut, DbRepoLink, DbNotification } from './supabase';
+import { Project, Task, User, ActivityLog, Message, Comment, Form, FormResponse, Document, Notification } from '@/types';
 
 // Database class with async Supabase operations
 class Database {
