@@ -94,36 +94,40 @@ async function localMLRecommendations(tasks: Task[], currentUserId: string | nul
         }
 
         // Priority mismatch boost
-        if (predicted_priority === 'Critical' && task.priority !== 'Critical') {
-            finalScore += 20;
-            reasons.push('AI Class: Critical');
+        const priorityScores: Record<string, number> = { 'Low': 0, 'Medium': 1, 'High': 2, 'Critical': 3 };
+        const mlPriorityScore = priorityScores[predicted_priority] ?? 0;
+        const taskPriorityScore = priorityScores[task.priority] ?? 0;
+
+        if (mlPriorityScore > taskPriorityScore) {
+            finalScore += 15;
+            reasons.push(`AI Class: ${predicted_priority}`);
         }
 
         if (task.priority === 'Critical') reasons.push('Critical');
         if (task.priority === 'High') reasons.push('High Priority');
-        if (task.dueDate && isOverdue(task.dueDate)) reasons.push('Overdue');
 
         // 4. Categorization
         let type: 'focus' | 'bottleneck' | 'quick_win' | 'overdue_risk' | null = null;
         let suggestedAction = 'View Details';
 
-        if (task.dueDate && daysUntilDue <= 1) {
+        if (task.dueDate && daysUntilDue <= 1 && task.status !== 'Done') {
             type = 'overdue_risk';
             suggestedAction = daysUntilDue < 0 ? 'Reschedule' : 'Prioritize';
+            reasons.push(daysUntilDue < 0 ? `Overdue by ${Math.abs(daysUntilDue)}d` : 'Due soon');
         } else if (task.status === 'In Progress' && daysSinceUpdate > 3) {
             type = 'bottleneck';
             suggestedAction = 'Update Status';
-            reasons.push(`Stale ${daysSinceUpdate}d`);
-        } else if (urgency_score > 70 || (isAssignedToMe && urgency_score > 50)) {
-            type = 'focus';
-            suggestedAction = task.status === 'To Do' ? 'Start Task' : 'Continue';
-        } else if (task.status === 'To Do' && finalScore < 50 && predicted_priority === 'Low') {
+            reasons.push(`Stale for ${daysSinceUpdate}d`);
+        } else if (task.status === 'To Do' && predicted_priority === 'Low' && finalScore < 40) {
             type = 'quick_win';
             suggestedAction = 'Complete Now';
-            reasons.push('Low Effort');
+            reasons.push('Low Effort & Quick');
+        } else if (finalScore >= 45 || (isAssignedToMe && finalScore >= 30)) {
+            type = 'focus';
+            suggestedAction = task.status === 'To Do' ? 'Start Task' : 'Continue';
         }
 
-        if (type && finalScore > 30) {
+        if (type && finalScore > 10) { // lowered threshold to include quick wins
             generated.push({
                 id: `rec-${task.id}`,
                 taskId: task.id,
@@ -131,7 +135,7 @@ async function localMLRecommendations(tasks: Task[], currentUserId: string | nul
                 title: task.title,
                 description: `Urgency: ${Math.min(100, Math.round(urgency_score))}/100 • Predicted priority: ${predicted_priority} (${confidence_score} conf)`,
                 score: Math.min(Math.round(finalScore), 100),
-                reason: reasons.join(' • '),
+                reason: reasons.join(' • ') || 'General Recommendation',
                 suggestedAction
             });
         }
@@ -142,12 +146,35 @@ async function localMLRecommendations(tasks: Task[], currentUserId: string | nul
         throw new Error("No recommendations generated (ML backend may be completely unreachable, or tasks did not meet score threshold)");
     }
 
+    // Sort by natural score descending
+    const sorted = generated.sort((a, b) => b.score - a.score);
+
+    // Enforce diversity: allow max 2 of a single type initially
+    const finalRecs: typeof generated = [];
+    let overdueCount = 0;
+
+    for (const rec of sorted) {
+        if (rec.type === 'overdue_risk') {
+            if (overdueCount < 2) {
+                finalRecs.push(rec);
+                overdueCount++;
+            }
+        } else {
+            finalRecs.push(rec);
+        }
+    }
+
+    // If we missed slots (say only 3 total recs without overdue risks), backfill with extra overdue_risk
+    if (finalRecs.length < 6) {
+        const remainingOverdue = sorted.filter(r => r.type === 'overdue_risk' && !finalRecs.some(f => f.id === r.id));
+        finalRecs.push(...remainingOverdue.slice(0, 6 - finalRecs.length));
+    }
+
+    // Sort the final pool
+    finalRecs.sort((a, b) => b.score - a.score);
+
     return {
-        recommendations: generated.sort((a, b) => {
-            if (a.type === 'overdue_risk' && b.type !== 'overdue_risk') return -1;
-            if (b.type === 'overdue_risk' && a.type !== 'overdue_risk') return 1;
-            return b.score - a.score;
-        }).slice(0, 6),
+        recommendations: finalRecs.slice(0, 6),
         mlPowered: true
     };
 }

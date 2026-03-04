@@ -117,6 +117,23 @@ export async function GET(req: NextRequest) {
 
         // Aggregate per-task
         const perTask: Record<string, { taskId: string; taskTitle: string; projectId: string; projectName: string; assigneeId: string; assigneeName: string; totalMinutes: number; lastEntry: string }> = {};
+
+        // Initialize all queried tasks so they appear in the UI even with 0 minutes
+        for (const task of (tasks || [])) {
+            const assignee = userMap.get(task.assignee_id);
+            const project = projectMap.get(task.project_id);
+            perTask[task.id] = {
+                taskId: task.id,
+                taskTitle: task.title,
+                projectId: task.project_id,
+                projectName: project?.name || 'Unknown',
+                assigneeId: task.assignee_id || '',
+                assigneeName: assignee?.name || 'Unassigned',
+                totalMinutes: 0,
+                lastEntry: '',
+            };
+        }
+
         for (const entry of allEntries) {
             if (!perTask[entry.taskId]) {
                 const assignee = userMap.get(entry.assigneeId);

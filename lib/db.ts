@@ -285,6 +285,29 @@ class Database {
         }
 
         if (userId) {
+            // Apply defaults
+            const defaultAvatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.fullName)}&background=random`;
+            // Generates +91 9XXXXXXXXX or similar Indian number
+            const firstDigit = Math.floor(Math.random() * 4) + 6;
+            const remainingDigits = Math.floor(Math.random() * 1000000000).toString().padStart(9, '0');
+            const defaultPhone = `+91 ${firstDigit}${remainingDigits.slice(0, 4)} ${remainingDigits.slice(4)}`;
+            const defaultOfficeAddress = 'Level 1, TaskFlow Tech Park, Bangalore, India';
+            const defaultDob = userData.dob || '1995-01-01';
+
+            const { error: updateError } = await getSupabase()
+                .from('users')
+                .update({
+                    avatar_url: defaultAvatarUrl,
+                    phone: defaultPhone,
+                    office_address: defaultOfficeAddress,
+                    dob: defaultDob
+                })
+                .eq('id', userId);
+
+            if (updateError) {
+                console.error('Error applying defaults to new user:', updateError);
+            }
+
             return await this.getUser(userId as string);
         }
         return null;

@@ -78,15 +78,6 @@ export function UserStatsCard({ user, onClick, onEditSkills }: UserStatsCardProp
             <div>
                 <div className="flex items-center justify-between mb-2">
                     <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Skills</h4>
-                    {isAdmin && onEditSkills && (
-                        <button
-                            onClick={onEditSkills}
-                            className="p-1 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
-                            title="Edit Skills"
-                        >
-                            <Pencil size={12} />
-                        </button>
-                    )}
                 </div>
                 <div className="flex flex-wrap gap-1">
                     {user.skills && user.skills.length > 0 ? (

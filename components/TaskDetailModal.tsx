@@ -287,19 +287,45 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={isEditing ? 'Edit Task' : task.title}>
             <div className="p-4 space-y-6 max-h-[70vh] overflow-y-auto">
-                {/* Header with badges */}
-                <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${STATUS_COLORS[task.status]}`}>
-                        {task.status}
-                    </span>
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${PRIORITY_COLORS[task.priority]}`}>
-                        {task.priority}
-                    </span>
-                    {task.tags.map(tag => (
-                        <span key={tag} className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full">
-                            {tag}
+                {/* Header with badges and timer */}
+                <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${STATUS_COLORS[task.status]}`}>
+                            {task.status}
                         </span>
-                    ))}
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${PRIORITY_COLORS[task.priority]}`}>
+                            {task.priority}
+                        </span>
+                        {task.tags.map(tag => (
+                            <span key={tag} className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full">
+                                {tag}
+                            </span>
+                        ))}
+                    </div>
+
+                    {/* Start/Stop Timer Controls */}
+                    <div className="flex-shrink-0">
+                        {editedTask.activeTimerStart ? (
+                            <button
+                                onClick={handleStopTimer}
+                                className="flex items-center space-x-2 px-4 py-2 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 transition"
+                            >
+                                <Square size={14} fill="currentColor" />
+                                <span className="text-sm font-medium animate-pulse">
+                                    Stop ({Math.round((currentTime.getTime() - new Date(editedTask.activeTimerStart).getTime()) / 60000)}m)
+                                </span>
+                            </button>
+                        ) : (
+                            <button
+                                onClick={handleStartTimer}
+                                disabled={isMember && editedTask.assigneeId !== currentUser?.id}
+                                className="flex items-center space-x-2 px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                            >
+                                <Play size={14} fill="currentColor" />
+                                <span className="text-sm font-medium">Start Timer</span>
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {isEditing ? (
@@ -395,16 +421,14 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                             </div>
 
                             {/* Total Time Spent */}
-                            {editedTask.timeLogs && editedTask.timeLogs.length > 0 && (
-                                <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-medium">
-                                    <Clock size={14} />
-                                    <span>
-                                        Time Spent:{' '}
-                                        {Math.floor(editedTask.timeLogs.reduce((acc, log) => acc + log.minutes, 0) / 60)}h{' '}
-                                        {editedTask.timeLogs.reduce((acc, log) => acc + log.minutes, 0) % 60}m
-                                    </span>
-                                </div>
-                            )}
+                            <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-medium">
+                                <Clock size={14} />
+                                <span>
+                                    Time Spent:{' '}
+                                    {Math.floor((editedTask.timeLogs || []).reduce((acc, log) => acc + log.minutes, 0) / 60)}h{' '}
+                                    {(editedTask.timeLogs || []).reduce((acc, log) => acc + log.minutes, 0) % 60}m
+                                </span>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -496,31 +520,7 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                         </>
                     ) : activeTab === 'time' ? (
                         <>
-                            {/* Start/Stop Timer Controls */}
-                            <div className="mb-4">
-                                {editedTask.activeTimerStart ? (
-                                    <button
-                                        onClick={handleStopTimer}
-                                        className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 transition"
-                                    >
-                                        <Square size={16} fill="currentColor" />
-                                        <span className="font-medium animate-pulse">
-                                            Stop active timer ({Math.round((currentTime.getTime() - new Date(editedTask.activeTimerStart).getTime()) / 60000)}m)
-                                        </span>
-                                    </button>
-                                ) : (
-                                    <button
-                                        onClick={handleStartTimer}
-                                        disabled={isMember && editedTask.assigneeId !== currentUser?.id}
-                                        className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                                    >
-                                        <Play size={16} fill="currentColor" />
-                                        <span className="font-medium">Start Timer</span>
-                                    </button>
-                                )}
-                            </div>
-
-                            <div className="space-y-3 max-h-48 overflow-y-auto">
+                            <div className="space-y-3 max-h-48 overflow-y-auto mt-4">
                                 {editedTask.timeLogs?.map((log, index) => (
                                     <div key={index} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
                                         <div className="flex justify-between items-start mb-1">
@@ -573,8 +573,8 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                                                 <Rocket size={14} className="text-indigo-500" />
                                                 <span className="font-semibold text-gray-900 dark:text-white">{deployment.version}</span>
                                                 <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${deployment.environment === 'Production' ? 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200 dark:bg-fuchsia-900/30 dark:text-fuchsia-400 dark:border-fuchsia-800' :
-                                                        deployment.environment === 'Staging' ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800' :
-                                                            'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800'
+                                                    deployment.environment === 'Staging' ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800' :
+                                                        'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800'
                                                     }`}>
                                                     {deployment.environment}
                                                 </span>
@@ -585,8 +585,8 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                                         </div>
                                         <div className="flex items-center gap-2 mb-2">
                                             <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${deployment.status === 'Completed' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800' :
-                                                    deployment.status === 'Failed' ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800' :
-                                                        'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800'
+                                                deployment.status === 'Failed' ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800' :
+                                                    'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800'
                                                 }`}>
                                                 {deployment.status}
                                             </span>

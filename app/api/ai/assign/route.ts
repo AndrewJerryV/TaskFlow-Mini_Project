@@ -62,8 +62,6 @@ async function pythonSmartAssignment(users: User[], allTasks: Task[], title: str
             reasoning += `Their skills in **${bestMatch.matching_skills.slice(0, 3).join(', ')}** strongly match the task content. `;
         }
 
-        reasoning += `\n\n*Analysis powered by Sentence Transformers semantic matching.*`;
-
         return {
             suggestedUser,
             candidateId: suggestedUser.id,

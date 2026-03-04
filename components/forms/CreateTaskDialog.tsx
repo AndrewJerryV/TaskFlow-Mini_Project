@@ -192,8 +192,8 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
             <form onSubmit={handleSubmit} className="p-4 space-y-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Summary <span className="text-red-500">*</span></label>
-                    <AutocompleteInput
-                        options={suggestions.titles}
+                    <input
+                        type="text"
                         className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                         placeholder="What needs to be done?"
                         value={title}
@@ -245,7 +245,7 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
                                     <optgroup label="Other Members">
                                         {users.filter(u => !projectMemberIds.includes(u.id)).map(user => (
                                             <option key={user.id} value={user.id}>
-                                                {user.name} (Not in project) - {user.skills?.slice(0, 3).join(', ') || 'No skills'}
+                                                {user.name} - {user.skills?.slice(0, 3).join(', ') || 'No skills'}
                                             </option>
                                         ))}
                                     </optgroup>

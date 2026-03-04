@@ -99,8 +99,8 @@ function fallbackBottleneckDetection(tasks: Task[], users: { id: string; name: s
             personBottlenecks: bottlenecks.filter(b => b.type === 'person').length,
             total: bottlenecks.length
         },
-        overallHealthScore: Math.max(0, 100 - (bottlenecks.length * 15)),
-        healthSummary: bottlenecks.length === 0 ? "Workflow is healthy." : "Bottlenecks detected.",
+        overallHealthScore: Math.max(0, 100 - bottlenecks.reduce((acc, b) => acc + 10 + (b.severity === 'high' ? 15 : b.severity === 'medium' ? 5 : 0) + (b.taskCount * 2), 0)),
+        healthSummary: bottlenecks.length === 0 ? "Workflow is healthy." : `Critical: ${bottlenecks.length} bottlenecks detected impacting ${bottlenecks.reduce((sum, b) => sum + b.taskCount, 0)} tasks.`,
         mlPowered: false
     };
 }

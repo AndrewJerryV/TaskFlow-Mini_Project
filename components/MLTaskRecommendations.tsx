@@ -169,7 +169,7 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
                       </div>
 
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <span className={`text-xs font-bold uppercase tracking-wider ${rec.type === 'focus' ? 'text-blue-700 dark:text-blue-300' :
                             rec.type === 'bottleneck' ? 'text-orange-700 dark:text-orange-300' :
                               rec.type === 'overdue_risk' ? 'text-red-700 dark:text-red-300' :
@@ -179,6 +179,12 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
                           </span>
                           <span className="text-gray-300 dark:text-gray-600">•</span>
                           <span className="text-xs text-gray-500 font-medium">Match: {rec.score}%</span>
+                          {rec.reason && (
+                            <>
+                              <span className="text-gray-300 dark:text-gray-600">•</span>
+                              <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">{rec.reason}</span>
+                            </>
+                          )}
                         </div>
 
                         <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate pr-4">{rec.title}</h3>
@@ -206,7 +212,7 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
             )}
 
             {/* Bottlenecks Section nested under main recommendations content */}
-              <div ref={bottlenecksRef} className="mt-8 border-t border-gray-100 dark:border-gray-800 pt-8">
+            <div ref={bottlenecksRef} className="mt-8 border-t border-gray-100 dark:border-gray-800 pt-8">
               <BottleneckAlert tasks={tasks} users={users} currentUser={currentUser} projectId={projectId} />
             </div>
           </>

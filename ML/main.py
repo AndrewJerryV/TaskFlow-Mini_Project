@@ -63,10 +63,13 @@ def analyze_bottlenecks(req: BottleneckRequest):
         if due_date_str:
             try:
                 due_date = datetime.fromisoformat(due_date_str.replace("Z", "+00:00"))
-                return max(0, (now - due_date).days)
+                delta = now - due_date
+                if delta.total_seconds() > 0:
+                    return max(0, delta.days)
+                return -1 # Not overdue yet
             except Exception:
-                return 0
-        return 0
+                return -1
+        return -1
 
     for task in tasks:
         project_id = task.projectId or "General"
@@ -75,7 +78,7 @@ def analyze_bottlenecks(req: BottleneckRequest):
     for project_id, project_tasks in tasks_by_project.items():
         overdue_tasks = [
             t for t in project_tasks
-            if t.dueDate and (t.status or "To Do") != "Done" and parse_days_overdue(t.dueDate) > 0
+            if t.dueDate and (t.status or "To Do") != "Done" and parse_days_overdue(t.dueDate) >= 0
         ]
 
         if len(overdue_tasks) > 0:
@@ -117,7 +120,7 @@ def analyze_bottlenecks(req: BottleneckRequest):
             severity = "high" if len(aging_tasks) >= 5 else "medium"
             bottlenecks.append({
                 "type": "process",
-                "location": project_id,
+                "location": "Aging WIP",
                 "projectId": project_id,
                 "taskCount": len(aging_tasks),
                 "avgDaysStuck": avg_days,
@@ -125,14 +128,27 @@ def analyze_bottlenecks(req: BottleneckRequest):
                 "severity": severity
             })
 
-    # Health score: penalize per bottleneck
-    overallHealthScore = max(0, 100 - (len(bottlenecks) * 12))
+    # Health score: compute penalty dynamically
+    health_penalty = 0
+    for b in bottlenecks:
+        penalty = 10 # Base penalty
+        if b["severity"] == "high":
+            penalty += 15
+        elif b["severity"] == "medium":
+            penalty += 5
+        
+        # Penalize further based on volume of affected tasks
+        penalty += int(b["taskCount"]) * 2
+        health_penalty += penalty
+
+    overallHealthScore = max(0, 100 - health_penalty)
+
     if len(bottlenecks) == 0:
         healthSummary = "Workflow is healthy."
     elif overallHealthScore < 50:
-        healthSummary = f"Critical: {len(bottlenecks)} bottlenecks detected."
+        healthSummary = f"Critical: {len(bottlenecks)} bottlenecks detected impacting {sum(b['taskCount'] for b in bottlenecks)} tasks."
     else:
-        healthSummary = f"{len(bottlenecks)} bottlenecks detected."
+        healthSummary = f"{len(bottlenecks)} bottlenecks detected impacting {sum(b['taskCount'] for b in bottlenecks)} tasks."
 
     return {
         "bottlenecks": bottlenecks,
