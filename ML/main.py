@@ -41,67 +41,98 @@ def analyze_bottlenecks(req: BottleneckRequest):
     tasks = req.tasks
 
     bottlenecks = []
-    urgency_threshold = 70  # Threshold for high urgency
-    high_urgency_count = 0
-    total_urgency = 0
     now = datetime.now(timezone.utc)
 
-    for task in tasks:
-        description = task.description or ""
-        status = task.status or "To Do"
-        due_date_str = task.dueDate
-        updated_at_str = task.updatedAt
+    # Industry-standard signals: WIP limits and aging WIP
+    wip_limit = 8
+    aging_days = 5
+    wip_statuses = {"In Progress", "Review"}
 
-        # Calculate days_until_due
-        if due_date_str:
-            try:
-                due_date = datetime.fromisoformat(due_date_str.replace("Z", "+00:00"))
-                days_until_due = (due_date - now).days
-            except Exception:
-                days_until_due = 0
-        else:
-            days_until_due = 0
+    tasks_by_project = {}
 
-        # Calculate days_since_update
+    def parse_days_since_update(updated_at_str):
         if updated_at_str:
             try:
                 updated_at = datetime.fromisoformat(updated_at_str.replace("Z", "+00:00"))
-                days_since_update = (now - updated_at).days
+                return max(0, (now - updated_at).days)
             except Exception:
-                days_since_update = 0
-        else:
-            days_since_update = 0
+                return 0
+        return 0
 
-        # Use real priority if available, else predict
-        priority = task.priority
-        if not priority:
-            pred_priority, _ = priority_ai.predict(description)
-        else:
-            pred_priority = priority
+    def parse_days_overdue(due_date_str):
+        if due_date_str:
+            try:
+                due_date = datetime.fromisoformat(due_date_str.replace("Z", "+00:00"))
+                return max(0, (now - due_date).days)
+            except Exception:
+                return 0
+        return 0
 
-        urgency = urgency_ai.predict(pred_priority, status, days_until_due, days_since_update)
-        total_urgency += urgency
-        if urgency >= urgency_threshold:
-            high_urgency_count += 1
+    for task in tasks:
+        project_id = task.projectId or "General"
+        tasks_by_project.setdefault(project_id, []).append(task)
+
+    for project_id, project_tasks in tasks_by_project.items():
+        overdue_tasks = [
+            t for t in project_tasks
+            if t.dueDate and (t.status or "To Do") != "Done" and parse_days_overdue(t.dueDate) > 0
+        ]
+
+        if len(overdue_tasks) > 0:
+            avg_days = round(sum(parse_days_overdue(t.dueDate) for t in overdue_tasks) / max(1, len(overdue_tasks)))
+            avg_days = max(1, avg_days)
+            severity = "high" if len(overdue_tasks) >= 5 else "medium"
             bottlenecks.append({
                 "type": "process",
-                "location": task.projectId or "General",
-                "projectId": task.projectId,
-                "taskCount": 1,
-                "avgDaysStuck": days_since_update,
-                "recommendation": f"High-urgency task: {description}",
-                "severity": "high" if urgency > 85 else "medium",
-                "taskId": task.id
+                "location": "Overdue Work",
+                "projectId": project_id,
+                "taskCount": len(overdue_tasks),
+                "avgDaysStuck": avg_days,
+                "recommendation": f"Overdue work detected ({len(overdue_tasks)} tasks). Review scope, unblock dependencies, and re-plan delivery.",
+                "severity": severity
+            })
+        # WIP limit breaches per status
+        for status in wip_statuses:
+            status_tasks = [t for t in project_tasks if (t.status or "To Do") == status and t.status != "Done"]
+            if len(status_tasks) >= wip_limit:
+                avg_days = round(sum(parse_days_since_update(t.updatedAt) for t in status_tasks) / max(1, len(status_tasks)))
+                avg_days = max(1, avg_days)
+                overage = len(status_tasks) - wip_limit
+                severity = "high" if overage >= 4 else "medium"
+                bottlenecks.append({
+                    "type": "process",
+                    "location": status,
+                    "projectId": project_id,
+                    "taskCount": len(status_tasks),
+                    "avgDaysStuck": avg_days,
+                    "recommendation": f"WIP limit exceeded in {status} ({len(status_tasks)}/{wip_limit}). Reduce in-progress work or add capacity.",
+                    "severity": severity
+                })
+
+        # Aging WIP: tasks not updated for a threshold
+        aging_tasks = [t for t in project_tasks if (t.status or "To Do") != "Done" and parse_days_since_update(t.updatedAt) >= aging_days]
+        if len(aging_tasks) >= 3:
+            avg_days = round(sum(parse_days_since_update(t.updatedAt) for t in aging_tasks) / max(1, len(aging_tasks)))
+            avg_days = max(1, avg_days)
+            severity = "high" if len(aging_tasks) >= 5 else "medium"
+            bottlenecks.append({
+                "type": "process",
+                "location": project_id,
+                "projectId": project_id,
+                "taskCount": len(aging_tasks),
+                "avgDaysStuck": avg_days,
+                "recommendation": f"Aging WIP detected ({len(aging_tasks)} tasks >= {aging_days} days). Swarm to unblock and finish work in progress.",
+                "severity": severity
             })
 
-    # Health score: penalize for each high-urgency bottleneck
-    overallHealthScore = max(0, 100 - high_urgency_count * 10)
-    if high_urgency_count == 0:
+    # Health score: penalize per bottleneck
+    overallHealthScore = max(0, 100 - (len(bottlenecks) * 12))
+    if len(bottlenecks) == 0:
         healthSummary = "Workflow is healthy."
     elif overallHealthScore < 50:
-        healthSummary = f"Critical: {high_urgency_count} high-urgency bottlenecks detected."
+        healthSummary = f"Critical: {len(bottlenecks)} bottlenecks detected."
     else:
-        healthSummary = f"{high_urgency_count} high-urgency bottlenecks detected."
+        healthSummary = f"{len(bottlenecks)} bottlenecks detected."
 
     return {
         "bottlenecks": bottlenecks,

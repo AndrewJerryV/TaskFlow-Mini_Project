@@ -206,8 +206,8 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
             )}
 
             {/* Bottlenecks Section nested under main recommendations content */}
-            <div ref={bottlenecksRef} className="mt-8 border-t border-gray-100 dark:border-gray-800 pt-8">
-              <BottleneckAlert tasks={tasks} users={users} currentUser={currentUser} />
+              <div ref={bottlenecksRef} className="mt-8 border-t border-gray-100 dark:border-gray-800 pt-8">
+              <BottleneckAlert tasks={tasks} users={users} currentUser={currentUser} projectId={projectId} />
             </div>
           </>
         )}

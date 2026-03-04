@@ -14,11 +14,6 @@ interface AssignmentResponse {
     suggested_assignees: AssignmentCandidate[];
 }
 
-
-// Heuristic fallback logic removed to simplify project complexity.
-// The system now relies exclusively on the Python ML server.
-// If the server is offline, the UI handles the unavailability state.
-
 // =============================================
 // Smart assignment calling Python ML server
 // =============================================

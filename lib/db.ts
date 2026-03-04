@@ -581,6 +581,52 @@ class Database {
         return (data || []).map(toActivityLog);
     }
 
+    async getActivityLogsForUser(userId: string): Promise<ActivityLog[]> {
+        const user = await this.getUser(userId);
+        if (!user) return [];
+
+        // Admins see everything
+        if (user.role === 'Admin') {
+            return this.getActivityLogs();
+        }
+
+        // Get projects user is part of
+        const projects = await this.getProjects(userId);
+        const projectIds = projects.map(p => p.id);
+
+        if (projectIds.length === 0) return [];
+
+        // Get tasks for those projects
+        const { data: tasks, error: tasksError } = await getSupabase()
+            .from('tasks')
+            .select('id')
+            .in('project_id', projectIds);
+
+        const taskIds = (tasks || []).map(t => t.id);
+
+        let orQueryParts = [];
+        if (projectIds.length > 0) {
+            orQueryParts.push(`and(entity_type.eq.Project,entity_id.in.(${projectIds.join(',')}))`);
+        }
+        if (taskIds.length > 0) {
+            orQueryParts.push(`and(entity_type.eq.Task,entity_id.in.(${taskIds.join(',')}))`);
+        }
+
+        if (orQueryParts.length === 0) return [];
+
+        const { data, error } = await getSupabase()
+            .from('activity_logs')
+            .select('*')
+            .or(orQueryParts.join(','))
+            .order('timestamp', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching activity logs for user:', error);
+            return [];
+        }
+        return (data || []).map(toActivityLog);
+    }
+
     async getUserActivityLogs(userId: string): Promise<ActivityLog[]> {
         const { data, error } = await getSupabase()
             .from('activity_logs')

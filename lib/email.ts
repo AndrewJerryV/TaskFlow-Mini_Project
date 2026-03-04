@@ -34,3 +34,57 @@ This code will expire in 5 minutes. If you did not request this deletion, please
         throw error;
     }
 }
+
+/**
+ * Notify a user that they've been added to a project.
+ */
+export async function sendProjectMemberAdded(to: string, projectName: string, addedBy?: string, projectLink?: string) {
+    try {
+        await indiePitcher.sendEmail({
+            to,
+            subject: `Added to project: ${projectName}`,
+            body: `
+### You've been added to a project
+
+${addedBy ? `${addedBy} ` : ''}added you to the project **${projectName}**.
+
+${projectLink ? `Open the project: ${projectLink}` : ''}
+
+---
+&copy; ${new Date().getFullYear()} TaskFlow
+            `,
+            bodyFormat: 'markdown'
+        });
+        return { success: true };
+    } catch (err) {
+        console.error('Error sending project added email:', err);
+        throw err;
+    }
+}
+
+/**
+ * Notify a user that they've been removed from a project.
+ */
+export async function sendProjectMemberRemoved(to: string, projectName: string, removedBy?: string) {
+    try {
+        await indiePitcher.sendEmail({
+            to,
+            subject: `Removed from project: ${projectName}`,
+            body: `
+### You've been removed from a project
+
+${removedBy ? `${removedBy} ` : ''}removed you from the project **${projectName}**.
+
+If you believe this was a mistake, please contact your workspace admin.
+
+---
+&copy; ${new Date().getFullYear()} TaskFlow
+            `,
+            bodyFormat: 'markdown'
+        });
+        return { success: true };
+    } catch (err) {
+        console.error('Error sending project removed email:', err);
+        throw err;
+    }
+}

@@ -57,6 +57,8 @@ You will need to run the necessary SQL scripts in your Supabase SQL Editor to se
 If you previously used a `profiles` table, run the merge script in supabase/migrations/20260303_merge_profiles_into_users.sql to migrate and drop `profiles`.
 Then run supabase/migrations/20260303_verify_profiles_merge.sql to verify no profile rows were missed.
 
+If you see `relation "public.profiles" does not exist` when creating users, run supabase/migrations/20260304_fix_admin_create_user_v2.sql and then visit /api/admin/rpc-check to verify the RPC points at public.users.
+
 *(If you have a `schema.sql` or migration file in your project, instruct the user to run it here. Example: copy the contents of `supabase/migrations` into the Supabase SQL editor and run it).*
 
 ### 5. Run the Development Server

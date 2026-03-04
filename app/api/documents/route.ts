@@ -3,11 +3,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { createClient } from '@supabase/supabase-js';
 
-// Helper to get raw supabase client for storage uploads (if needed)
-// Assuming we use the standard client for now, or the one from lib/db
-// However, next/server requires correct headers or service role for specialized ops.
-// For this prototype, we'll try to use the client directly if possible, or assume public bucket.
-
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const projectId = searchParams.get('projectId');

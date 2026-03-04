@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { Task } from '@/types';
 
-// Remove predictUrgency and isMLAvailable. We'll call the Python backend directly for urgency prediction.
-
 const STALE_THRESHOLD_DAYS = 5;
 const COLUMN_OVERFLOW_THRESHOLD = 8;
 
@@ -141,8 +139,10 @@ export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const userId = searchParams.get('userId');
+        const projectId = searchParams.get('projectId');
 
-        let tasks = await db.getTasks();
+        // If a projectId is provided, fetch tasks only for that project, otherwise fetch all tasks
+        let tasks = projectId ? await db.getTasks(projectId) : await db.getTasks();
         const users = await db.getUsers();
         const requester = userId ? await db.getUser(userId) : null;
 
@@ -172,6 +172,12 @@ export async function GET(request: Request) {
                     overdueTasks: { id: string; title: string; status: string; dueDate: string; daysOverdue: number }[];
                 }>();
 
+                const bottleneckTaskIds = new Set(
+                    (result.bottlenecks || [])
+                        .map((b: BottleneckResult & { taskId?: string }) => b.taskId)
+                        .filter((id: string | undefined): id is string => !!id)
+                );
+
                 const ensureGroup = (projectId: string | null | undefined) => {
                     const id = projectId || 'unknown';
                     if (!grouped.has(id)) {
@@ -192,6 +198,7 @@ export async function GET(request: Request) {
 
                 tasks.forEach(t => {
                     if (!t.dueDate || t.status === 'Done') return;
+                    if (bottleneckTaskIds.has(t.id)) return;
                     const due = new Date(t.dueDate);
                     if (Number.isNaN(due.getTime())) return;
                     if (due >= now) return;

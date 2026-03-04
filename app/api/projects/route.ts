@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { Project } from '@/types';
 import { NextResponse } from 'next/server';
+import { sendProjectMemberAdded } from '@/lib/email';
 
 export async function GET(request: Request) {
     try {
@@ -65,6 +66,16 @@ export async function POST(request: Request) {
             for (const memberId of body.memberIds) {
                 if (memberId !== body.ownerId) {
                     await db.addProjectMember(newProject.id, memberId);
+                    try {
+                        const user = await db.getUser(memberId);
+                        if (user && user.email) {
+                            const addedByName = requestUser?.name || 'Someone';
+                            const projectLink = `/projects/${newProject.id}`;
+                            await sendProjectMemberAdded(user.email, newProject.name, addedByName, projectLink).catch(e => console.error('Email error (initial add):', e));
+                        }
+                    } catch (err) {
+                        console.error('Error sending initial member email:', err);
+                    }
                 }
             }
         }

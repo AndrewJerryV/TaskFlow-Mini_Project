@@ -8,7 +8,7 @@ export async function POST(req: Request) {
   const supabase = getSupabase();
   const { error } = await supabase
     .from('presence')
-    .upsert({ user_id: userId, last_active: new Date().toISOString() }, { onConflict: ['user_id'] });
+    .upsert({ user_id: userId, last_active: new Date().toISOString() }, { onConflict: 'user_id' });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }

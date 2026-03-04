@@ -492,11 +492,13 @@ BEGIN
   -- 2. Insert into auth.users
   INSERT INTO auth.users (
     id, instance_id, email, encrypted_password, email_confirmed_at,
-    created_at, updated_at, raw_user_meta_data, role, aud
+    created_at, updated_at, raw_user_meta_data, role, aud,
+    confirmation_token, recovery_token, email_change_token_new, email_change
   ) VALUES (
     v_user_id, '00000000-0000-0000-0000-000000000000', p_email,
     v_encrypted_pw, now(), now(), now(),
-    jsonb_build_object('name', p_name), 'authenticated', 'authenticated'
+    jsonb_build_object('name', p_name), 'authenticated', 'authenticated',
+    '', '', '', ''
   );
 
   -- 3. Insert into auth.identities

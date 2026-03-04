@@ -5,6 +5,7 @@ import React, {
   useContext,
   useState,
   useEffect,
+  useRef,
   ReactNode
 } from 'react';
 
@@ -61,6 +62,12 @@ type ProfileRow = {
 export function AuthProvider({ children }: { children: ReactNode }) {
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const currentUserRef = useRef<User | null>(null);
+
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
+
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [authError, setAuthError] = useState('');
@@ -106,21 +113,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Set up auth state listener after successful init
         const { data: listenerData } = supabase.auth.onAuthStateChange(
-          async (_event, session) => {
+          async (event, session) => {
+            console.log(`[Auth Event] ${event}`, session?.user?.id);
+
+            // Ignore events that don't change the primary user session state
+            // INITIAL_SESSION is already handled manually above
+            // TOKEN_REFRESHED happens in the background, we don't want to show a loading screen
+            if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
+              return;
+            }
+
             try {
-              if (!session?.user) {
+              if (event === 'SIGNED_OUT' || !session?.user) {
                 setCurrentUser(null);
+                setIsLoading(false);
                 return;
               }
-              console.log('[SignIn] Auth state changed, loading profile for:', session.user.id);
-              await loadProfile(
-                session.user.id,
-                session.user.email ?? null,
-                session.user.app_metadata.provider
-              );
+
+              // Only show loading screen and reload profile for actual sign ins or user updates
+              if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+                if (!currentUserRef.current) {
+                  setIsLoading(true);
+                }
+                console.log('[SignIn] Auth state changed, loading profile for:', session.user.id);
+                await loadProfile(
+                  session.user.id,
+                  session.user.email ?? null,
+                  session.user.app_metadata.provider
+                );
+              }
             } catch (err) {
               console.error('Auth state change error:', err);
               setCurrentUser(null);
+            } finally {
+              setIsLoading(false);
             }
           }
         );

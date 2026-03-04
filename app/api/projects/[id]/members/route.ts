@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { sendProjectMemberAdded, sendProjectMemberRemoved } from '@/lib/email';
 
 export async function GET(
     request: Request,
@@ -56,6 +57,16 @@ export async function POST(
         for (const userId of toAdd) {
             console.log(`Adding member ${userId} to project ${projectId}`);
             await db.addProjectMember(projectId, userId);
+            try {
+                const user = await db.getUser(userId);
+                if (user && user.email) {
+                    const addedByName = requestUser?.name || 'Someone';
+                    const projectLink = `/projects/${projectId}`;
+                    await sendProjectMemberAdded(user.email, project.name, addedByName, projectLink).catch(e => console.error('Email error (add):', e));
+                }
+            } catch (err) {
+                console.error('Error while sending added notification:', err);
+            }
         }
 
         // 2. Members to remove (those in currentMembers but not in userIds, excluding owner)
@@ -63,6 +74,15 @@ export async function POST(
         for (const userId of toRemove) {
             console.log(`Removing member ${userId} from project ${projectId}`);
             await db.removeProjectMember(projectId, userId);
+            try {
+                const user = await db.getUser(userId);
+                if (user && user.email) {
+                    const removedByName = requestUser?.name || 'Someone';
+                    await sendProjectMemberRemoved(user.email, project.name, removedByName).catch(e => console.error('Email error (remove):', e));
+                }
+            } catch (err) {
+                console.error('Error while sending removed notification:', err);
+            }
         }
 
         // 3. Ensure owner is always in project_members (safety check)

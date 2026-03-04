@@ -156,13 +156,15 @@ export default function Home() {
 
 function ActivityFeedList({ users }: { users: any[] }) {
   const [logs, setLogs] = useState<any[]>([]);
+  const { currentUser } = useAuth();
 
   useEffect(() => {
-    fetch('/api/activity')
+    if (!currentUser?.id) return;
+    fetch(`/api/activity?userId=${currentUser.id}`)
       .then(res => res.json())
       .then(data => setLogs(Array.isArray(data) ? data : []))
       .catch(err => console.error(err));
-  }, []);
+  }, [currentUser?.id]);
 
   const getLocalUserName = (userId: string) => getUserName(users, userId);
 

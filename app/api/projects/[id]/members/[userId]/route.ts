@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { sendProjectMemberRemoved } from '@/lib/email';
 
 export async function DELETE(
     request: Request,
@@ -30,6 +31,17 @@ export async function DELETE(
         }
 
         await db.removeProjectMember(projectId, userId);
+
+        try {
+            const user = await db.getUser(userId);
+            const project = await db.getProject(projectId);
+            if (user && user.email && project) {
+                const remover = requestUser?.name || 'Someone';
+                await sendProjectMemberRemoved(user.email, project.name, remover).catch(e => console.error('Email error (remove single):', e));
+            }
+        } catch (err) {
+            console.error('Error sending removal email:', err);
+        }
 
         return NextResponse.json({ success: true });
     } catch (error) {
