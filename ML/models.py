@@ -91,3 +91,17 @@ class WellnessRequest(BaseModel):
     active_tasks: int
     high_priority_count: int
     critical_urgency_count: int
+
+
+class BottleneckTask(BaseModel):
+    id: str
+    projectId: str | None = None
+    description: str | None = None
+    status: str
+    priority: str | None = None
+    dueDate: str | None = None
+    updatedAt: str | None = None
+
+
+class BottleneckRequest(BaseModel):
+    tasks: list[BottleneckTask]

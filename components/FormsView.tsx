@@ -333,7 +333,6 @@ export default function FormsView({ projectId }: FormsViewProps) {
                                                 </span>
                                             )}
                                         </div>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{form.description || `${form.fields.length} question${form.fields.length !== 1 ? 's' : ''}`}</p>
                                         <div className="flex items-center gap-3 mt-1 text-xs text-gray-400 dark:text-gray-500">
                                             <span className="flex items-center gap-1"><Calendar size={12} /> {new Date(form.createdAt).toLocaleDateString()}</span>
                                             {creator && <span className="flex items-center gap-1"><Users size={12} /> You created this</span>}

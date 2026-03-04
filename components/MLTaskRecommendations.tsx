@@ -124,12 +124,6 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
             </button>
           </div>
           <div className="flex items-center gap-2">
-            {mlPowered && (
-              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700">
-                <Zap size={10} />
-                ML Insights
-              </span>
-            )}
             <span className="text-xs text-gray-500 dark:text-gray-400">
               {isUnavailable ? 'AI Service Offline' : mlPowered ? 'Powered by Local ML' : 'Heuristic analysis'}
             </span>
@@ -185,7 +179,6 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
                         </div>
 
                         <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate pr-4">{rec.title}</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{rec.reason}</p>
                         {mlPowered && rec.description && rec.description !== 'No description provided' && (
                           <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1 italic line-clamp-2 flex items-start gap-1">
                             <Lightbulb size={12} className="mt-0.5 flex-shrink-0" />
@@ -211,7 +204,7 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
 
             {/* Bottlenecks Section nested under main recommendations content */}
             <div ref={bottlenecksRef} className="mt-8 border-t border-gray-100 dark:border-gray-800 pt-8">
-              <BottleneckAlert tasks={tasks} users={users} />
+              <BottleneckAlert tasks={tasks} users={users} currentUser={currentUser} />
             </div>
           </>
         )}

@@ -108,152 +108,110 @@ function fallbackBottleneckDetection(tasks: Task[], users: { id: string; name: s
 }
 
 // =============================================
-// Local ML-powered bottleneck detection
+// ML-powered bottleneck detection (Python backend)
 // =============================================
-async function localMLBottleneckDetection(tasks: Task[], users: { id: string; name: string }[]) {
-    const now = Date.now();
-    const bottlenecks: BottleneckResult[] = [];
-
-    // Pre-calculate urgency for all open tasks using Python backend
-    const taskUrgencyMap = new Map<string, number>();
-    const openTasks = tasks.filter(t => t.status !== 'Done');
-
-    for (const task of openTasks) {
-        const daysUntilDue = task.dueDate
-            ? Math.ceil((new Date(task.dueDate).getTime() - now) / (1000 * 60 * 60 * 24))
-            : -1;
-        const daysSinceUpdate = Math.floor((now - new Date(task.updatedAt).getTime()) / (1000 * 60 * 60 * 24));
-        // Call Python backend for urgency prediction
-        try {
-            const pyRes = await fetch('http://127.0.0.1:8000/analyze_task', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    description: task.description,
-                    status: task.status,
-                    days_until_due: daysUntilDue,
-                    days_since_update: daysSinceUpdate,
-                    candidates: []
-                })
-            });
-            if (pyRes.ok) {
-                const pyData = await pyRes.json();
-                const urgency = pyData.analysis?.urgency_score ?? 0;
-                taskUrgencyMap.set(task.id, urgency);
-            } else {
-                taskUrgencyMap.set(task.id, 0);
-            }
-        } catch (err) {
-            taskUrgencyMap.set(task.id, 0);
-        }
-    }
-
-    // 1. Process Bottlenecks (Column Analysis)
-    const columns = ['To Do', 'In Progress', 'Review'];
-    for (const col of columns) {
-        const colTasks = openTasks.filter(t => t.status === col);
-        const avgDays = calculateAvgDays(colTasks, new Date());
-
-        // Calculate "Urgency Load"
-        let totalUrgency = 0;
-        let highUrgencyCount = 0;
-
-        colTasks.forEach(t => {
-            const u = taskUrgencyMap.get(t.id) || 0;
-            totalUrgency += u;
-            if (u > 70) highUrgencyCount++;
-        });
-
-        const isBottleneck =
-            (col === 'In Progress' && highUrgencyCount > 3) ||
-            (col === 'Review' && highUrgencyCount > 2) ||
-            (colTasks.length > 8);
-
-        if (isBottleneck) {
-            let severity: 'low' | 'medium' | 'high' = 'low';
-            if (highUrgencyCount > 5 || colTasks.length > 12) severity = 'high';
-            else if (highUrgencyCount > 3 || colTasks.length > 8) severity = 'medium';
-
-            bottlenecks.push({
-                type: 'process',
-                location: col,
-                taskCount: colTasks.length,
-                avgDaysStuck: avgDays,
-                severity,
-                recommendation: `${col} has ${highUrgencyCount} high-urgency tasks flagged by AI. Total load: ${colTasks.length}. Reallocate resources immediately.`
-            });
-        }
-    }
-
-    // 2. Person Bottlenecks (User Analysis)
-    for (const user of users) {
-        const userTasks = openTasks.filter(t => t.assigneeId === user.id);
-        const avgDays = calculateAvgDays(userTasks, new Date());
-
-        const staleHighUrgencyTasks = userTasks.filter(t => {
-            const u = taskUrgencyMap.get(t.id) || 0;
-            const daysSinceUpdate = Math.floor((now - new Date(t.updatedAt).getTime()) / (1000 * 60 * 60 * 24));
-            return u > 60 && daysSinceUpdate > 3;
-        });
-
-        if (staleHighUrgencyTasks.length >= 2) {
-            let severity: 'low' | 'medium' | 'high' = 'low';
-            if (staleHighUrgencyTasks.length >= 4) severity = 'high';
-            else if (staleHighUrgencyTasks.length >= 2) severity = 'medium';
-
-            bottlenecks.push({
-                type: 'person',
-                location: user.name,
-                taskCount: staleHighUrgencyTasks.length,
-                avgDaysStuck: avgDays,
-                severity,
-                recommendation: `${user.name} is stalled on ${staleHighUrgencyTasks.length} high-urgency tasks. Check for blockers or reduce WIP.`
-            });
-        }
-    }
-
-    // 3. Health Score Calculation
-    // Base 100
-    // -15 for high severity bottleneck
-    // -10 for medium
-    // -5 for low
-    let deduction = 0;
-    bottlenecks.forEach(b => {
-        if (b.severity === 'high') deduction += 15;
-        else if (b.severity === 'medium') deduction += 10;
-        else deduction += 5;
+async function localMLBottleneckDetection(tasks: Task[]) {
+    const pyRes = await fetch('http://127.0.0.1:8000/analyze_bottlenecks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            tasks: tasks.map(t => ({
+                id: t.id,
+                projectId: t.projectId,
+                description: t.description || '',
+                status: t.status,
+                priority: t.priority,
+                dueDate: t.dueDate,
+                updatedAt: t.updatedAt
+            }))
+        })
     });
 
-    const overallHealthScore = Math.max(0, 100 - deduction);
+    if (!pyRes.ok) {
+        throw new Error(`Python backend returned ${pyRes.status}`);
+    }
 
-    let healthSummary = "Project workflow is healthy and efficient.";
-    if (overallHealthScore < 50) healthSummary = "Critical bottlenecks detected. Immediate action required.";
-    else if (overallHealthScore < 80) healthSummary = "Workflow showing signs of congestion. Address bottlenecks soon.";
-
-    return {
-        bottlenecks,
-        summary: {
-            processBottlenecks: bottlenecks.filter(b => b.type === 'process').length,
-            personBottlenecks: bottlenecks.filter(b => b.type === 'person').length,
-            total: bottlenecks.length
-        },
-        overallHealthScore,
-        healthSummary,
-        mlPowered: true
-    };
+    return pyRes.json();
 }
 
 // =============================================
 // API Route Handler
 // =============================================
-export async function GET() {
+export async function GET(request: Request) {
     try {
-        const tasks = await db.getTasks();
+        const { searchParams } = new URL(request.url);
+        const userId = searchParams.get('userId');
+
+        let tasks = await db.getTasks();
         const users = await db.getUsers();
+        const requester = userId ? await db.getUser(userId) : null;
+
+        if (userId && !requester) {
+            return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        }
+
+        if (requester && requester.role !== 'Admin') {
+            const userProjects = await db.getProjects(requester.id);
+            const projectIds = new Set(userProjects.map(p => p.id));
+            tasks = tasks.filter(t => projectIds.has(t.projectId));
+        }
 
         // Always try ML-powered analysis (Python backend)
         try {
-            const result = await localMLBottleneckDetection(tasks, users);
+            const result = await localMLBottleneckDetection(tasks);
+
+            if (requester) {
+                const now = new Date();
+                const projects = await db.getProjects(requester.role === 'Admin' ? undefined : requester.id);
+                const projectMap = new Map(projects.map(p => [p.id, p.name]));
+
+                const grouped = new Map<string, {
+                    projectId: string;
+                    projectName: string;
+                    bottlenecks: BottleneckResult[];
+                    overdueTasks: { id: string; title: string; status: string; dueDate: string; daysOverdue: number }[];
+                }>();
+
+                const ensureGroup = (projectId: string | null | undefined) => {
+                    const id = projectId || 'unknown';
+                    if (!grouped.has(id)) {
+                        grouped.set(id, {
+                            projectId: id,
+                            projectName: projectMap.get(id) || (id === 'unknown' ? 'Unassigned' : 'Unknown Project'),
+                            bottlenecks: [],
+                            overdueTasks: []
+                        });
+                    }
+                    return grouped.get(id)!;
+                };
+
+                (result.bottlenecks || []).forEach((b: BottleneckResult & { projectId?: string }) => {
+                    const group = ensureGroup(b.projectId || b.location);
+                    group.bottlenecks.push(b);
+                });
+
+                tasks.forEach(t => {
+                    if (!t.dueDate || t.status === 'Done') return;
+                    const due = new Date(t.dueDate);
+                    if (Number.isNaN(due.getTime())) return;
+                    if (due >= now) return;
+                    const daysOverdue = Math.floor((now.getTime() - due.getTime()) / (1000 * 60 * 60 * 24));
+                    const group = ensureGroup(t.projectId);
+                    group.overdueTasks.push({
+                        id: t.id,
+                        title: t.title,
+                        status: t.status,
+                        dueDate: t.dueDate,
+                        daysOverdue
+                    });
+                });
+
+                return NextResponse.json({
+                    ...result,
+                    projects: Array.from(grouped.values())
+                });
+            }
+
             return NextResponse.json(result);
         } catch (error) {
             console.error('ML bottleneck analysis failed, falling back to heuristic:', error);

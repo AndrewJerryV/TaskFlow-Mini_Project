@@ -632,18 +632,6 @@ export default function ProjectPage() {
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2 max-w-full">
                                                 <p className="font-semibold text-gray-900 dark:text-white truncate" title={user!.name}>{user!.name}</p>
-                                                {(() => {
-                                                    const age = calculateAge(user!.dob);
-                                                    if (age !== null) {
-                                                        return (
-                                                            <>
-                                                                <span className="text-xs text-gray-300 dark:text-gray-600 flex-shrink-0">•</span>
-                                                                <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">{age} yrs</span>
-                                                            </>
-                                                        );
-                                                    }
-                                                    return null;
-                                                })()}
                                             </div>
                                             <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full flex-shrink-0 ml-2 ${user!.role === 'Admin' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
                                                 user!.role === 'Manager' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
@@ -653,22 +641,6 @@ export default function ProjectPage() {
                                             </span>
                                         </div>
                                         <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{user!.email}</p>
-
-                                        {user!.skills && user!.skills.length > 0 && (
-                                            <div className="flex flex-wrap gap-1 mt-2">
-                                                {user!.skills.map(s => {
-                                                    const exp = user!.skillExperience ? user!.skillExperience[s] : undefined;
-                                                    return (
-                                                        <span key={s} className="text-[10px] bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-1.5 py-0.5 rounded inline-flex items-center gap-1">
-                                                            {s}
-                                                            {exp !== undefined && (
-                                                                <span className="text-gray-400 dark:text-gray-500 font-medium opacity-70">({exp}y)</span>
-                                                            )}
-                                                        </span>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
                                     </div>
 
                                     {(currentUser?.role === 'Admin' || currentUser?.role === 'Manager') && user!.id !== currentUser?.id && (

@@ -21,6 +21,8 @@ export default function LoginPage() {
   useEffect(() => {
     if (!isLoading && currentUser) {
       router.replace('/');
+    } else if (!isLoading && !currentUser) {
+      setError('No active session found. Please log in.');
     }
   }, [currentUser, isLoading, router]);
 

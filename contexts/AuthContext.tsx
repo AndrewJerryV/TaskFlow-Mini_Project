@@ -78,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!data.session?.user) {
           console.log('[SignIn] No user session found.');
           setCurrentUser(null);
-          setIsLoading(false);
+          setIsLoading(false); // Ensure loading state is updated
           return;
         }
 
@@ -88,6 +88,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           data.session.user.email ?? null,
           data.session.user.app_metadata.provider
         );
+
+        setIsLoading(false); // Ensure loading state is updated after profile load
 
         // Fetch all users after load profile
         try {

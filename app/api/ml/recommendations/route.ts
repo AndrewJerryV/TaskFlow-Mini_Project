@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { Task } from '@/types';
 import { isOverdue, checkMLServerAvailability } from '@/lib/utils';
-// Heuristic fallback logic removed to simplify project complexity.
-// The system now relies exclusively on the Python ML server.
 
 interface MLAnalysis {
     predicted_priority: string;

@@ -1,4 +1,3 @@
-import json
 import os
 
 # Suppress TensorFlow logging to avoid clutter in the terminal
@@ -8,8 +7,9 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sentence_transformers import SentenceTransformer
-from models import TaskPriorityModel, TaskAssigner, UrgencyModel, FullTaskRequest, WellnessRequest
+from models import TaskPriorityModel, TaskAssigner, UrgencyModel, FullTaskRequest, WellnessRequest, BottleneckRequest
 from wellness_model import WellnessModel
+from datetime import datetime, timezone
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "my_setfit_model")
@@ -36,39 +36,62 @@ print("[SUCCESS] All systems ready!\n")
 
 # ── Bottleneck Analysis Endpoint ───────────────────────
 
-@app.get("/analyze_bottlenecks")
-def analyze_bottlenecks():
-    # Load tasks from data.txt
-    data_path = os.path.join(BASE_DIR, "data.txt")
-    tasks = []
-    with open(data_path, "r", encoding="utf-8") as f:
-        for line in f:
-            if "|" in line:
-                desc, priority = line.strip().split("|", 1)
-                tasks.append({"description": desc.strip(), "priority": priority.strip()})
+@app.post("/analyze_bottlenecks")
+def analyze_bottlenecks(req: BottleneckRequest):
+    tasks = req.tasks
 
     bottlenecks = []
     urgency_threshold = 70  # Threshold for high urgency
     high_urgency_count = 0
     total_urgency = 0
+    now = datetime.now(timezone.utc)
+
     for task in tasks:
-        # Predict priority using the model
-        pred_priority, _ = priority_ai.predict(task["description"])
-        # For demo, treat all as 'To Do' and not done
-        status = "To Do"
-        days_until_due = 2  # Placeholder, could be parsed from data
-        days_since_update = 6  # Placeholder, could be random or parsed
+        description = task.description or ""
+        status = task.status or "To Do"
+        due_date_str = task.dueDate
+        updated_at_str = task.updatedAt
+
+        # Calculate days_until_due
+        if due_date_str:
+            try:
+                due_date = datetime.fromisoformat(due_date_str.replace("Z", "+00:00"))
+                days_until_due = (due_date - now).days
+            except Exception:
+                days_until_due = 0
+        else:
+            days_until_due = 0
+
+        # Calculate days_since_update
+        if updated_at_str:
+            try:
+                updated_at = datetime.fromisoformat(updated_at_str.replace("Z", "+00:00"))
+                days_since_update = (now - updated_at).days
+            except Exception:
+                days_since_update = 0
+        else:
+            days_since_update = 0
+
+        # Use real priority if available, else predict
+        priority = task.priority
+        if not priority:
+            pred_priority, _ = priority_ai.predict(description)
+        else:
+            pred_priority = priority
+
         urgency = urgency_ai.predict(pred_priority, status, days_until_due, days_since_update)
         total_urgency += urgency
         if urgency >= urgency_threshold:
             high_urgency_count += 1
             bottlenecks.append({
                 "type": "process",
-                "location": "General",
+                "location": task.projectId or "General",
+                "projectId": task.projectId,
                 "taskCount": 1,
                 "avgDaysStuck": days_since_update,
-                "recommendation": f"High-urgency task: {task['description']}",
-                "severity": "high" if urgency > 85 else "medium"
+                "recommendation": f"High-urgency task: {description}",
+                "severity": "high" if urgency > 85 else "medium",
+                "taskId": task.id
             })
 
     # Health score: penalize for each high-urgency bottleneck
@@ -82,49 +105,19 @@ def analyze_bottlenecks():
 
     return {
         "bottlenecks": bottlenecks,
+        "summary": {
+            "processBottlenecks": len([b for b in bottlenecks if b["type"] == "process"]),
+            "personBottlenecks": len([b for b in bottlenecks if b["type"] == "person"]),
+            "total": len(bottlenecks)
+        },
         "overallHealthScore": overallHealthScore,
-        "healthSummary": healthSummary
+        "healthSummary": healthSummary,
+        "mlPowered": True
     }
-import json
-import os
-
-# Suppress TensorFlow logging to avoid clutter in the terminal
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from sentence_transformers import SentenceTransformer
-from models import TaskPriorityModel, TaskAssigner, UrgencyModel, FullTaskRequest, WellnessRequest
-from wellness_model import WellnessModel
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "my_setfit_model")
-SKILL_MODEL_PATH = os.path.join(BASE_DIR, "skill_matcher_model")
-
-# ── App & Init ──────────────────────────────────────────
-
-app = FastAPI()
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-print("\n--- INITIALIZING AI ENGINE ---")
-priority_ai = TaskPriorityModel(MODEL_PATH)
-sentence_model = SentenceTransformer(SKILL_MODEL_PATH)
-assigner_ai = TaskAssigner(sentence_model)
-urgency_ai = UrgencyModel()
-wellness_ai = WellnessModel()
-print("[SUCCESS] All systems ready!\n")
 
 @app.get("/")
 def health_check():
     return {"status": "ok"}
-
 
 # ── Endpoint ────────────────────────────────────────────
 
