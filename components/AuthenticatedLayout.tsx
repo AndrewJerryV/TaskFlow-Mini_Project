@@ -8,6 +8,8 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { LogOut, Search, Folder, CheckSquare, X, Users } from 'lucide-react';
 import { getRoleColor } from '@/lib/utils';
 import { Project, Task, User } from '@/types';
+import { TimerRunningIndicator } from '@/components/TimerRunningIndicator';
+import { TimerProvider } from '@/contexts/TimerContext';
 
 interface AuthenticatedLayoutProps {
     children: ReactNode;
@@ -176,143 +178,143 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
     };
 
     return (
-        <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-            <div className="flex-1 overflow-y-auto">
-                {/* Logout Loading Overlay */}
-                {isLoggingOut && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-                        <div className="bg-white dark:bg-gray-800 px-6 py-4 rounded shadow text-lg font-semibold text-gray-700 dark:text-gray-200">
-                            Logging out...
-                        </div>
-                    </div>
-                )}
-                {/* Error Banner */}
-                {authError && (
-                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 text-center relative">
-                        <span>{authError}</span>
-                        <button
-                            className="absolute right-4 top-1/2 -translate-y-1/2 text-red-700 hover:text-red-900"
-                            onClick={() => setAuthError('')}
-                            aria-label="Dismiss error"
-                        >
-                            &times;
-                        </button>
-                    </div>
-                )}
-                {/* Top Navbar */}
-                <div className="h-12 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between px-4">
-                    <div className="flex items-center space-x-4">
-                        <div className="flex items-center gap-2">
-                            <img src="/icon.svg" alt="TaskFlow" className="h-4 w-auto" />
-                            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">TaskFlow</h1>
-                        </div>
-                        <div className="relative" ref={searchRef}>
-                            <input
-                                type="text"
-                                placeholder="Search . . ."
-                                value={searchQuery}
-                                onChange={(e) => {
-                                    setSearchQuery(e.target.value);
-                                    setShowResults(true);
-                                }}
-                                onFocus={() => setShowResults(true)}
-                                className="w-full max-w-md p-1.5 pl-8 pr-8 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400"
-                            />
-                            <Search className="absolute w-4 h-4 text-gray-400 left-2.5 top-1/2 transform -translate-y-1/2" />
-                            {searchQuery && (
-                                <button
-                                    onClick={clearSearch}
-                                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                                >
-                                    <X size={14} />
-                                </button>
-                            )}
-
-                            {/* Search Results Dropdown */}
-                            {showResults && searchQuery.length >= 2 && (
-                                <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
-                                    {isSearching ? (
-                                        <div className="p-3 text-sm text-gray-500 dark:text-gray-400 text-center">
-                                            Searching...
-                                        </div>
-                                    ) : searchResults.length === 0 ? (
-                                        <div className="p-3 text-sm text-gray-500 dark:text-gray-400 text-center">
-                                            No results found for "{searchQuery}"
-                                        </div>
-                                    ) : (
-                                        <div className="py-1">
-                                            {searchResults.map((result) => (
-                                                <button
-                                                    key={`${result.type}-${result.id}`}
-                                                    onClick={() => handleResultClick(result)}
-                                                    className="w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-left transition-colors"
-                                                >
-                                                    <div className={`w-8 h-8 rounded flex items-center justify-center flex-shrink-0 ${result.type === 'project'
-                                                        ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'
-                                                        : result.type === 'user'
-                                                            ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400'
-                                                            : 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400'
-                                                        }`}>
-                                                        {result.type === 'project' ? <Folder size={16} /> : result.type === 'user' ? <Users size={16} /> : <CheckSquare size={16} />}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                                                            {result.title}
-                                                        </p>
-                                                        {result.subtitle && (
-                                                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                                                                {result.subtitle}
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                    <span className="text-xs text-gray-400 dark:text-gray-500 uppercase">
-                                                        {result.type}
-                                                    </span>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                        {/* Notifications */}
-                        <NotificationBell />
-
-                        {/* User Info */}
-                        <div className="flex items-center gap-3">
-                            <span className={`hidden sm:inline-block px-2 py-1 text-xs font-medium rounded-full ${getRoleColor(currentUser.role)}`}>
-                                {currentUser.role}
-                            </span>
-                            <span className="hidden sm:inline-block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                {currentUser.name}
-                            </span>
-                            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full flex items-center justify-center font-semibold overflow-hidden">
-                                {currentUser.avatarUrl ? (
-                                    <img src={currentUser.avatarUrl} alt={currentUser.name} className="w-full h-full object-cover" />
-                                ) : (
-                                    currentUser.name.charAt(0)
-                                )}
+        <TimerProvider>
+            <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
+                <div className="flex-1 flex flex-col h-full overflow-hidden">
+                    {/* Logout Loading Overlay */}
+                    {isLoggingOut && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                            <div className="bg-white dark:bg-gray-800 px-6 py-4 rounded shadow text-lg font-semibold text-gray-700 dark:text-gray-200">
+                                Logging out...
                             </div>
+                        </div>
+                    )}
+                    {/* Error Banner */}
+                    {authError && (
+                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 text-center relative">
+                            <span>{authError}</span>
                             <button
-                                onClick={handleLogout}
-                                className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
-                                title="Logout"
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-red-700 hover:text-red-900"
+                                onClick={() => setAuthError('')}
+                                aria-label="Dismiss error"
                             >
-                                <LogOut size={16} />
+                                &times;
                             </button>
                         </div>
+                    )}
+                    {/* Top Navbar */}
+                    <div className="h-12 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between px-4 flex-shrink-0">
+                        <div className="flex items-center space-x-4">
+                            <div className="flex items-center gap-2">
+                                <img src="/icon.svg" alt="TaskFlow" className="h-4 w-auto" />
+                                <h1 className="text-xl font-semibold text-gray-900 dark:text-white">TaskFlow</h1>
+                            </div>
+                            <div className="relative" ref={searchRef}>
+                                <input
+                                    type="text"
+                                    placeholder="Search . . ."
+                                    value={searchQuery}
+                                    onChange={(e) => {
+                                        setSearchQuery(e.target.value);
+                                        setShowResults(true);
+                                    }}
+                                    onFocus={() => setShowResults(true)}
+                                    className="w-full max-w-md p-1.5 pl-8 pr-8 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400"
+                                />
+                                <Search className="absolute w-4 h-4 text-gray-400 left-2.5 top-1/2 transform -translate-y-1/2" />
+                                {searchQuery && (
+                                    <button
+                                        onClick={clearSearch}
+                                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                )}
+
+                                {/* Search Results Dropdown */}
+                                {showResults && searchQuery.length >= 2 && (
+                                    <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
+                                        {isSearching ? (
+                                            <div className="p-3 text-sm text-gray-500 dark:text-gray-400 text-center">
+                                                Searching...
+                                            </div>
+                                        ) : searchResults.length === 0 ? (
+                                            <div className="p-3 text-sm text-gray-500 dark:text-gray-400 text-center">
+                                                No results found for "{searchQuery}"
+                                            </div>
+                                        ) : (
+                                            <div className="py-1">
+                                                {searchResults.map((result) => (
+                                                    <button
+                                                        key={`${result.type}-${result.id}`}
+                                                        onClick={() => handleResultClick(result)}
+                                                        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-left transition-colors"
+                                                    >
+                                                        <div className={`w-8 h-8 rounded flex items-center justify-center flex-shrink-0 ${result.type === 'project'
+                                                            ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'
+                                                            : result.type === 'user'
+                                                                ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400'
+                                                                : 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400'
+                                                            }`}>
+                                                            {result.type === 'project' ? <Folder size={16} /> : result.type === 'user' ? <Users size={16} /> : <CheckSquare size={16} />}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                                                {result.title}
+                                                            </p>
+                                                            {result.subtitle && (
+                                                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                                                    {result.subtitle}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-xs text-gray-400 dark:text-gray-500 uppercase">
+                                                            {result.type}
+                                                        </span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                            <TimerRunningIndicator />
+                            <NotificationBell />
+                            <div className="flex items-center gap-3">
+                                <span className={`hidden sm:inline-block px-2 py-1 text-xs font-medium rounded-full ${getRoleColor(currentUser.role)}`}>
+                                    {currentUser.role}
+                                </span>
+                                <span className="hidden sm:inline-block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    {currentUser.name}
+                                </span>
+                                <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full flex items-center justify-center font-semibold overflow-hidden">
+                                    {currentUser.avatarUrl ? (
+                                        <img src={currentUser.avatarUrl} alt={currentUser.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        currentUser.name.charAt(0)
+                                    )}
+                                </div>
+                                <button
+                                    onClick={handleLogout}
+                                    className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+                                    title="Logout"
+                                >
+                                    <LogOut size={16} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-1 overflow-hidden">
+                        <Sidebar />
+                        <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
+                            {children}
+                        </main>
                     </div>
                 </div>
-
-                <div className="flex h-[calc(100vh-3rem)]">
-                    <Sidebar />
-                    <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
-                        {children}
-                    </main>
-                </div>
             </div>
-        </div>
+        </TimerProvider>
     );
 }

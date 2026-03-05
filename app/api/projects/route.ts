@@ -46,8 +46,8 @@ export async function POST(request: Request) {
         }
 
         const requestUser = await db.getUser(body.ownerId);
-        if (!requestUser || (requestUser.role !== 'Admin' && requestUser.role !== 'Manager')) {
-            return NextResponse.json({ error: 'Forbidden. Only Admins and Managers can create projects.' }, { status: 403 });
+        if (!requestUser || requestUser.role !== 'Admin') {
+            return NextResponse.json({ error: 'Forbidden. Only Admins can create projects.' }, { status: 403 });
         }
 
         const newProject: Project = {
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
             name: body.name,
             description: body.description || '',
             key: body.key,
-            ownerId: body.ownerId, // Use provided ownerId
+            ownerId: body.managerId || body.ownerId, // Use managerId as owner if provided
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
         };
@@ -102,8 +102,8 @@ export async function DELETE(request: Request) {
         }
 
         const requestUser = await db.getUser(userId);
-        if (!requestUser || (requestUser.role !== 'Admin' && requestUser.role !== 'Manager')) {
-            return NextResponse.json({ error: 'Forbidden. Only Admins and Managers can delete projects.' }, { status: 403 });
+        if (!requestUser || requestUser.role !== 'Admin') {
+            return NextResponse.json({ error: 'Forbidden. Only Admins can delete projects.' }, { status: 403 });
         }
 
         const success = await db.deleteProject(id);

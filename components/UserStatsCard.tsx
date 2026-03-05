@@ -75,7 +75,7 @@ export function UserStatsCard({ user, onClick, onEditSkills }: UserStatsCardProp
                 </div>
             </div>
 
-            <div>
+            {/* <div>
                 <div className="flex items-center justify-between mb-2">
                     <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Skills</h4>
                 </div>
@@ -96,7 +96,7 @@ export function UserStatsCard({ user, onClick, onEditSkills }: UserStatsCardProp
                         <span className="text-xs text-gray-400 italic">No skills listed</span>
                     )}
                 </div>
-            </div>
+            </div> */}
         </div>
     );
 }

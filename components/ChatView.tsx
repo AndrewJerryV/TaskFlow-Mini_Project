@@ -17,7 +17,7 @@ interface ChatViewProps {
 type ChatMessage = Message;
 
 export default function ChatView({ projectId }: ChatViewProps) {
-    const { currentUser } = useAuth();
+    const { currentUser, users } = useAuth();
     const [projectUsers, setProjectUsers] = useState<any[]>([]);
     const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
 
@@ -463,7 +463,10 @@ export default function ChatView({ projectId }: ChatViewProps) {
                             {/* Messages */}
                             {group.messages.map((msg, mi) => {
                                 const isSender = isCurrentUser(msg.userId);
-                                const senderName = projectUsers.find(u => u.id === msg.userId)?.name || 'Unknown';
+                                // Try to find name in projectUsers first, then in the full users list from AuthContext
+                                const senderName = projectUsers.find(u => u.id === msg.userId)?.name ||
+                                    users.find(u => u.id === msg.userId)?.name ||
+                                    'Unknown';
                                 const showName = !isSender && (mi === 0 || group.messages[mi - 1].userId !== msg.userId);
                                 const showAvatar = !isSender && (mi === group.messages.length - 1 || group.messages[mi + 1].userId !== msg.userId);
 

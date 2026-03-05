@@ -89,7 +89,7 @@ export default function Home() {
                       <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">{project.name}</h3>
                       <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{project.description}</p>
                     </div>
-                    {(currentUser?.role === 'Admin' || currentUser?.role === 'Manager') && (
+                    {currentUser?.role === 'Admin' && (
                       <button
                         onClick={(e) => {
                           e.preventDefault();
@@ -128,7 +128,7 @@ export default function Home() {
             ))}
 
             {/* Create New Project Card */}
-            {(currentUser?.role === 'Admin' || currentUser?.role === 'Manager') && (
+            {currentUser?.role === 'Admin' && (
               <button
                 onClick={() => setIsCreateOpen(true)}
                 className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 h-36 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-blue-400 hover:text-blue-500 transition-all hover:bg-blue-50/10 dark:hover:bg-blue-900/10"

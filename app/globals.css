@@ -8,9 +8,16 @@
   --background-start-rgb: 255, 255, 255;
 }
 
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-start-rgb));
 }
 
 /* Modern Thin Scrollbars */
@@ -117,4 +124,19 @@ body {
 .high-contrast.dark .border-gray-600,
 .high-contrast.dark .border-gray-700 {
   border-color: #9ca3af !important;
+}
+
+/* Custom Animations */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
 }

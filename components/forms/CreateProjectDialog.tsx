@@ -13,6 +13,7 @@ export function CreateProjectDialog({ isOpen, onClose }: CreateProjectDialogProp
     const [name, setName] = useState('');
     const [key, setKey] = useState('');
     const [description, setDescription] = useState('');
+    const [managerId, setManagerId] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
@@ -26,7 +27,14 @@ export function CreateProjectDialog({ isOpen, onClose }: CreateProjectDialogProp
             const res = await fetch('/api/projects', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, key, description, ownerId: currentUser?.id, memberIds: selectedMembers })
+                body: JSON.stringify({
+                    name,
+                    key,
+                    description,
+                    ownerId: currentUser?.id,
+                    managerId: managerId || currentUser?.id, // Default to creator if no manager selected
+                    memberIds: selectedMembers
+                })
             });
 
             if (res.ok) {
@@ -35,6 +43,7 @@ export function CreateProjectDialog({ isOpen, onClose }: CreateProjectDialogProp
                 setName('');
                 setKey('');
                 setDescription('');
+                setManagerId('');
                 setSelectedMembers([]);
                 router.push(`/projects/${project.id}`);
                 // Force router refresh to update sidebar
@@ -88,6 +97,25 @@ export function CreateProjectDialog({ isOpen, onClose }: CreateProjectDialogProp
                     />
                 </div>
                 <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Project Manager <span className="text-red-500">*</span></label>
+                    <select
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={managerId}
+                        onChange={(e) => setManagerId(e.target.value)}
+                        required
+                    >
+                        <option value="">Select a Manager</option>
+                        {users
+                            .filter(u => u.role === 'Manager')
+                            .map(user => (
+                                <option key={user.id} value={user.id}>
+                                    {user.name} ({user.role})
+                                </option>
+                            ))
+                        }
+                    </select>
+                </div>
+                <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Team Members</label>
                     <input
                         type="text"
@@ -99,6 +127,7 @@ export function CreateProjectDialog({ isOpen, onClose }: CreateProjectDialogProp
                     <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded p-2">
                         {users
                             .filter(u => u.id !== currentUser?.id)
+                            .filter(u => u.role === 'Member')
                             .filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.email.toLowerCase().includes(searchQuery.toLowerCase()))
                             .map(user => {
                                 const isSelected = selectedMembers.includes(user.id);

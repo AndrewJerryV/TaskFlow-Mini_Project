@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-// GET /api/shortcuts?projectId=...
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const projectId = searchParams.get('projectId');
@@ -10,7 +9,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(await db.getShortcuts(projectId));
 }
 
-// POST /api/shortcuts - Create a new shortcut
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
@@ -32,7 +30,6 @@ export async function POST(request: NextRequest) {
     }
 }
 
-// DELETE /api/shortcuts?id=...
 export async function DELETE(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');

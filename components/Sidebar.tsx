@@ -56,7 +56,7 @@ export function Sidebar() {
                 <div>
                     <div className="flex items-center justify-between px-2 mb-2 group">
                         <h2 className="text-xs font-semibold uppercase text-gray-400 dark:text-gray-500">Projects</h2>
-                        {(currentUser?.role === 'Admin' || currentUser?.role === 'Manager') && (
+                        {currentUser?.role === 'Admin' && (
                             <button
                                 onClick={() => setIsCreateOpen(true)}
                                 className="text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity"

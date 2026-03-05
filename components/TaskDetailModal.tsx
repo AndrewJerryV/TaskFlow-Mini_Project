@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Task, Comment, Priority, Status, Deployment } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTimer } from '@/contexts/TimerContext';
 import { Trash2, Calendar, User as UserIcon, MessageSquare, Clock, Sparkles, ArrowRight, Edit, Play, Square, Rocket } from 'lucide-react';
 import { PRIORITY_COLORS, STATUS_COLORS } from '@/lib/constants';
 import { getUserName, getActionDisplay } from '@/lib/utils';
@@ -42,6 +43,7 @@ interface TaskDetailModalProps {
 
 export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: TaskDetailModalProps) {
     const { currentUser, users } = useAuth();
+    const { activeTimer, startTimer, stopTimer, elapsedMinutes } = useTimer();
     const [isEditing, setIsEditing] = useState(false);
     const [editedTask, setEditedTask] = useState<Task | null>(null);
     const [comments, setComments] = useState<Comment[]>([]);
@@ -50,25 +52,12 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
     const [activeTab, setActiveTab] = useState<'comments' | 'history' | 'time' | 'deployments'>('comments');
     const [newComment, setNewComment] = useState('');
     const [timeLogMinutes, setTimeLogMinutes] = useState('');
-    const [currentTime, setCurrentTime] = useState(new Date());
     const [isDeleting, setIsDeleting] = useState(false);
     const [loadingComments, setLoadingComments] = useState(false);
     const [loadingHistory, setLoadingHistory] = useState(false);
     const [loadingDeployments, setLoadingDeployments] = useState(false);
 
     const isMember = currentUser?.role === 'Member';
-
-    useEffect(() => {
-        let interval: NodeJS.Timeout;
-        if (editedTask?.activeTimerStart) {
-            interval = setInterval(() => {
-                setCurrentTime(new Date());
-            }, 60000); // UI update every minute is enough
-        }
-        return () => {
-            if (interval) clearInterval(interval);
-        };
-    }, [editedTask?.activeTimerStart]);
 
     useEffect(() => {
         if (!task) return;
@@ -224,43 +213,13 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
         }
     };
 
-    const handleStartTimer = async () => {
-        if (!task || !currentUser || !editedTask) return;
-
-        const updatedTask = {
-            ...editedTask,
-            activeTimerStart: new Date().toISOString()
-        };
-
-        setEditedTask(updatedTask);
-        onUpdate(updatedTask);
-        setCurrentTime(new Date());
+    const handleStartTimer = () => {
+        if (!task) return;
+        startTimer(task);
     };
 
     const handleStopTimer = async () => {
-        if (!task || !currentUser || !editedTask || !editedTask.activeTimerStart) return;
-
-        const startTime = new Date(editedTask.activeTimerStart);
-        const endTime = new Date();
-        const diffMs = endTime.getTime() - startTime.getTime();
-        const elapsedMinutes = Math.max(1, Math.round(diffMs / 60000));
-
-        const newTimeLog = {
-            userId: currentUser.id,
-            minutes: elapsedMinutes,
-            date: endTime.toISOString()
-        };
-
-        const updatedTimeLogs = [...(editedTask.timeLogs || []), newTimeLog];
-
-        const updatedTask = {
-            ...editedTask,
-            timeLogs: updatedTimeLogs,
-            activeTimerStart: null
-        };
-
-        setEditedTask(updatedTask);
-        onUpdate(updatedTask);
+        await stopTimer();
     };
 
     const handleAddTimeLog = async () => {
@@ -296,21 +255,22 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                     {/* Start/Stop Timer Controls in Header */}
                     {!isEditing && (
                         <div className="ml-4">
-                            {editedTask.activeTimerStart ? (
+                            {activeTimer?.taskId === task.id ? (
                                 <button
                                     onClick={handleStopTimer}
                                     className="flex items-center space-x-2 px-3 py-1.5 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 transition shadow-sm"
                                 >
                                     <Square size={14} fill="currentColor" />
                                     <span className="text-sm font-medium animate-pulse">
-                                        Stop ({Math.round((currentTime.getTime() - new Date(editedTask.activeTimerStart).getTime()) / 60000)}m)
+                                        Stop ({elapsedMinutes}m)
                                     </span>
                                 </button>
                             ) : (
                                 <button
                                     onClick={handleStartTimer}
-                                    disabled={editedTask.assigneeId !== currentUser?.id}
+                                    disabled={(task.assigneeId !== currentUser?.id && !!task.assigneeId) || (!!activeTimer && activeTimer.taskId !== task.id)}
                                     className="flex items-center space-x-2 px-3 py-1.5 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-sm"
+                                    title={!!activeTimer ? "Stop current timer before starting a new one" : ""}
                                 >
                                     <Play size={14} fill="currentColor" />
                                     <span className="text-sm font-medium">Start Timer</span>

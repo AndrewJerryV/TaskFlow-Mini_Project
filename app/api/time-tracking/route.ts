@@ -38,6 +38,19 @@ export async function GET(req: NextRequest) {
         const projectMap = new Map((projects || []).map(p => [p.id, p]));
         const userMap = new Map((users || []).map(u => [u.id, u]));
 
+        // Fetch project members if projectId is provided
+        let projectMemberIds: Set<string> | null = null;
+        if (projectId) {
+            const { data: members } = await supabase
+                .from('project_members')
+                .select('user_id')
+                .eq('project_id', projectId);
+
+            if (members) {
+                projectMemberIds = new Set(members.map(m => m.user_id));
+            }
+        }
+
         // Process time_logs from all tasks
         interface TimeEntry {
             taskId: string;
@@ -97,20 +110,81 @@ export async function GET(req: NextRequest) {
             }
         }
 
+        // ID Normalization: Map known IDs for a user to a "standard" project member ID
+        const idNormalizationMap = new Map<string, string>();
+        const emailToStandardId = new Map<string, string>();
+        const nameToStandardId = new Map<string, string>();
+
+        // 1. Map Project Members as the "Standard" IDs
+        if (projectMemberIds) {
+            for (const uid of projectMemberIds) {
+                const user = userMap.get(uid);
+                if (user) {
+                    emailToStandardId.set(user.email.toLowerCase(), uid);
+                    nameToStandardId.set(user.name.toLowerCase(), uid);
+                }
+            }
+        }
+
+        // 2. Map all user records to a standard ID if possible
+        for (const user of (users || [])) {
+            const email = user.email.toLowerCase();
+            const name = user.name.toLowerCase();
+            const standardId = emailToStandardId.get(email) || nameToStandardId.get(name);
+            if (standardId) {
+                idNormalizationMap.set(user.id, standardId);
+            }
+        }
+
         // Aggregate per-user
         const perUser: Record<string, { userId: string; userName: string; totalMinutes: number; taskCount: number }> = {};
-        for (const entry of allEntries) {
-            if (!perUser[entry.userId]) {
-                perUser[entry.userId] = { userId: entry.userId, userName: entry.userName, totalMinutes: 0, taskCount: 0 };
+
+        // Initialize with project members
+        if (projectMemberIds) {
+            for (const uid of projectMemberIds) {
+                const user = userMap.get(uid);
+                if (user) {
+                    perUser[uid] = { userId: uid, userName: user.name, totalMinutes: 0, taskCount: 0 };
+                }
             }
-            perUser[entry.userId].totalMinutes += entry.minutes;
         }
-        // Count unique tasks per user
+
+        // Processing entries with Assignee Fallback
         const userTaskSets: Record<string, Set<string>> = {};
+
         for (const entry of allEntries) {
-            if (!userTaskSets[entry.userId]) userTaskSets[entry.userId] = new Set();
-            userTaskSets[entry.userId].add(entry.taskId);
+            let normalizedId = idNormalizationMap.get(entry.userId);
+
+            // If the user ID is unknown or not a project member, fallback to Task Assignee
+            if (!normalizedId || (projectMemberIds && !projectMemberIds.has(normalizedId))) {
+                const task = tasks?.find(t => t.id === entry.taskId);
+                if (task && task.assignee_id && (!projectMemberIds || projectMemberIds.has(task.assignee_id))) {
+                    normalizedId = task.assignee_id;
+                }
+            }
+
+            normalizedId = normalizedId || entry.userId;
+
+            // Skip logs that cannot be attributed to a project member (if projectId filter is active)
+            if (projectMemberIds && !projectMemberIds.has(normalizedId)) continue;
+
+            if (!perUser[normalizedId]) {
+                const standardUser = userMap.get(normalizedId);
+                perUser[normalizedId] = {
+                    userId: normalizedId,
+                    userName: standardUser?.name || entry.userName,
+                    totalMinutes: 0,
+                    taskCount: 0
+                };
+            }
+            perUser[normalizedId].totalMinutes += entry.minutes;
+
+            // Track unique tasks for taskCount
+            if (!userTaskSets[normalizedId]) userTaskSets[normalizedId] = new Set();
+            userTaskSets[normalizedId].add(entry.taskId);
         }
+
+        // Finalize task counts
         for (const uid of Object.keys(perUser)) {
             perUser[uid].taskCount = userTaskSets[uid]?.size || 0;
         }
