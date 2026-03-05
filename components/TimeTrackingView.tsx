@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Clock, Users, BarChart3, Timer, Filter, X, TrendingUp, Activity, Briefcase, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { Task, User } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -148,6 +148,28 @@ export default function TimeTrackingView({ projectId, tasks: propTasks }: TimeTr
     useEffect(() => {
         if (projectId) setFilterProject(projectId);
     }, [projectId]);
+
+    // Re-fetch data when a timer stops (activeTimer goes from non-null to null)
+    // This means a new time log was just written to the database
+    const prevTimerRef = useRef(activeTimer);
+    useEffect(() => {
+        if (prevTimerRef.current && !activeTimer) {
+            // Timer was just stopped — new data is in the DB, re-fetch
+            const timeout = setTimeout(() => fetchData(), 500); // Small delay for DB write to settle
+            return () => clearTimeout(timeout);
+        }
+        prevTimerRef.current = activeTimer;
+    }, [activeTimer, fetchData]);
+
+    // Listen for cross-component timer state changes
+    useEffect(() => {
+        const handler = () => {
+            // Small delay to let DB writes complete
+            setTimeout(() => fetchData(), 600);
+        };
+        window.addEventListener('timer-state-changed', handler);
+        return () => window.removeEventListener('timer-state-changed', handler);
+    }, [fetchData]);
 
     const hasActiveFilters = filterUser || filterStartDate || filterEndDate || (filterProject && !projectId);
 
