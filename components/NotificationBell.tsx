@@ -179,13 +179,20 @@ export function NotificationBell() {
         setIsOpen(false);
 
         if (notification.link) {
+            // Extract tab from link if it contains ?tab=
+            const tabMatch = notification.link.match(/[?&]tab=([^&]+)/);
+            if (tabMatch) {
+                window.dispatchEvent(new CustomEvent('tab-change', { detail: { tab: tabMatch[1] } }));
+            }
             router.push(notification.link);
         } else if (notification.projectId) {
             if (notification.type === 'task_assigned' || notification.type === 'task_status_changed') {
                 router.push(`/projects/${notification.projectId}?task=${notification.entityId}`);
             } else if (notification.type === 'new_message') {
+                window.dispatchEvent(new CustomEvent('tab-change', { detail: { tab: 'chat' } }));
                 router.push(`/projects/${notification.projectId}?tab=chat`);
             } else if (notification.type === 'new_form') {
+                window.dispatchEvent(new CustomEvent('tab-change', { detail: { tab: 'forms' } }));
                 router.push(`/projects/${notification.projectId}?tab=forms`);
             } else {
                 router.push(`/projects/${notification.projectId}`);

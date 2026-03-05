@@ -94,12 +94,22 @@ export function TimerProvider({ children }: { children: ReactNode }) {
             startTime: new Date().toISOString(),
         };
 
+        // Instant local update
         setActiveTimer(newTimer);
         setElapsedMinutes(0);
         localStorage.setItem(`${STORAGE_KEY}_${currentUser.id}`, JSON.stringify(newTimer));
-
-        // Dispatch event for components that might not be in context but need to know
         window.dispatchEvent(new CustomEvent('timer-state-changed'));
+
+        // Also write to DB so other users can see this timer is active
+        fetch('/api/tasks', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: task.id,
+                userId: currentUser.id,
+                activeTimerStart: newTimer.startTime,
+            })
+        }).catch(err => console.error('Failed to set active_timer_start in DB:', err));
     };
 
     const stopTimer = async () => {

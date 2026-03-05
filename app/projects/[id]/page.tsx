@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Project, Task, Status } from '@/types';
 import { TaskBoard } from '@/components/TaskBoard';
 import SummaryView from '@/components/SummaryView';
@@ -50,16 +50,29 @@ export default function ProjectPage() {
     const { users, currentUser } = useAuth();
     // ... (rest of the component state and effects remain the same until the return statement)
 
-    // Load saved tab from localStorage on mount (client-side only)
+    const searchParams = useSearchParams();
+    const urlTab = searchParams.get('tab');
+
+    // Load saved tab from localStorage on mount, but URL query param takes priority
     useEffect(() => {
         if (id && typeof window !== 'undefined') {
-            const stored = localStorage.getItem(`project-${id}-activeTab`);
-            if (stored && NAV_ITEMS.includes(stored as Tab)) {
-                setActiveTab(stored as Tab);
+            if (urlTab) {
+                // Case-insensitive match: URL uses 'chat' but NAV_ITEMS has 'Chat'
+                const matchedTab = NAV_ITEMS.find(
+                    item => item.toLowerCase() === urlTab.toLowerCase()
+                );
+                if (matchedTab) {
+                    setActiveTab(matchedTab);
+                }
+            } else {
+                const stored = localStorage.getItem(`project-${id}-activeTab`);
+                if (stored && NAV_ITEMS.includes(stored as Tab)) {
+                    setActiveTab(stored as Tab);
+                }
             }
             setTabLoaded(true);
         }
-    }, [id]);
+    }, [id, urlTab]);
 
     // Custom handler to change tab and save to localStorage
     const handleTabChange = (tab: Tab) => {
@@ -68,6 +81,27 @@ export default function ProjectPage() {
             localStorage.setItem(`project-${id}-activeTab`, tab);
         }
     };
+
+    // Listen for tab-change events from notifications (handles same-page navigation)
+    useEffect(() => {
+        const handler = (e: Event) => {
+            const customEvent = e as CustomEvent<{ tab: string }>;
+            const tabName = customEvent.detail?.tab;
+            if (tabName) {
+                const matchedTab = NAV_ITEMS.find(
+                    item => item.toLowerCase() === tabName.toLowerCase()
+                );
+                if (matchedTab) {
+                    setActiveTab(matchedTab);
+                    if (id && typeof window !== 'undefined') {
+                        localStorage.setItem(`project-${id}-activeTab`, matchedTab);
+                    }
+                }
+            }
+        };
+        window.addEventListener('tab-change', handler);
+        return () => window.removeEventListener('tab-change', handler);
+    }, [id]);
 
     const fetchData = useCallback(async (silent = false) => {
         if (!id || !currentUser) return;
