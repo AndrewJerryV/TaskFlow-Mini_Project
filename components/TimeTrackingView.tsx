@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Clock, Users, BarChart3, Timer, Filter, X, TrendingUp, Activity, Briefcase, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { Task, User } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTimer } from '@/contexts/TimerContext';
 
 interface TimeTrackingViewProps {
     projectId?: string;
@@ -100,6 +101,7 @@ const BAR_COLORS = [
 
 export default function TimeTrackingView({ projectId, tasks: propTasks }: TimeTrackingViewProps) {
     const { currentUser } = useAuth();
+    const { activeTimer } = useTimer();
     const [data, setData] = useState<AnalyticsData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -156,6 +158,28 @@ export default function TimeTrackingView({ projectId, tasks: propTasks }: TimeTr
         setFilterEndDate('');
     };
 
+    const displayActiveTimers = useMemo(() => {
+        if (!data) return [];
+
+        const serverTimers = data.activeTimers.filter(t =>
+            !(activeTimer && t.taskId === activeTimer.taskId && t.userId === currentUser?.id)
+        );
+
+        if (activeTimer && currentUser) {
+            return [
+                {
+                    taskId: activeTimer.taskId,
+                    taskTitle: activeTimer.taskTitle,
+                    userId: currentUser.id,
+                    userName: currentUser.name,
+                    startedAt: activeTimer.startTime
+                },
+                ...serverTimers
+            ];
+        }
+
+        return serverTimers;
+    }, [data, activeTimer, currentUser]);
 
     if (loading) {
         return (
@@ -310,9 +334,9 @@ export default function TimeTrackingView({ projectId, tasks: propTasks }: TimeTr
                         <Timer size={18} className="text-violet-600 dark:text-violet-400" />
                         <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Active Timers</span>
                     </div>
-                    <p className="text-3xl font-bold text-gray-900 dark:text-white">{data.summary.activeTimerCount}</p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-white">{displayActiveTimers.length}</p>
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                        {data.summary.activeTimerCount > 0 ? 'Currently running' : 'No active timers'}
+                        {displayActiveTimers.length > 0 ? 'Currently running' : 'No active timers'}
                     </p>
                 </div>
 
@@ -327,14 +351,14 @@ export default function TimeTrackingView({ projectId, tasks: propTasks }: TimeTr
             </div>
 
             {/* Active Timers Banner */}
-            {data.activeTimers.length > 0 && (
+            {displayActiveTimers.length > 0 && (
                 <div className="bg-gradient-to-r from-green-50 to-teal-50 dark:from-green-900/20 dark:to-teal-900/20 rounded-xl p-4 ring-1 ring-green-200 dark:ring-green-800">
                     <div className="flex items-center gap-2 mb-2">
                         <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                         <h3 className="text-sm font-semibold text-green-800 dark:text-green-300">Live Timers</h3>
                     </div>
                     <div className="flex flex-wrap gap-3">
-                        {data.activeTimers.map(timer => {
+                        {displayActiveTimers.map(timer => {
                             const elapsed = Math.round((Date.now() - new Date(timer.startedAt).getTime()) / 60000);
                             return (
                                 <div key={timer.taskId} className="flex items-center gap-2 bg-white/80 dark:bg-gray-800/80 rounded-lg px-3 py-2 text-sm">
