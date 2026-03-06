@@ -18,7 +18,7 @@ class TaskAssigner:
     def __init__(self, sentence_model):
         self.model = sentence_model
 
-    def find_best_match(self, task_text, candidates, max_skills=5, min_gap=0.10):
+    def find_best_match(self, task_text, candidates, wellness_model=None, max_skills=5, min_gap=0.10):
         # Extract all unique skills from the provided candidates
         all_skills = list({s for p in candidates for s in p.get("skills", [])})
         if not all_skills:
@@ -49,14 +49,37 @@ class TaskAssigner:
         for p in candidates:
             ps = set(p.get("skills", []))
             matched = list(ps & req_set)
+            
+            # Skill Match Score (0-100)
+            skill_match = (len(matched) / len(req_set) * 100) if req_set else 0.0
+            
+            wellness_score = 100
+            if wellness_model and "wellness_data" in p:
+                wd = p["wellness_data"]
+                wellness_score = wellness_model.calculate(
+                    wd.get("active_tasks", 0),
+                    wd.get("high_priority_count", 0),
+                    wd.get("critical_urgency_count", 0)
+                )
+
+            # Combined Score: We prioritize skills (60%) but wellness is a strong factor (40%)
+            # This ensures we don't assign to someone just because they are free if they lack skills,
+            # but we also avoid burning out someone who is a perfect skill match.
+            combined_score = (skill_match * 0.6) + (wellness_score * 0.4)
+
             results.append({
                 "name": p["name"],
                 "id": p.get("id"),
-                "match_percentage": round(len(matched) / len(req_set) * 100, 1) if req_set else 0.0,
+                "match_percentage": round(skill_match, 1),
+                "wellness_score": round(wellness_score, 1),
+                "combined_ranking_score": round(combined_score, 1),
                 "matching_skills": matched,
                 "missing_skills": list(req_set - ps),
+                "wellness_status": wellness_model.get_status(wellness_score) if wellness_model else "N/A"
             })
-        return sorted(results, key=lambda x: x["match_percentage"], reverse=True), required
+        
+        # Rank by combined score
+        return sorted(results, key=lambda x: x["combined_ranking_score"], reverse=True), required
 
 class UrgencyModel:
     PRIORITY_SCORES = {"High": 40, "Medium": 20, "Low": 10}

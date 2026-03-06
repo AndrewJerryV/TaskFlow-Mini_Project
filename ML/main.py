@@ -174,7 +174,7 @@ def analyze_task(task: FullTaskRequest):
     priority, confidence = priority_ai.predict(task.description)
     
     # Use candidates from request
-    ranked_people, skills = assigner_ai.find_best_match(task.description, task.candidates)
+    ranked_people, skills = assigner_ai.find_best_match(task.description, task.candidates, wellness_model=wellness_ai)
     
     urgency_score = urgency_ai.predict(priority, task.status, task.days_until_due, task.days_since_update)
 

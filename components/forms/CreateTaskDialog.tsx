@@ -287,8 +287,7 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
                                     <div key={c.name} className="flex justify-between">
                                         <span>{c.name}</span>
                                         <span>
-                                            Score: {c.score} ({c.risk})
-                                            {c.matchingSkills?.length > 0 && ` • Skills: ${c.matchingSkills.join(', ')}`}
+                                            Overall: {c.score} ({c.risk}) • Skills: {c.match_percentage}% • Wellness: {c.wellness_score} ({c.wellness_status})
                                         </span>
                                     </div>
                                 ))}

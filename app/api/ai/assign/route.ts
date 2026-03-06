@@ -7,7 +7,10 @@ interface AssignmentCandidate {
     id: string;
     name: string;
     match_percentage: number;
-    matching_skills?: string[];
+    combined_ranking_score: number;
+    wellness_score: number;
+    wellness_status: string;
+    matching_skills: string[];
 }
 
 interface AssignmentResponse {
@@ -23,12 +26,25 @@ async function pythonSmartAssignment(users: User[], allTasks: Task[], title: str
             description: title + " " + (description || ""),
             status: status,
             days_until_due: daysUntilDue,
-            days_since_update: 0, // Could be calculated if needed
-            candidates: users.map(u => ({
-                id: u.id,
-                name: u.name,
-                skills: u.skills || []
-            }))
+            days_since_update: 0,
+            candidates: users.map(u => {
+                // Calculate real wellness stats for this user
+                const userTasks = allTasks.filter(t => t.assigneeId === u.id && t.status !== 'Done');
+                const highPriorityCount = userTasks.filter(t => t.priority === 'High' || t.priority === 'Critical').length;
+                const now = new Date();
+                const criticalUrgencyCount = userTasks.filter(t => t.dueDate && new Date(t.dueDate) <= now).length;
+
+                return {
+                    id: u.id,
+                    name: u.name,
+                    skills: u.skills || [],
+                    wellness_data: {
+                        active_tasks: userTasks.length,
+                        high_priority_count: highPriorityCount,
+                        critical_urgency_count: criticalUrgencyCount
+                    }
+                };
+            })
         };
 
         const response = await fetch('http://127.0.0.1:8000/analyze_task', {
@@ -55,11 +71,13 @@ async function pythonSmartAssignment(users: User[], allTasks: Task[], title: str
             throw new Error("Suggested user not found in database");
         }
 
-        // Generate reasoning based on ML results
-        let reasoning = `**${suggestedUser.name}** is the top AI match with **${bestMatch.match_percentage}% skill alignment**. `;
+        // Generate reasoning based on ML results (Skills + Wellness)
+        let reasoning = `**${suggestedUser.name}** is the top AI match with **${bestMatch.combined_ranking_score}% balanced alignment**. `;
+        
+        reasoning += `This score reflects a **${bestMatch.match_percentage}% skill match** and a **${bestMatch.wellness_status}** wellness status (Score: ${bestMatch.wellness_score}). `;
 
         if (bestMatch.matching_skills && bestMatch.matching_skills.length > 0) {
-            reasoning += `Their skills in **${bestMatch.matching_skills.slice(0, 3).join(', ')}** strongly match the task content. `;
+            reasoning += `Their skills in **${bestMatch.matching_skills.slice(0, 3).join(', ')}** strongly match the task requirements. `;
         }
 
         return {
@@ -69,9 +87,11 @@ async function pythonSmartAssignment(users: User[], allTasks: Task[], title: str
             allCandidates: data.suggested_assignees.map((c) => ({
                 name: c.name,
                 id: c.id,
-                score: Math.round(c.match_percentage),
-                risk: 'Low', // Python server doesn't calculate risk yet, could be expanded
-                taskCount: users.find(u => u.id === c.id || u.name === c.name)?.wellnessScore, // Temporary use of wellness
+                score: Math.round(c.combined_ranking_score),
+                match_percentage: c.match_percentage,
+                wellness_score: c.wellness_score,
+                wellness_status: c.wellness_status,
+                risk: c.wellness_score < 40 ? 'High' : (c.wellness_score < 70 ? 'Medium' : 'Low'),
                 matchingSkills: c.matching_skills || [],
                 partialMatches: []
             })),
@@ -79,7 +99,7 @@ async function pythonSmartAssignment(users: User[], allTasks: Task[], title: str
         };
     } catch (error) {
         console.error("Python AI Assignment failed:", error);
-        throw error; // Let the caller handle fallback
+        throw error;
     }
 }
 
