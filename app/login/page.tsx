@@ -189,7 +189,7 @@ export default function LoginPage() {
         </form>
 
         {/* Toggle Mode */}
-        <p className="text-center text-sm text-gray-500 mb-6">
+        {/* <p className="text-center text-sm text-gray-500 mb-6">
           {mode === 'signin' ? (
             <>
               Don&apos;t have an account?{' '}
@@ -213,7 +213,7 @@ export default function LoginPage() {
               </button>
             </>
           )}
-        </p>
+        </p> */}
 
         {/* Divider */}
         <div className="relative mb-6">
