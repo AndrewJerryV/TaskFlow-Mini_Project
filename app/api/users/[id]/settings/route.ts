@@ -18,6 +18,9 @@ export async function PATCH(
             twoFactorEnabled: body.twoFactorEnabled,
             maxWorkload: body.maxWorkload,
             burnoutSensitivity: body.burnoutSensitivity,
+            autoAssign: body.autoAssign,
+            skillMatchPriority: body.skillMatchPriority,
+            aiDeadlines: body.aiDeadlines,
             dob: body.dob,
         });
 

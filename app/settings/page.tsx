@@ -24,6 +24,9 @@ export default function SettingsPage() {
     // AI Settings
     const [maxWorkload, setMaxWorkload] = useState(5);
     const [burnoutSensitivity, setBurnoutSensitivity] = useState(2); // 1=Low, 2=Med, 3=High
+    const [autoAssign, setAutoAssign] = useState(true);
+    const [skillMatchPriority, setSkillMatchPriority] = useState(true);
+    const [aiDeadlines, setAiDeadlines] = useState(false);
 
     // Initialize form with currentUser data
     useEffect(() => {
@@ -36,6 +39,9 @@ export default function SettingsPage() {
             setTwoFactorEnabled(currentUser.twoFactorEnabled ?? false);
             if (currentUser.maxWorkload) setMaxWorkload(currentUser.maxWorkload);
             if (currentUser.burnoutSensitivity) setBurnoutSensitivity(currentUser.burnoutSensitivity);
+            setAutoAssign(currentUser.autoAssign ?? true);
+            setSkillMatchPriority(currentUser.skillMatchPriority ?? true);
+            setAiDeadlines(currentUser.aiDeadlines ?? false);
             setDob(currentUser.dob || '');
         }
     }, [currentUser]);
@@ -57,6 +63,9 @@ export default function SettingsPage() {
                     twoFactorEnabled,
                     maxWorkload,
                     burnoutSensitivity,
+                    autoAssign,
+                    skillMatchPriority,
+                    aiDeadlines,
                     dob,
                 }),
             });
@@ -277,6 +286,58 @@ export default function SettingsPage() {
                                                 <span className="text-[10px] opacity-70 text-center">{val === 1 ? 'Relaxed AI warnings' : val === 2 ? 'Standard balance' : 'Aggressive protection'}</span>
                                             </button>
                                         ))}
+                                    </div>
+                                </div>
+
+                                <div className="pt-6 border-t border-gray-100 dark:border-gray-700 space-y-4">
+                                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Smart Automation</h3>
+
+                                    <div className="flex items-center justify-between py-2">
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-900 dark:text-white">Auto-Assignment</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">Allow AI to automatically assign unassigned tasks based on your skills.</p>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only peer"
+                                                checked={autoAssign}
+                                                onChange={(e) => setAutoAssign(e.target.checked)}
+                                            />
+                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                                        </label>
+                                    </div>
+
+                                    <div className="flex items-center justify-between py-2">
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-900 dark:text-white">Skill Match Priority</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">Prioritize tasks that perfectly match your primary skills.</p>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only peer"
+                                                checked={skillMatchPriority}
+                                                onChange={(e) => setSkillMatchPriority(e.target.checked)}
+                                            />
+                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                                        </label>
+                                    </div>
+
+                                    <div className="flex items-center justify-between py-2">
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-900 dark:text-white">AI-Generated Deadlines</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">Let AI suggest realistic deadlines based on task complexity.</p>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only peer"
+                                                checked={aiDeadlines}
+                                                onChange={(e) => setAiDeadlines(e.target.checked)}
+                                            />
+                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                                        </label>
                                     </div>
                                 </div>
                             </div>
