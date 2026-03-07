@@ -1,182 +1,151 @@
 classDiagram
     class User {
-        +id : uuid
-        +name : text
-        +email : text
-        +avatar_url : text
-        +role : text
-        +created_at : timestamptz
-        +skills : text[]
-        +wellness_score : int4
-        +max_workload : int4
-        +phone : text
-        +office_address : text
-        +timezone : text
-        +quiet_hours_start : text
-        +quiet_hours_end : text
-        +quiet_hours_weekends : bool
-        +two_factor_enabled : bool
-        +burnout_sensitivity : int4
-        +auto_assign : bool
-        +skill_match_priority : bool
-        +ai_deadlines : bool
-        +email_digest_frequency : text
-        +push_notifications : bool
-        +sound_alerts : bool
+        +uuid id
+        +text name
+        +text email
+        +text avatar_url
+        +text role
+        +text[] skills
+        +int4 wellness_score
+        +int4 max_workload
+        +text last_active
+        +bool auto_assign
+        +jsonb skill_experience
         +getUsers() Promise~User[]~
-        +updateUserSettings(userId: string, settings: Partial~UserSettings~) Promise~User | null~
+        +getUser(id: string) Promise~User | null~
+        +updateUserSettings(id: string, settings: Partial~UserSettings~) Promise~User | null~
     }
 
     class Project {
-        +id : uuid
-        +name : text
-        +description : text
-        +key : text
-        +owner_id : text
-        +meeting_url : text
-        +created_at : timestamptz
-        +updated_at : timestamptz
-        +getProjects() Promise~Project[]~
+        +uuid id
+        +text name
+        +text description
+        +text key
+        +uuid owner_id
+        +text meeting_url
+        +getProjects(ownerId?: string) Promise~Project[]~
         +addProject(project: Project) Promise~void~
-        +deleteProject(id: string) Promise~boolean~
-        +getMeetingUrl(id: string) Promise~string | null~
-        +setMeetingUrl(id: string, url: string | null) Promise~boolean~
+        +addProjectMember(projectId: string, userId: string, role: string) Promise~void~
+        +getProjectMembers(projectId: string) Promise~User[]~
+    }
+
+    class ProjectMember {
+        +uuid project_id
+        +uuid user_id
+        +text role
+        +timestamptz joined_at
     }
 
     class Task {
-        +id : uuid
-        +project_id : text
-        +title : text
-        +description : text
-        +status : text
-        +priority : text
-        +assignee_id : text
-        +due_date : timestamptz
-        +start_date : timestamptz
-        +created_at : timestamptz
-        +updated_at : timestamptz
-        +tags : text[]
-        +getTasks(projectId?: string, assigneeId?: string) Promise~Task[]~
+        +uuid id
+        +uuid project_id
+        +text title
+        +text status
+        +text priority
+        +uuid assignee_id
+        +jsonb time_logs
+        +timestamptz active_timer_start
+        +getTasks(projectId?: string) Promise~Task[]~
         +getTaskById(id: string) Promise~Task | null~
         +addTask(task: Task) Promise~void~
         +updateTask(id: string, updates: Partial~Task~) Promise~Task | null~
-        +deleteTask(id: string, userId: string) Promise~boolean~
     }
 
     class Document {
-        +id : uuid
-        +project_id : uuid
-        +title : text
-        +type : text
-        +content : text
-        +file_path : text
-        +file_type : text
-        +size : int4
-        +created_by : uuid
-        +created_at : timestamptz
-        +updated_at : timestamptz
+        +uuid id
+        +uuid project_id
+        +text title
+        +text type
+        +uuid created_by
         +getDocuments(projectId: string) Promise~Document[]~
         +createDocument(doc: Document) Promise~Document | null~
-        +updateDocument(docId: string, updates: Partial~Document~) Promise~boolean~
-        +deleteDocument(docId: string) Promise~boolean~
     }
 
-    class ActivityLog {
-        +id : uuid
-        +entity_type : text
-        +entity_id : text
-        +action : text
-        +details : text
-        +user_id : text
-        +timestamp : timestamptz
-        +getActivityLogs() Promise~ActivityLog[]~
-        +getUserActivityLogs(userId: string) Promise~ActivityLog[]~
-        +createLog(log: ActivityLog) Promise~void~
+    class Notification {
+        +uuid id
+        +uuid user_id
+        +text type
+        +text title
+        +text message
+        +bool is_read
+        +text link
+        +text entity_id
+        +uuid project_id
+        +getNotifications(userId: string) Promise~Notification[]~
+        +addNotification(n: Notification) Promise~void~
+        +markNotificationAsRead(id: string) Promise~void~
     }
 
-    class Message {
-        +id : uuid
-        +project_id : text
-        +user_id : text
-        +content : text
-        +attachment : text
-        +timestamp : timestamptz
-        +getMessages(projectId: string) Promise~Message[]~
-        +addMessage(message: Message) Promise~void~
+    class OTP {
+        +uuid id
+        +text email
+        +text otp
+        +timestamptz expires_at
+        +sendOTP(email: string) Promise~void~
+        +verifyOTP(email: string, otp: string) Promise~boolean~
     }
 
-    class Comment {
-        +id : uuid
-        +task_id : uuid
-        +user_id : text
-        +content : text
-        +created_at : timestamptz
-        +getComments(taskId: string) Promise~Comment[]~
-        +addComment(comment: Comment) Promise~void~
+    class Deployment {
+        +uuid id
+        +uuid project_id
+        +text environment
+        +text version
+        +text status
+        +text release_notes
+        +text commit_hash
+        +text branch
+        +text pull_request_url
+        +text pipeline_url
+        +text pipeline_provider
+        +int4 duration_seconds
+        +text triggered_by
+        +uuid created_by
+        +getDeployments(projectId: string) Promise~Deployment[]~
+        +createDeployment(d: Deployment, taskIds: string[]) Promise~void~
     }
 
     class Form {
-        +id : uuid
-        +project_id : uuid
-        +title : text
-        +description : text
-        +fields : jsonb
-        +status : text
-        +created_by : text
-        +created_at : timestamptz
-        +updated_at : timestamptz
+        +uuid id
+        +uuid project_id
+        +text title
+        +jsonb fields
         +getForms(projectId: string) Promise~Form[]~
-        +getFormById(id: string) Promise~Form | null~
         +addForm(form: Form) Promise~void~
-        +updateForm(id: string, updates: Partial~Form~) Promise~Form | null~
-        +deleteForm(id: string) Promise~boolean~
     }
 
     class FormResponse {
-        +id : uuid
-        +form_id : uuid
-        +respondent_id : text
-        +answers : jsonb
-        +submitted_at : timestamptz
-        +getFormResponses(formId: string) Promise~FormResponse[]~
-        +addFormResponse(response: FormResponse) Promise~void~
+        +uuid id
+        +uuid form_id
+        +uuid respondent_id
+        +jsonb answers
+        +addFormResponse(r: FormResponse) Promise~void~
     }
 
     class Shortcut {
-        +id : uuid
-        +project_id : text
-        +name : text
-        +url : text
-        +type : text
-        +created_at : timestamptz
+        +uuid id
+        +uuid project_id
+        +text name
+        +text url
         +getShortcuts(projectId: string) Promise~Shortcut[]~
-        +addShortcut(shortcut: Shortcut) Promise~void~
-        +deleteShortcut(id: string) Promise~boolean~
+        +addShortcut(s: Shortcut) Promise~void~
     }
 
     class RepoLink {
-        +id : uuid
-        +project_id : text
-        +name : text
-        +url : text
-        +owner : text
-        +repo : text
-        +description : text
-        +added_at : timestamptz
+        +uuid id
+        +uuid project_id
+        +text url
         +getRepoLinks(projectId: string) Promise~RepoLink[]~
-        +addRepoLink(repo: RepoLink) Promise~void~
-        +deleteRepoLink(id: string) Promise~boolean~
+        +addRepoLink(r: RepoLink) Promise~void~
     }
 
-
-    User "1" --> "0..*" Project : owns
-    User "1" --> "0..*" Task : assigned to
-    User "1" --> "0..*" Document : creates
-    Project "1" --> "0..*" Task : contains
-    Project "1" --> "0..*" Document : contains
-    Project "1" --> "0..*" Message : has
-    Project "1" --> "0..*" Form : has
-    Project "1" --> "0..*" Shortcut : has
-    Project "1" --> "0..*" RepoLink : has
-    Task "1" --> "0..*" Comment : has
-    Form "1" --> "0..*" FormResponse : receives
+    User "1" --o "*" Project : owner
+    User "1" --o "*" ProjectMember : member
+    Project "1" --o "*" ProjectMember : members
+    Project "1" --o "*" Task : tasks
+    Project "1" --o "*" Document : documents
+    Project "1" --o "*" Deployment : deployments
+    Project "1" --o "*" Form : forms
+    Task "1" --o "*" Comment : comments
+    User "1" --o "*" Notification : receives
+    Form "1" --o "*" FormResponse : answers
+    User "1" --o "*" OTP : requests

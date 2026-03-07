@@ -1,34 +1,28 @@
 %%{init: {"sequence": {"mirrorActors": false}}}%%
 sequenceDiagram
-    actor Manager
-    participant UI as Task Form
-    participant API as Backend API
-    participant ML as Python ML Server
-    participant DB as Database
-    participant Notify as Notifications
+    actor User
+    participant Dialog as CreateTaskDialog
+    participant API as AI Assign API (/api/ai/assign)
+    participant ML as ML Server (FastAPI:8000)
+    participant DB as Supabase DB
 
-    Manager->>UI: Create/Edit task
-    UI->>UI: Input description & due date
-
-    Manager->>UI: Click "Analyze & Auto-Assign"
-    UI->>API: POST /api/tasks/analyze
+    User->>Dialog: Click "Smart Assign"
+    Dialog->>API: POST /api/ai/assign {title, description}
     
-    API->>ML: POST /analyze_task
+    rect rgb(240, 255, 240)
+    API->>DB: Fetch Candidates (skills, wellness, workload)
+    DB-->>API: List of Project Members
+    API->>ML: POST /analyze_task {task_text, candidates}
+    ML->>ML: Match Skills via SBERT (Cosine Similarity)
+    ML->>ML: Apply Wellness & Workload Penalties
+    ML-->>API: { matches: [{user_id, score, reason}, ...] }
+    end
     
-    ML->>ML: Priority Model (SetFit) -> Predict Priority
-    ML->>ML: Task Assignee (SentenceTransformer) -> Match Skills
-    ML->>ML: Urgency Model -> Calculate Score
+    API-->>Dialog: return Top Matches (Sorted)
+    Dialog-->>User: Display Sorted List with Match %
     
-    ML-->>API: JSON Response
-
-    API-->>UI: Return Analysis Results
-    UI-->>Manager: Show results
-
-    Manager->>UI: Confirm Assignee & Save
-    UI->>API: POST /api/tasks (with selected assignee)
-    API->>DB: INSERT Task
-    
-    API->>Notify: Send email/alert to Assignee
-    Notify-->>API: Sent
-    API-->>UI: Task Created Successfully
-
+    User->>Dialog: Select Assignee & Create
+    Dialog->>API: POST /api/tasks {title, ..., assignee_id}
+    API->>DB: INSERT INTO tasks
+    DB-->>API: Success
+    API-->>Dialog: Success

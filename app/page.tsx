@@ -56,7 +56,7 @@ export default function Home() {
   const getOwnerName = (ownerId: string) => getUserName(users, ownerId);
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-8 mx-auto">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">Your Work</h1>
         {currentUser && (

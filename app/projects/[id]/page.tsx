@@ -594,7 +594,7 @@ export default function ProjectPage() {
                             Done
                         </button>
                     </div>
-                    <div className="space-y-2 max-h-[32rem] overflow-y-auto pr-2">
+                    <div className="space-y-2 pr-2">
                         {users.filter(u => u.role !== 'Admin').map(user => {
                             const isSelected = selectedMembers.includes(user.id);
                             return (
@@ -639,20 +639,20 @@ export default function ProjectPage() {
             {/* Project Members List Modal */}
             <Modal isOpen={isMembersListOpen} onClose={() => setIsMembersListOpen(false)} title="Project Members">
                 <div className="p-4">
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">All members on this project, organized by seniority (join date and role).</p>
-                    <div className="space-y-3 max-h-96 overflow-y-auto pr-2 no-scrollbar">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">All members on this project, organized by role seniority and join date.</p>
+                    <div className="space-y-3 pr-2 no-scrollbar">
                         {projectMembers
                             .map(id => users.find(u => u.id === id))
                             .filter(Boolean)
                             .sort((a, b) => {
-                                // 1. Try to sort by createdAt ascending (older is more senior)
-                                if (a!.createdAt && b!.createdAt && a!.createdAt !== b!.createdAt) {
-                                    return new Date(a!.createdAt).getTime() - new Date(b!.createdAt).getTime();
-                                }
-                                // 2. If same date or missing, sort by role (Admin > Manager > Member)
+                                // 1. Sort by role (Admin > Manager > Member)
                                 const roleWeight = { 'Admin': 3, 'Manager': 2, 'Member': 1 };
                                 if (roleWeight[a!.role] !== roleWeight[b!.role]) {
                                     return roleWeight[b!.role] - roleWeight[a!.role];
+                                }
+                                // 2. Sort by createdAt ascending (older is more senior)
+                                if (a!.createdAt && b!.createdAt && a!.createdAt !== b!.createdAt) {
+                                    return new Date(a!.createdAt).getTime() - new Date(b!.createdAt).getTime();
                                 }
                                 // 3. Fallback to name alphabetic
                                 return (a!.name || '').localeCompare(b!.name || '');

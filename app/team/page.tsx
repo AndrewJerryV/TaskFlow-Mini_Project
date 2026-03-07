@@ -71,7 +71,7 @@ export default function TeamPage() {
     }
 
     return (
-        <div className="p-8 max-w-6xl mx-auto">
+        <div className="p-8 mx-auto">
             <header className="mb-8 flex items-start justify-between">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Team Dashboard</h1>

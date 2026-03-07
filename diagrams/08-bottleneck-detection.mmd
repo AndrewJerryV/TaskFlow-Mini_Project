@@ -1,48 +1,26 @@
 %%{init: {"sequence": {"mirrorActors": false}}}%%
 sequenceDiagram
     actor Manager
-    participant UI as Bottleneck View
-    participant API as Backend API
-    participant ML as Python ML Server
-    participant DB as Database
-    participant Notify as Alerts
+    participant UI as Analytics Dash
+    participant API as /api/analytics/bottlenecks
+    participant ML as ML Server (FastAPI:8000)
+    participant DB as Supabase DB
 
-    Manager->>UI: Open Workflow Analytics
-    UI->>API: GET /api/analytics/bottlenecks
-
-    API->>DB: Fetch all active tasks
-    DB-->>API: Task List
-
-    loop For each task
-        API->>ML: POST /analyze_task
-        ML-->>API: { urgency_score, urgency_label }
-    end
-
-    API->>API: Group by Column/Status
-    API->>API: Calculate Average Urgency per Column
+    Manager->>UI: View Bottlenecks
+    UI->>API: GET /api/analytics/bottlenecks?project_id=...
     
-    alt Avg Urgency > Threshold
-        API->>API: Flag Column Bottleneck
+    rect rgb(255, 240, 240)
+    API->>DB: Query Tasks (status, dates, time_logs)
+    DB-->>API: Data for last 30 days
+    API->>ML: POST /analyze_bottlenecks {task_history: [...]}
+    
+    par Parallel Detection
+        ML->>ML: Person-Centric (Overloaded individuals)
+        ML->>ML: Process-Centric (Status stuck "Review" > 48h)
     end
     
-    API->>API: Group by Assignee
-    API->>API: Count "Critical" urgency tasks per person
+    ML-->>API: { bottlenecks: [{type: "Process", severity, reason}, ...] }
+    end
     
-    alt Critical Count > 3
-        API->>API: Flag Person Bottleneck (Overloaded)
-    end
-
-    API-->>UI: Bottleneck Data (aggregated)
-
-    UI->>UI: Render Heatmaps & Alerts
-    UI-->>Manager: Display Bottleneck Dashboard
-
-    alt Critical Overload Detected
-        UI->>UI: Show Red Alert
-        API->>Notify: Send System Alert
-    end
-
-    Manager->>UI: Click "High Urgency" Column
-    UI->>API: GET /api/tasks?min_urgency=80
-    API-->>UI: List of burning tasks
-
+    API-->>UI: 200 OK (Bottleneck List)
+    UI-->>Manager: Highlight "Critical" risks on Chart

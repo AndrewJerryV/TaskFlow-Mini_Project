@@ -118,7 +118,7 @@ export function TaskBoard({ tasks, onTaskMove }: TaskBoardProps) {
 
     return (
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-            <div className="flex h-full overflow-x-auto pb-4">
+            <div className="flex h-full overflow-x-auto">
                 {COLUMNS.map(status => (
                     <Column
                         key={status}

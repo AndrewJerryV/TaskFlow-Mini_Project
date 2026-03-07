@@ -31,33 +31,31 @@ config:
 gantt
     title TaskFlow - Project Development Timeline
     dateFormat  YYYY-MM-DD
-    axisFormat  Week %W
+    axisFormat  %b %d
     tickInterval 1week
 
-    section Planning
+    section Core Planning
     Requirement Analysis             :done, p1, 2026-01-05, 5d
-    Feasibility Study                :done, p2, after p1, 3d
-    Project Proposal & Approval      :done, p3, after p2, 2d
+    Design & Architecture            :done, p2, after p1, 7d
+    Database Schema (ER)             :done, p3, after p2, 3d
 
-    section Design
-    System Architecture Design       :done, d1, 2026-01-15, 4d
-    Database Schema Design (ER)      :done, d2, after d1, 3d
-    UI/UX Wireframes & Mockups       :done, d3, after d2, 4d
-    API & Module Design              :done, d4, after d3, 3d
+    section Foundation
+    Next.js 15 & Supabase Setup      :done, f1, 2026-01-20, 4d
+    Auth & User Profiles             :done, f2, after f1, 5d
+    Project & Membership Logic       :done, f3, after f2, 4d
 
-    section Implementation
-    Project Setup (Next.js + Supabase)           :done, i1, 2026-01-29, 3d
-    Authentication & User Management             :done, i2, after i1, 5d
-    Project & Task Management (Kanban, Calendar) :done, i3, after i2, 7d
-    Collaboration (Chat, Comments, Documents)    :done, i4, after i3, 6d
-    Forms Module                                 :done, i5, after i4, 4d
-    Analytics & Reports Dashboard                :done, i6, after i4, 5d
-    ML Engine (Priority, Urgency, Assignment)    :done, i7, after i5, 7d
-    UI Polish & Responsive Design                :done, i8, after i7, 3d
+    section Features
+    Kanban Board & CRUD              :done, i1, 2026-02-02, 7d
+    TimerContext & Time Tracking     :done, i2, after i1, 5d
+    Contextual Assets (Docs/Forms)   :done, i3, after i2, 6d
+    Analytics & Recharts Dashboard   :done, i4, after i3, 5d
 
-    section Testing & Closure
-    Unit & Integration Testing       :done, t1, 2026-03-02, 4d
-    Bug Fixes & Optimization         :done, t2, after t1, 3d
-    Deployment (Vercel)              :done, t3, after t2, 2d
-    Documentation & Diagrams         :active, t4, after t3, 3d
-    Final Review & Submission        :t5, after t4, 2d
+    section AI Integration
+    FastAPI ML Server Setup          :done, m1, 2026-02-15, 3d
+    Smart Task Assignment (SBERT)    :done, m2, after m1, 6d
+    Recs & Bottlenecks (SetFit)      :done, m3, after m2, 7d
+
+    section Delivery
+    Testing & Bug Fixes              :done, t1, 2026-03-01, 5d
+    Documentation & Diagrams         :active, t2, after t1, 4d
+    Final Review                     :t3, after t2, 2d

@@ -1,40 +1,28 @@
 %%{init: {"sequence": {"mirrorActors": false}}}%%
 sequenceDiagram
     actor User
-    participant UI as Dashboard
-    participant API as Backend API
-    participant ML as Python ML Server
-    participant DB as Database
-    
-    ML->>ML: Load SetFit Priority Model
-    ML->>ML: Load SentenceTransformer (Skills)
-    ML->>ML: Load Urgency Logic
+    participant UI as Smart Dashboard
+    participant API as /api/ml/recommendations
+    participant ML as ML Server (FastAPI:8000)
+    participant DB as Supabase DB
 
-    User->>UI: Open Dashboard
-    UI->>API: GET /api/tasks/recommendations
-
-    API->>DB: Fetch candidate tasks (To Do / In Progress)
-    DB-->>API: List of Tasks
+    User->>UI: Load Recommendations
+    UI->>API: GET /api/ml/recommendations
     
-    loop For each candidate task
-        API->>ML: POST /analyze_task
-        ML->>ML: Calculate Priority & Urgency
-        ML->>ML: Match Skills (Task vs User Skills)
-        ML-->>API: { urgency_score, detected_skills, predicted_priority }
+    rect rgb(240, 248, 255)
+    API->>DB: Fetch Recent Tasks & User Skills
+    DB-->>API: Context Data
+    
+    loop For Each Candidate Task
+        API->>ML: POST /analyze_task {text}
+        ML->>ML: Predict Priority (SetFit Model)
+        ML->>ML: Predict Category (Focus/QuickWin)
+        ML-->>API: {priority: "High", labels: ["bottleneck"]}
     end
-
-    API->>API: Filter tasks where User is a top match
-    API->>API: Sort by Urgency Score
-
-    alt High Urgency Items
-        API-->>UI: "Critical Attention Needed" List
-    else Standard Queue
-        API-->>UI: Ranked Task List
-    end
-
-    UI-->>User: Display prioritized recommendations
     
-    User->>UI: Accept/Start Task
-    UI->>API: Update Status
-    API->>DB: Save Change
-
+    API->>API: Filter by Confidence Threshold ( > 0.75)
+    API->>API: Categorize (Focus, Overdue Risk, Quick Win)
+    end
+    
+    API-->>UI: 200 OK (Aggregated Recommendations)
+    UI-->>User: Display "Smart Cards" with AI Icons

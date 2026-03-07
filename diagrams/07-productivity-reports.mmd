@@ -1,41 +1,30 @@
 %%{init: {"sequence": {"mirrorActors": false}}}%%
 sequenceDiagram
     actor Manager
-    participant UI as Reports Dashboard
-    participant API as Analytics API
-    participant Agg as Data Aggregator
-    participant DB as Database
+    participant View as ReportsView.tsx
+    participant API as /api/reports/velocity
+    participant DB as Supabase DB
 
-    Manager->>UI: Open Productivity Reports
-    UI->>API: GET /api/reports/productivity?period=month
-
-    API->>DB: Fetch tasks, time_entries, completions
-    API->>Agg: Process raw data
-
-    par Parallel Aggregation
-        Agg->>Agg: Group by user
-        Agg->>Agg: Calculate completion rate
-        Agg->>Agg: Compute avg cycle time
-        Agg->>Agg: Measure on-time delivery %
+    Manager->>View: Select "Project Alpha" & "Sprint 4"
+    View->>API: GET /api/reports/velocity?project_id=...&sprint=...
+    
+    rect rgb(240, 255, 240)
+    API->>DB: Query Task Completion Dates (WHERE project_id & status='Done')
+    DB-->>API: Raw Task List with Timestamps
+    API->>API: Group by Week
+    API->>API: Calculate Moving Average
+    API-->>View: { velocity_data: [{week, count}, ...], burnup: [...] }
     end
-
-    Agg->>Agg: Normalize scores across team
-    Agg-->>API: Aggregated metrics
-
-    API->>API: Remove subjective inputs (no manager ratings)
-    API->>API: Weight only objective data
-    API-->>UI: {users[], metrics[], rankings[]}
-    UI-->>Manager: Display charts + rankings
-
-    Manager->>UI: Click on team member
-    UI->>API: GET /api/reports/user/{id}
-    API->>DB: Fetch user task history (90 days)
-    API->>Agg: Calculate trends
-    Agg-->>API: {completionTrend, velocityTrend, qualityScore}
-    API-->>UI: Performance card with trends
-
-    Manager->>UI: Export report
-    UI->>API: GET /api/reports/export?format=pdf
-    API->>Agg: Generate report document
-    Agg-->>API: PDF buffer
-    API-->>UI: Download: performance_review_feb2026.pdf
+    
+    View->>View: Render Recharts (Bar + Area)
+    
+    Manager->>View: Click "Export CSV"
+    
+    rect rgb(255, 248, 240)
+    View->>View: filterTasks based on date range
+    View->>API: GET /api/time-tracking (Fetch logs for filtered tasks)
+    API-->>View: JSON logs
+    View->>View: merge(taskData, timeLogs)
+    View->>View: convertToCSV()
+    View-->>Manager: Trigger File Download (tasks_report.csv)
+    end

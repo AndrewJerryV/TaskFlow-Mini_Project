@@ -280,7 +280,7 @@ export default function FormsView({ projectId }: FormsViewProps) {
 
     // ─── LIST VIEW ───
     const renderList = () => (
-        <div className="max-w-5xl mx-auto p-6">
+        <div className="mx-auto p-6">
             <div className="flex justify-between items-center mb-6">
                 <div>
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -368,7 +368,7 @@ export default function FormsView({ projectId }: FormsViewProps) {
 
     // ─── BUILDER VIEW ───
     const renderBuilder = () => (
-        <div className="max-w-3xl mx-auto p-6">
+        <div className="mx-auto p-6">
             <div className="flex justify-between items-center mb-4">
                 <button onClick={() => setViewMode('list')} className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-600 transition-colors">
                     <ChevronLeft size={16} /> Back to Forms
@@ -485,7 +485,7 @@ export default function FormsView({ projectId }: FormsViewProps) {
     const renderFill = () => {
         if (!activeForm) return null;
         if (submitted) return (
-            <div className="max-w-3xl mx-auto p-6">
+            <div className="mx-auto p-6">
                 <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
                     <CheckCircle2 size={64} className="text-teal-500 mx-auto mb-4" />
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Response recorded!</h2>
@@ -497,7 +497,7 @@ export default function FormsView({ projectId }: FormsViewProps) {
             </div>
         );
         return (
-            <div className="max-w-3xl mx-auto p-6">
+            <div className="mx-auto p-6">
                 <button onClick={() => setViewMode('list')} className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-600 mb-4 transition-colors">
                     <ChevronLeft size={16} /> Back to Forms
                 </button>
@@ -586,7 +586,7 @@ export default function FormsView({ projectId }: FormsViewProps) {
     const renderResults = () => {
         if (!activeForm) return null;
         return (
-            <div className="max-w-5xl mx-auto p-6">
+            <div className="mx-auto p-6">
                 <button onClick={() => setViewMode('list')} className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-600 mb-4 transition-colors">
                     <ChevronLeft size={16} /> Back to Forms
                 </button>
@@ -695,7 +695,7 @@ export default function FormsView({ projectId }: FormsViewProps) {
     };
 
     if (loading) return (
-        <div className="max-w-5xl mx-auto p-6 flex items-center justify-center py-12">
+        <div className="mx-auto p-6 flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
         </div>
     );

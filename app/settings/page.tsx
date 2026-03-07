@@ -93,7 +93,7 @@ export default function SettingsPage() {
     ];
 
     return (
-        <div className="p-4 md:p-8 max-w-6xl mx-auto">
+        <div className="p-4 md:p-8 mx-auto">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Workspace Settings</h1>
 
             <div className="flex flex-col md:flex-row gap-6">

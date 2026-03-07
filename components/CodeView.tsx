@@ -149,14 +149,14 @@ export default function CodeView({ projectId }: CodeViewProps) {
 
     if (loading) {
         return (
-            <div className="max-w-5xl mx-auto flex items-center justify-center py-12">
+            <div className="mx-auto flex items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-500"></div>
             </div>
         );
     }
 
     return (
-        <div className="max-w-5xl mx-auto">
+        <div className="mx-auto">
             {/* Header */}
             <div className="flex justify-between items-center mb-6">
                 <div>

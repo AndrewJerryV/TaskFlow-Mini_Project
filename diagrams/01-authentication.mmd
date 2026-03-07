@@ -1,52 +1,33 @@
 %%{init: {"sequence": {"mirrorActors": false}}}%%
 sequenceDiagram
     actor User
-    participant UI as Login Page
-    participant API as Auth API
-    participant IdP as OAuth Provider
-    participant RBAC as Role Service
-    participant DB as Database
-    participant Session as Session Store
+    participant UI as Login Page (AuthContext)
+    participant SB as Supabase Auth
+    participant IdP as Identity Provider (Google/GitHub)
+    participant DB as Supabase DB
 
-    User->>UI: Login request
+    User->>UI: Select Login Method
     
-    alt Google OAuth
-        UI->>API: GET /auth/google
-        API->>IdP: Redirect to Google
-        IdP-->>API: Callback with code
-        API->>IdP: Exchange for tokens
-        IdP-->>API: {access_token, email, profile}
-    else GitHub OAuth
-        UI->>API: GET /auth/github
-        API->>IdP: Redirect to GitHub
-        IdP-->>API: Callback with code
-        API->>IdP: Exchange for tokens
-        IdP-->>API: {access_token, email}
+    alt OAuth (Google/GitHub) via Supabase
+        UI->>SB: signInWithOAuth({provider, redirectTo})
+        SB->>IdP: Redirect to Provider (Google/GitHub)
+        User->>IdP: Authenticate & Authorize
+        IdP-->>SB: Auth Code / Callback
+        SB->>SB: Exchange Code for Session (JWT)
+        SB-->>UI: Session Established (Access & Refresh Tokens)
     else Email/Password
-        UI->>API: POST /auth/login {email, password}
-        API->>DB: Fetch user by email
-        DB-->>API: User + hashed password
-        API->>API: Validate password hash
-        alt Invalid Credentials
-            API-->>UI: 401 Unauthorized
-        end
+        User->>UI: Enter Credentials
+        UI->>SB: signInWithPassword({email, password})
+        SB-->>UI: Session / Error
     end
 
-    API->>DB: Fetch user with role
-    DB-->>API: {userId, role: Admin|Manager|Employee}
-    API->>RBAC: Load role permissions
-    RBAC-->>API: Permission matrix
+    alt Session Persistence (onAuthStateChange)
+        UI->>SB: getSession() (with persistSession: true)
+        SB-->>UI: Return Cached / Valid Session
+    end
 
-    API->>API: Generate JWT (15min) + Refresh Token (7d)
-    API->>Session: Store session
-    Session-->>API: Session ID
-    API-->>UI: {token, user, permissions}
-    UI->>UI: Store in auth context
-
-    alt role = Admin
-        UI-->>User: Full access (Admin Panel + All Features)
-    else role = Manager
-        UI-->>User: Team Management + Reports
-    else role = Employee
-        UI-->>User: Personal Dashboard + Own Tasks
+    alt Session Authenticated
+        UI->>DB: SELECT id, name, role FROM users WHERE id = auth.uid()
+        DB-->>UI: {profile data}
+        UI->>UI: setSession(session) & setUser(profile)
     end

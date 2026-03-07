@@ -2,39 +2,36 @@
 sequenceDiagram
     actor UserA as User A
     actor UserB as User B
-    participant UI as Task Detail / Chat
-    participant API as Next.js API Routes
-    participant DB as Supabase Database
+    participant Dashboard as Shared Dashboard
+    participant API as Contextual API (/api/...)
+    participant DB as Supabase DB
+    participant RT as Supabase Realtime
 
-    UserA->>UI: Open Chat view
-    UI->>API: GET /api/messages?projectId
-    API->>DB: Fetch messages
-    DB-->>API: Messages[]
-    API-->>UI: Render messages
+    rect rgb(240, 248, 255)
+    UserA->>Dashboard: Type "Check the logs" in Chat
+    Dashboard->>API: POST /api/messages {content, project_id}
+    API->>DB: INSERT INTO messages
+    DB-->>RT: New Row event
+    RT-->>UserB: Broadcast message
+    UserB-->>Dashboard: UI re-renders chat bubble
+    end
 
-    UserA->>UI: Type & send message
-    UI->>UI: Optimistic update
-    UI->>API: POST /api/messages {projectId, content, userId}
-    API->>DB: INSERT message
-    API-->>UI: New message
-    UI->>API: GET /api/messages (re-fetch)
+    rect rgb(248, 240, 255)
+    UserA->>Dashboard: Publish Feedback Form
+    Dashboard->>API: POST /api/forms {title, json_fields}
+    API->>DB: INSERT INTO forms
+    DB-->>RT: New Row
+    RT-->>UserB: "Notification: New Form Available"
+    UserB->>Dashboard: Opens Form Filler
+    Dashboard->>API: POST /api/form-responses {answers}
+    API->>DB: INSERT INTO form_responses
+    end
 
-    UserA->>UI: Open Task Detail
-    UserA->>UI: Write comment
-    UI->>API: POST /api/comments {taskId, userId, content}
-    API->>DB: INSERT comment
-    API-->>UI: Comment added
-
-    UserA->>UI: Edit task status
-    UI->>API: PATCH /api/tasks {id, status, ...updates}
-    API->>DB: UPDATE task
-    API-->>UI: Updated task
-
-    UserA->>UI: Start Video Call
-    UI->>API: GET /api/meeting?projectId
-    API->>DB: Fetch project meeting URL
-    DB-->>API: URL
-    API-->>UI: meetingUrl
-    UI->>UI: Open Google Meet / meetingUrl in new tab
-    UserB->>UI: Start Video Call
-    UI->>UI: Open same Google Meet link
+    rect rgb(240, 255, 240)
+    UserA->>Dashboard: Add Repo "TaskFlow-Engine"
+    Dashboard->>API: POST /api/repo-links {url, owner, repo}
+    API->>API: Verify URL accessibility (HEAD request)
+    API->>DB: INSERT INTO repo_links
+    API-->>Dashboard: 201 Created
+    Dashboard->>Dashboard: Render GitHub Card with link
+    end

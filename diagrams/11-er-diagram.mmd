@@ -3,6 +3,10 @@ erDiagram
     users ||--o{ projects : "projects.owner_id"
     users ||--o{ tasks : "tasks.assignee_id"
     users ||--o{ documents : "documents.created_by"
+    users ||--o{ notifications : "notifications.user_id"
+    users ||--o{ project_members : "project_members.user_id"
+    users ||--o{ messages : "messages.user_id"
+    users ||--o{ comments : "comments.user_id"
     
     projects ||--o{ tasks : "tasks.project_id"
     projects ||--o{ documents : "documents.project_id"
@@ -10,11 +14,16 @@ erDiagram
     projects ||--o{ forms : "forms.project_id"
     projects ||--o{ shortcuts : "shortcuts.project_id"
     projects ||--o{ repo_links : "repo_links.project_id"
-    projects ||--o{ repo_links : "repo_links.project_id"
+    projects ||--o{ project_members : "project_members.project_id"
+    projects ||--o{ deployments : "deployments.project_id"
     
     tasks ||--o{ comments : "comments.task_id"
+    tasks ||--o{ deployment_tasks : "deployment_tasks.task_id"
+    
+    deployments ||--o{ deployment_tasks : "deployment_tasks.deployment_id"
     
     forms ||--o{ form_responses : "form_responses.form_id"
+    users ||--o{ form_responses : "form_responses.respondent_id"
 
     users {
         uuid id PK
@@ -29,6 +38,7 @@ erDiagram
         text phone
         text office_address
         text timezone
+        text last_active
         text quiet_hours_start
         text quiet_hours_end
         bool quiet_hours_weekends
@@ -37,9 +47,7 @@ erDiagram
         bool auto_assign
         bool skill_match_priority
         bool ai_deadlines
-        text email_digest_frequency
-        bool push_notifications
-        bool sound_alerts
+        jsonb skill_experience
     }
 
     projects {
@@ -51,6 +59,13 @@ erDiagram
         text meeting_url
         timestamptz created_at
         timestamptz updated_at
+    }
+
+    project_members {
+        uuid project_id PK, FK
+        uuid user_id PK, FK
+        text role
+        timestamptz joined_at
     }
 
     tasks {
@@ -66,6 +81,8 @@ erDiagram
         timestamptz created_at
         timestamptz updated_at
         _text tags "ARRAY"
+        jsonb time_logs
+        timestamptz active_timer_start
     }
 
     documents {
@@ -88,22 +105,23 @@ erDiagram
         text entity_id
         text action
         text details
-        text user_id
+        uuid user_id FK
         timestamptz timestamp
     }
 
     messages {
         uuid id PK
         uuid project_id FK
-        text user_id
+        uuid user_id FK
         text content
         timestamptz timestamp
+        text attachment
     }
 
     comments {
         uuid id PK
         uuid task_id FK
-        text user_id
+        uuid user_id FK
         text content
         timestamptz created_at
     }
@@ -115,7 +133,7 @@ erDiagram
         text description
         jsonb fields
         text status
-        text created_by
+        uuid created_by FK
         timestamptz created_at
         timestamptz updated_at
     }
@@ -123,7 +141,7 @@ erDiagram
     form_responses {
         uuid id PK
         uuid form_id FK
-        text respondent_id
+        uuid respondent_id FK
         jsonb answers
         timestamptz submitted_at
     }
@@ -148,3 +166,48 @@ erDiagram
         timestamptz added_at
     }
 
+    notifications {
+        uuid id PK
+        uuid user_id FK
+        text type
+        text title
+        text message
+        bool is_read
+        text link
+        text entity_id
+        uuid project_id FK
+        timestamptz created_at
+    }
+
+    otps {
+        uuid id PK
+        text email
+        text otp
+        timestamptz created_at
+        timestamptz expires_at
+    }
+
+    deployments {
+        uuid id PK
+        uuid project_id FK
+        text environment
+        text version
+        text status
+        text release_notes
+        text commit_hash
+        text branch
+        text pull_request_url
+        text pipeline_url
+        text pipeline_provider
+        int4 duration_seconds
+        text triggered_by
+        uuid created_by FK
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    deployment_tasks {
+        uuid deployment_id PK, FK
+        uuid task_id PK, FK
+        timestamptz linked_at
+    }
