@@ -2,7 +2,11 @@
 
 import React, { useState, useRef } from 'react';
 import { Task, Status } from '@/types';
+<<<<<<< HEAD
 import { Search, ChevronDown, User as UserIcon, Zap, Circle, ZoomIn, ZoomOut, Clock, Lock } from 'lucide-react';
+=======
+import { Search, ChevronDown, User as UserIcon, Zap, Circle, ZoomIn, ZoomOut, Clock } from 'lucide-react';
+>>>>>>> 43742b9035d72191d3df892a6fe7622183d8248a
 import { format, addMonths, subMonths, startOfMonth, eachMonthOfInterval, differenceInDays } from 'date-fns';
 import { STATUSES } from '@/lib/constants';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,7 +24,10 @@ export default function TimelineView({ tasks = [] }: { tasks?: Task[] }) {
   const { users } = useAuth();
 
   const headerScrollRef = useRef<HTMLDivElement>(null);
+<<<<<<< HEAD
   const bodyScrollRef = useRef<HTMLDivElement>(null);
+=======
+>>>>>>> 43742b9035d72191d3df892a6fe7622183d8248a
 
   const TIMELINE_END = viewMode === 'Months' ? TIMELINE_END_MONTHS : TIMELINE_END_QUARTERS;
   const TOTAL_DAYS = differenceInDays(TIMELINE_END, TIMELINE_START);
@@ -88,6 +95,7 @@ export default function TimelineView({ tasks = [] }: { tasks?: Task[] }) {
     }
   };
 
+<<<<<<< HEAD
   const scrollToToday = () => {
     if (bodyScrollRef.current) {
       // Calculate position of "Today" relative to the scrolled content
@@ -98,6 +106,8 @@ export default function TimelineView({ tasks = [] }: { tasks?: Task[] }) {
     }
   };
 
+=======
+>>>>>>> 43742b9035d72191d3df892a6fe7622183d8248a
   const ROW_HEIGHT = 'h-[64px]'; 
 
   return (
@@ -163,10 +173,14 @@ export default function TimelineView({ tasks = [] }: { tasks?: Task[] }) {
           </div>
 
           <div className="flex bg-white dark:bg-slate-800 ring-1 ring-slate-200 dark:ring-slate-700 rounded-2xl p-1 shadow-sm">
+<<<<<<< HEAD
             <button 
               onClick={scrollToToday}
               className="px-3 py-1.5 rounded-xl text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors flex items-center gap-1.5"
             >
+=======
+            <button className="px-3 py-1.5 rounded-xl text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors flex items-center gap-1.5">
+>>>>>>> 43742b9035d72191d3df892a6fe7622183d8248a
               <Clock size={14} className="text-emerald-500" />
               <span className="hidden sm:inline">Jump to Today</span>
             </button>
@@ -200,7 +214,10 @@ export default function TimelineView({ tasks = [] }: { tasks?: Task[] }) {
       </div>
 
       <div 
+<<<<<<< HEAD
         ref={bodyScrollRef}
+=======
+>>>>>>> 43742b9035d72191d3df892a6fe7622183d8248a
         className="flex-1 overflow-auto bg-white dark:bg-slate-900 relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full"
         onScroll={handleBodyScroll}
       >
@@ -236,8 +253,12 @@ export default function TimelineView({ tasks = [] }: { tasks?: Task[] }) {
                     <span className={`mr-3.5 flex-shrink-0 transition-transform group-hover:scale-110 ${task.priority === 'Critical' ? 'text-rose-500' : 'text-blue-500'}`}>
                       {task.priority === 'Critical' ? <Zap size={16} className="fill-rose-500/20" /> : <Circle size={14} className="fill-blue-500/20" />}
                     </span>
+<<<<<<< HEAD
                     <span className="text-sm text-slate-700 dark:text-slate-300 truncate font-semibold group-hover:text-slate-900 dark:group-hover:text-white transition-colors flex items-center gap-1.5">
                       {task.isPrivate && <span title="Private Task"><Lock size={12} className="text-amber-500 flex-shrink-0" /></span>}
+=======
+                    <span className="text-sm text-slate-700 dark:text-slate-300 truncate font-semibold group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
+>>>>>>> 43742b9035d72191d3df892a6fe7622183d8248a
                       {task.title}
                     </span>
                   </div>
@@ -254,12 +275,16 @@ export default function TimelineView({ tasks = [] }: { tasks?: Task[] }) {
                         <div className="flex items-center w-max flex-shrink-0 bg-white/95 dark:bg-slate-800 rounded-full py-[3px] pr-3 pl-[3px] mr-2.5 shadow-sm border border-black/5 dark:border-white/10 z-10">
                           <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-teal-400 flex flex-shrink-0 items-center justify-center text-[10px] text-white uppercase overflow-hidden shadow-inner ring-1 ring-black/5 dark:ring-white/10">
                             {assignee?.avatarUrl ? (
+<<<<<<< HEAD
                               <img 
                                 src={assignee.avatarUrl} 
                                 alt={assignee.name} 
                                 className="w-full h-full object-cover bg-white" 
                                 onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(assignee.name)}&background=random`; }}
                               />
+=======
+                              <img src={assignee.avatarUrl} alt={assignee.name} className="w-full h-full object-cover bg-white" />
+>>>>>>> 43742b9035d72191d3df892a6fe7622183d8248a
                             ) : (
                               <span className="font-bold tracking-wider drop-shadow-sm">{assignee ? assignee.name.substring(0, 2) : <UserIcon size={12} />}</span>
                             )}
