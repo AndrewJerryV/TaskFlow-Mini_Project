@@ -2,36 +2,51 @@
 sequenceDiagram
     actor UserA as User A
     actor UserB as User B
-    participant Dashboard as Shared Dashboard
-    participant API as Contextual API (/api/...)
+    participant View as Task Detail / Chat UI
+    participant API as Next.js API Routes
     participant DB as Supabase DB
     participant RT as Supabase Realtime
 
-    rect rgb(240, 248, 255)
-    UserA->>Dashboard: Type "Check the logs" in Chat
-    Dashboard->>API: POST /api/messages {content, project_id}
+    UserA->>View: Open Chat view
+    View->>API: GET /api/messages?projectId
+    API->>DB: Fetch messages
+    DB-->>API: Messages[]
+    API-->>View: Render messages
+    
+    UserA->>View: Type & send message (with optional attachment)
+    View->>View: Optimistic UI render
+    View->>API: POST /api/messages {projectId, content, userId, attachment}
     API->>DB: INSERT INTO messages
-    DB-->>RT: New Row event
-    RT-->>UserB: Broadcast message
-    UserB-->>Dashboard: UI re-renders chat bubble
-    end
-
-    rect rgb(248, 240, 255)
-    UserA->>Dashboard: Publish Feedback Form
-    Dashboard->>API: POST /api/forms {title, json_fields}
-    API->>DB: INSERT INTO forms
-    DB-->>RT: New Row
-    RT-->>UserB: "Notification: New Form Available"
-    UserB->>Dashboard: Opens Form Filler
-    Dashboard->>API: POST /api/form-responses {answers}
-    API->>DB: INSERT INTO form_responses
-    end
-
-    rect rgb(240, 255, 240)
-    UserA->>Dashboard: Add Repo "TaskFlow-Engine"
-    Dashboard->>API: POST /api/repo-links {url, owner, repo}
-    API->>API: Verify URL accessibility (HEAD request)
-    API->>DB: INSERT INTO repo_links
-    API-->>Dashboard: 201 Created
-    Dashboard->>Dashboard: Render GitHub Card with link
-    end
+    DB-->>API: New message created
+    API-->>View: Confirm success
+    
+    %% Implicit refetch loop in ChatView.tsx
+    View->>API: GET /api/messages?projectId (re-fetch)
+    API->>DB: Fetch messages
+    DB-->>API: Messages[]
+    API-->>View: Render messages
+    
+    DB->>RT: 'postgres_changes' (INSERT on messages)
+    RT-->>UserB: Broadcast payload (New message)
+    UserB->>View: Update state & Render chat bubble
+    
+    UserA->>View: Open Task Detail
+    UserA->>View: Write comment
+    View->>API: POST /api/comments {taskId, userId, content}
+    API->>DB: INSERT INTO comments
+    DB-->>API: Comment added
+    API-->>View: Render comment
+    
+    UserA->>View: Edit task status
+    View->>API: PATCH /api/tasks {id, status, ...updates}
+    API->>DB: UPDATE tasks
+    DB-->>API: Updated task
+    API-->>View: Render updated task
+    
+    UserA->>View: Set Up Meeting
+    View->>API: POST /api/meeting {projectId, meetingUrl: "meet.google.com/..."}
+    API->>DB: Save Google Meet Link
+    
+    UserB->>View: Click "Join Meeting"
+    View->>View: Load Google Meet
+    UserB->>View: Join same Google Meet room

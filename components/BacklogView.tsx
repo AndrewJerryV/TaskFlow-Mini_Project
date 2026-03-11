@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Task, Priority, Status, User } from '@/types';
-import { CheckSquare, Square, Plus, Edit2, MoreVertical, Search, PlayCircle, Layers } from 'lucide-react';
+import { CheckSquare, Square, Plus, Edit2, MoreVertical, Search, PlayCircle, Layers, Lock } from 'lucide-react';
 import { TaskFilters } from './TaskFilters';
 import { TaskDetailModal } from './TaskDetailModal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -74,7 +74,8 @@ const TaskItem = ({
             className="text-sm font-medium border border-blue-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white dark:border-blue-500"
           />
         ) : (
-          <span className="text-gray-900 dark:text-white text-sm font-medium">
+          <span className="text-gray-900 dark:text-white text-sm font-medium flex items-center gap-1.5">
+            {item.isPrivate && <span title="Private Task"><Lock size={12} className="text-amber-500" /></span>}
             {item.title}
           </span>
         )}
@@ -235,20 +236,22 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskD
             <span className="ml-2 text-gray-400 dark:text-gray-500 font-normal text-xs">({sprintTasks.length} items)</span>
           </div>
           <div className="flex space-x-2 text-xs">
-            <button
-              className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-1 rounded shadow-sm transition-all"
-              onClick={(e) => {
-                e.stopPropagation();
-                // Move all non-done sprint tasks to backlog (set status to 'To Do')
-                const incomplete = sprintTasks.filter(t => t.status !== 'Done');
-                incomplete.forEach(t => {
-                  onTaskUpdate && onTaskUpdate({ ...t, status: 'To Do' });
-                });
-                alert('Sprint completed! All incomplete tasks have been moved to the backlog.');
-              }}
-            >
-              Complete sprint
-            </button>
+            {currentUser?.role !== 'Member' && (
+              <button
+                className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-1 rounded shadow-sm transition-all"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Move all non-done sprint tasks to backlog (set status to 'To Do')
+                  const incomplete = sprintTasks.filter(t => t.status !== 'Done');
+                  incomplete.forEach(t => {
+                    onTaskUpdate && onTaskUpdate({ ...t, status: 'To Do' });
+                  });
+                  alert('Sprint completed! All incomplete tasks have been moved to the backlog.');
+                }}
+              >
+                Complete sprint
+              </button>
+            )}
           </div>
         </div>
 

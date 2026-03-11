@@ -5,7 +5,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Task, Comment, Priority, Status, Deployment } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTimer } from '@/contexts/TimerContext';
-import { Trash2, Calendar, User as UserIcon, MessageSquare, Clock, Sparkles, ArrowRight, Edit, Play, Square, Rocket } from 'lucide-react';
+import { Trash2, Calendar, User as UserIcon, MessageSquare, Clock, Sparkles, ArrowRight, Edit, Play, Square, Rocket, Lock } from 'lucide-react';
 import { PRIORITY_COLORS, STATUS_COLORS } from '@/lib/constants';
 import { getUserName, getActionDisplay } from '@/lib/utils';
 import { getSupabase } from '@/lib/supabase';
@@ -291,6 +291,11 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${PRIORITY_COLORS[task.priority]}`}>
                             {task.priority}
                         </span>
+                        {task.isPrivate && (
+                            <span className="px-2 py-1 text-xs font-medium rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800 flex items-center gap-1">
+                                <Lock size={12} /> Private
+                            </span>
+                        )}
                         {task.tags.map(tag => (
                             <span key={tag} className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full">
                                 {tag}

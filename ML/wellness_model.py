@@ -1,15 +1,19 @@
 class WellnessModel:
+    """
+    Models a team member's capacity to handle work based on cognitive load and stress factors.
+    Uses Agile/Kanban principles like WIP limits and prioritizes balanced workloads.
+    """
     def __init__(self):
         # CONFIGURATION: Tweak these based on your team's capacity
         
-        # How many standard tasks can a person comfortably hold at once?
+        # How many standard tasks can a person comfortably hold at once? (WIP Limit)
         self.COMFORTABLE_LOAD = 4 
         
         # Penalties (Points deducted from 100)
-        self.PENALTY_PER_EXTRA_TASK = 5      # For every task over the comfortable load
-        self.PENALTY_HIGH_PRIORITY = 8       # Extra stress for High Priority tasks
-        self.PENALTY_CRITICAL_URGENCY = 15   # Massive stress for Overdue/Critical tasks
-        self.PENALTY_CONTEXT_SWITCH = 2      # Penalty for having too many different active tasks
+        self.PENALTY_PER_EXTRA_TASK = 5      # For every task over the comfortable load (Volume Penalty)
+        self.PENALTY_HIGH_PRIORITY = 8       # Extra stress for High Priority tasks (Stress Penalty)
+        self.PENALTY_CRITICAL_URGENCY = 15   # Massive stress for Overdue/Critical tasks (Firefighting Penalty)
+        self.PENALTY_CONTEXT_SWITCH = 2      # Penalty for having too many different active tasks (Cognitive Load Penalty)
 
     def calculate(self, active_tasks, high_priority_count, critical_urgency_count):
         """

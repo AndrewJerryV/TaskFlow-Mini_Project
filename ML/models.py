@@ -4,21 +4,34 @@ from setfit import SetFitModel
 from pydantic import BaseModel
 
 class TaskPriorityModel:
+    """
+    Model used to predict priority (Low, Medium, High) from task descriptions.
+    Uses SetFit (Sentence Transformer Fine-Tuning) for few-shot text classification.
+    """
     ID2LABEL = {0: "Low", 1: "Medium", 2: "High"}
 
     def __init__(self, path):
+        # Load the pre-trained SetFit model from the specified directory
         self.model = SetFitModel.from_pretrained(path)
 
     def predict(self, text):
+        """Predicts the priority of a given task description."""
         probs = self.model.predict_proba([text])[0]
         confidence, pred_id = torch.max(probs, dim=0)
         return self.ID2LABEL[pred_id.item()], confidence.item()
 
 class TaskAssigner:
+    """
+    Matches tasks to candidates based on semantic skill matching and wellness capacity.
+    """
     def __init__(self, sentence_model):
         self.model = sentence_model
 
     def find_best_match(self, task_text, candidates, wellness_model=None, max_skills=5, min_gap=0.10):
+        """
+        Ranks candidates by matching the task description against their known skills.
+        Uses cosine similarity of sentence embeddings.
+        """
         # Extract all unique skills from the provided candidates
         all_skills = list({s for p in candidates for s in p.get("skills", [])})
         if not all_skills:
@@ -67,6 +80,18 @@ class TaskAssigner:
             # but we also avoid burning out someone who is a perfect skill match.
             combined_score = (skill_match * 0.6) + (wellness_score * 0.4)
 
+            # Apply Organizational Role Preferences
+            # Members are preferred (1.1x boost)
+            # Managers are discouraged (-10% penalty)
+            # Admins are heavily discouraged (-20% penalty)
+            role = p.get("role", "Member")
+            if role == "Manager":
+                combined_score *= 0.90
+            elif role == "Admin":
+                combined_score *= 0.80
+            else:
+                combined_score *= 1.10
+
             results.append({
                 "name": p["name"],
                 "id": p.get("id"),
@@ -82,17 +107,28 @@ class TaskAssigner:
         return sorted(results, key=lambda x: x["combined_ranking_score"], reverse=True), required
 
 class UrgencyModel:
+    """
+    Calculates an urgency score based on task priority, status, due date, and staleness.
+    Higher scores indicate higher urgency.
+    """
     PRIORITY_SCORES = {"High": 40, "Medium": 20, "Low": 10}
     STATUS_MULTIPLIERS = {"To Do": 1.2, "In Progress": 1.0, "In Review": 0.5, "Done": 0.0}
 
     def predict(self, priority, status, days_until_due, days_since_update):
+        # Base score from priority
         score = self.PRIORITY_SCORES.get(priority, 10)
+        
+        # Add urgency if the task is due soon or overdue
         if days_until_due <= 0:
             score += 50 + abs(days_until_due) * 10
         elif days_until_due <= 7:
             score += (7 - days_until_due) * 5
+            
+        # Add urgency if the task hasn't been updated recently (staleness)
         if days_since_update > 3:
             score += (days_since_update - 3) * 2
+            
+        # Apply status multiplier (e.g., Done tasks have 0 urgency)
         return round(score * self.STATUS_MULTIPLIERS.get(status, 1.0), 1)
 
     @staticmethod

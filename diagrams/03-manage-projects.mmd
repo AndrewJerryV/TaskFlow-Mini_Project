@@ -1,35 +1,36 @@
 %%{init: {"sequence": {"mirrorActors": false}}}%%
 sequenceDiagram
     actor Admin
-    participant UI as Project Settings / Team
-    participant API as Project API (/api/projects)
-    participant DB as Supabase DB
+    participant UI as Project Form / Dashboard
+    participant API as /api/projects
+    participant DB as lib/db.ts
     participant Email as Email Service (IndiePitcher)
 
-    Admin->>UI: Add Member to Project
-    UI->>UI: Validate Email Format
-    UI->>API: POST /api/projects/:id/members {userId, role: "Member"}
+    Admin->>UI: Create Project / Select Members
+    UI->>API: POST /api/projects {name, key, description, ownerId, memberIds[]}
     
     rect rgb(240, 255, 240)
-    API->>DB: INSERT into project_members
-    DB-->>API: 201 Created
-    API->>Email: sendProjectMemberAdded({to: email, projectName: "..."})
-    Email->>Email: Resolve Template: "project-member-added"
-    Email-->>Admin: Email Sent Confirmation
+    API->>DB: addProject(newProject)
+    
+    loop For each memberId
+        API->>DB: addProjectMember(projectId, memberId)
+        DB-->>API: Member Added
+        %% Retaining IndiePitcher email request per instruction
+        API->>Email: sendProjectMemberAdded(email, projectName, ...)
+        Email-->>API: Email Sent
+    end
+    API-->>UI: 201 Created (New Project)
     end
     
-    API-->>UI: 200 OK (Member Object)
-    UI->>UI: Update Local Team State (Member List)
+    UI->>UI: Close modal, refresh projects list
     
-    Admin->>UI: Update Project Details
-    UI->>API: PATCH /api/projects/:id {name, key, owner_id}
-    API->>API: Generate unique key from name if missing
-    API->>DB: UPDATE projects SET ...
-    DB-->>API: Success
-    API-->>UI: 200 OK
+    Admin->>UI: View Projects Dashboard
+    UI->>API: GET /api/projects?userId=...
+    API->>DB: getProjects(userId)
+    DB-->>API: Project[]
+    API->>DB: getTasks(undefined, undefined) (for all tasks)
+    DB-->>API: Task[]
     
-    UI->>API: GET /api/projects/:id/stats
-    API->>DB: COUNT(*) FROM tasks WHERE project_id = :id GROUP BY status
-    DB-->>API: { "To Do": 10, "Done": 5, ... }
-    API-->>UI: { total: 15, completed: 5, percentage: 33.3 }
-    UI->>UI: Re-render Progress Radial Chart
+    API->>API: Compute Stats (doneCount, totalCount, progress percentage)
+    API-->>UI: Project[] with embedded `stats` object
+    UI->>UI: Render Progress Radial Charts

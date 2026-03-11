@@ -1,28 +1,40 @@
 %%{init: {"sequence": {"mirrorActors": false}}}%%
 sequenceDiagram
     actor User
-    participant UI as Smart Dashboard
-    participant API as /api/ml/recommendations
-    participant ML as ML Server (FastAPI:8000)
-    participant DB as Supabase DB
+    participant Dashboard as Smart Dashboard
+    participant API as Backend API (/api/ml/recommendations)
+    participant ML as Python ML Server (FastAPI:8000)
+    participant DB as Supabase Database
 
-    User->>UI: Load Recommendations
-    UI->>API: GET /api/ml/recommendations
+    ML->>ML: Load SetFit Priority Model
+    ML->>ML: Load SentenceTransformer (Skills)
+    ML->>ML: Load Urgency & Wellness Logic
+
+    User->>Dashboard: Open Dashboard / Recommendations
+    Dashboard->>API: GET /api/ml/recommendations
     
-    rect rgb(240, 248, 255)
-    API->>DB: Fetch Recent Tasks & User Skills
-    DB-->>API: Context Data
+    API->>DB: Fetch candidate tasks (To Do / In Progress)
+    DB-->>API: List of Active Tasks
     
-    loop For Each Candidate Task
-        API->>ML: POST /analyze_task {text}
-        ML->>ML: Predict Priority (SetFit Model)
-        ML->>ML: Predict Category (Focus/QuickWin)
-        ML-->>API: {priority: "High", labels: ["bottleneck"]}
+    par Parallel processing [For each candidate task]
+        API->>ML: POST /analyze_task {description, days_until_due, days_since_update}
+        ML->>ML: Calculate Priority & Urgency Score
+        ML->>ML: Match Skills (Task vs User Skills)
+        ML-->>API: { urgency_score, detected_skills, predicted_priority }
     end
     
-    API->>API: Filter by Confidence Threshold ( > 0.75)
-    API->>API: Categorize (Focus, Overdue Risk, Quick Win)
+    API->>API: Adjust Scores (User boost, Priority mismatch)
+    API->>API: Categorize (focus, overdue_risk, bottleneck, quick_win)
+    API->>API: Sort by Urgency Score & Enforce Diversity (Top 6)
+    
+    alt High Urgency / Overdue Items
+        API-->>Dashboard: "Critical Attention Needed" List (Overdue Risks)
+    else Standard Queue
+        API-->>Dashboard: Ranked Task List (General Focus / Quick Wins)
     end
     
-    API-->>UI: 200 OK (Aggregated Recommendations)
-    UI-->>User: Display "Smart Cards" with AI Icons
+    Dashboard-->>User: Display prioritized recommendations
+    
+    User->>Dashboard: Accept/Start Selected Task
+    Dashboard->>API: PATCH /api/tasks (Update Status)
+    API->>DB: Save Change

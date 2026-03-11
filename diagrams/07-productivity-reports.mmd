@@ -2,29 +2,36 @@
 sequenceDiagram
     actor Manager
     participant View as ReportsView.tsx
-    participant API as /api/reports/velocity
+    participant API as Next.js APIs (/api/...)
     participant DB as Supabase DB
 
-    Manager->>View: Select "Project Alpha" & "Sprint 4"
-    View->>API: GET /api/reports/velocity?project_id=...&sprint=...
+    Manager->>View: Load Reports Dashboard
     
     rect rgb(240, 255, 240)
-    API->>DB: Query Task Completion Dates (WHERE project_id & status='Done')
-    DB-->>API: Raw Task List with Timestamps
-    API->>API: Group by Week
-    API->>API: Calculate Moving Average
-    API-->>View: { velocity_data: [{week, count}, ...], burnup: [...] }
+    View->>API: GET /api/tasks?projectId=...
+    API->>DB: getTasks(projectId)
+    DB-->>API: Task[]
+    API-->>View: Task[]
+    
+    View->>API: GET /api/users
+    API->>DB: getUsers()
+    DB-->>API: User[]
+    API-->>View: User[]
     end
     
-    View->>View: Render Recharts (Bar + Area)
+    View->>View: useMemo: filterTasks (Time, Status, Assignee filters)
+    View->>View: Calculate Metrics (Completion, Distribution, Overdue)
+    View->>View: Re-render Charts (Radial, Bar, Tables)
     
     Manager->>View: Click "Export CSV"
     
     rect rgb(255, 248, 240)
-    View->>View: filterTasks based on date range
-    View->>API: GET /api/time-tracking (Fetch logs for filtered tasks)
-    API-->>View: JSON logs
-    View->>View: merge(taskData, timeLogs)
-    View->>View: convertToCSV()
-    View-->>Manager: Trigger File Download (tasks_report.csv)
+    View->>API: GET /api/time-tracking?projectId=...
+    API->>DB: Fetch user & task time logs
+    DB-->>API: Logs Data
+    API-->>View: { perTask: [], perUser: [], perProject: [] }
+    
+    View->>View: Combine filteredTasks with time logs
+    View->>View: Generate CSV string (Task Report, User Time, Project Time)
+    View-->>Manager: Trigger File Download (full-report-xyz.csv)
     end

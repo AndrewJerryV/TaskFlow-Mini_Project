@@ -353,8 +353,25 @@ export default function ProjectPage() {
         }
     };
 
-    const handleTaskDelete = (taskId: string) => {
+    const handleTaskDelete = async (taskId: string) => {
+        // Optimistic delete
+        const previousTasks = [...tasks];
         setTasks(prev => prev.filter(t => t.id !== taskId));
+
+        try {
+            const res = await fetch(`/api/tasks?id=${taskId}&userId=${currentUser?.id}`, {
+                method: 'DELETE',
+            });
+            
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Failed to delete task');
+            }
+        } catch (err: any) {
+            console.error("Failed to delete task", err);
+            alert(err.message || "Failed to delete task");
+            setTasks(previousTasks); // Revert
+        }
     };
 
     const handleRemoveMember = async (userIdToRemove: string) => {
@@ -613,7 +630,12 @@ export default function ProjectPage() {
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center text-white font-medium overflow-hidden">
                                             {user.avatarUrl ? (
-                                                <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                                                <img 
+                                                    src={user.avatarUrl} 
+                                                    alt={user.name} 
+                                                    className="w-full h-full object-cover" 
+                                                    onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`; }}
+                                                />
                                             ) : (
                                                 user.name.charAt(0).toUpperCase()
                                             )}
@@ -661,7 +683,12 @@ export default function ProjectPage() {
                                 <div key={user!.id} className="flex items-start gap-4 p-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg shadow-sm">
                                     <div className="flex-shrink-0 w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-lg border border-indigo-200 dark:border-indigo-800 relative overflow-hidden">
                                         {user!.avatarUrl ? (
-                                            <img src={user!.avatarUrl} alt={user!.name} className="w-full h-full object-cover" />
+                                            <img 
+                                                src={user!.avatarUrl} 
+                                                alt={user!.name} 
+                                                className="w-full h-full object-cover" 
+                                                onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user!.name)}&background=random`; }}
+                                            />
                                         ) : (
                                             user!.name.charAt(0).toUpperCase()
                                         )}

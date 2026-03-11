@@ -1,26 +1,55 @@
 %%{init: {"sequence": {"mirrorActors": false}}}%%
 sequenceDiagram
     actor Manager
-    participant UI as Analytics Dash
-    participant API as /api/analytics/bottlenecks
-    participant ML as ML Server (FastAPI:8000)
-    participant DB as Supabase DB
+    participant View as Bottleneck View
+    participant API as Backend API
+    participant ML as Python ML Server
+    participant DB as Database
+    participant IndiePitcher as IndiePitcher API (Email)
 
-    Manager->>UI: View Bottlenecks
-    UI->>API: GET /api/analytics/bottlenecks?project_id=...
+    ML->>ML: Load SetFit Priority Model
+    ML->>ML: Load SentenceTransformer (Skills)
+    ML->>ML: Load Urgency & Wellness Logic
+
+    Manager->>View: Open Workflow Analytics
+    View->>API: GET /api/analytics/bottlenecks
     
-    rect rgb(255, 240, 240)
-    API->>DB: Query Tasks (status, dates, time_logs)
-    DB-->>API: Data for last 30 days
-    API->>ML: POST /analyze_bottlenecks {task_history: [...]}
+    API->>DB: Fetch all active tasks
+    DB-->>API: Task List
     
-    par Parallel Detection
-        ML->>ML: Person-Centric (Overloaded individuals)
-        ML->>ML: Process-Centric (Status stuck "Review" > 48h)
+    API->>ML: POST /analyze_bottlenecks {tasks: [...]}
+    
+    ML->>ML: Group tasks by Project
+    
+    par Health Analysis
+        ML->>ML: Detect Overdue Tasks (dueDate < now)
+        ML->>ML: Detect WIP Limit Breaches (>= 8 per status)
+        ML->>ML: Detect Aging WIP (>= 5 days since update)
     end
     
-    ML-->>API: { bottlenecks: [{type: "Process", severity, reason}, ...] }
+    ML->>ML: Calculate Health Score & Penalty
+    ML-->>API: { bottlenecks: [...], healthScore }
+    
+    API->>API: Map to Project Details
+    API->>API: Append 'overdueTasks' locally to Project Group
+    
+    API-->>View: Bottleneck Data (aggregated with overdue tasks)
+    
+    View->>View: Render Heatmaps & Alerts
+    
+    alt [healthScore < 50 (Critical Overload)]
+        View->>View: Show Red Alert UI
     end
     
-    API-->>UI: 200 OK (Bottleneck List)
-    UI-->>Manager: Highlight "Critical" risks on Chart
+    View-->>Manager: Display Bottleneck Dashboard
+    
+    Manager->>View: Click "Overdue Tasks" Alert
+    View-->>Manager: Display bundled task list (Zero latency)
+    
+    loop Scheduled pg_cron (Independent of UI)
+        DB->>DB: Check for overdue or stale tasks
+        alt Overdue / Stale Detected
+            DB->>IndiePitcher: POST /send-email (System Alert)
+        end
+    end
+

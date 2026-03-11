@@ -44,7 +44,12 @@ export function UserStatsCard({ user, onClick, onEditSkills }: UserStatsCardProp
             <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center space-x-3">
                     {user.avatarUrl ? (
-                        <img src={user.avatarUrl} alt={user.name} className="w-10 h-10 rounded-full" />
+                        <img 
+                            src={user.avatarUrl} 
+                            alt={user.name} 
+                            className="w-10 h-10 rounded-full" 
+                            onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`; }}
+                        />
                     ) : (
                         <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-300 font-bold">
                             {user.name.charAt(0)}

@@ -38,6 +38,10 @@ print("[SUCCESS] All systems ready!\n")
 
 @app.post("/analyze_bottlenecks")
 def analyze_bottlenecks(req: BottleneckRequest):
+    """
+    Analyzes project workflow to identify process bottlenecks.
+    Signals include: Overdue tasks, WIP limit breaches, and Aging WIP (stagnant tasks).
+    """
     tasks = req.tasks
 
     bottlenecks = []
@@ -51,6 +55,7 @@ def analyze_bottlenecks(req: BottleneckRequest):
     tasks_by_project = {}
 
     def parse_days_since_update(updated_at_str):
+        """Calculates days elapsed since the task's last update."""
         if updated_at_str:
             try:
                 updated_at = datetime.fromisoformat(updated_at_str.replace("Z", "+00:00"))
@@ -60,6 +65,7 @@ def analyze_bottlenecks(req: BottleneckRequest):
         return 0
 
     def parse_days_overdue(due_date_str):
+        """Calculates how many days a task is past its due date."""
         if due_date_str:
             try:
                 due_date = datetime.fromisoformat(due_date_str.replace("Z", "+00:00"))
@@ -170,6 +176,13 @@ def health_check():
 
 @app.post("/analyze_task")
 def analyze_task(task: FullTaskRequest):
+    """
+    Primary endpoint for AI-powered task analysis.
+    Performs:
+    1. Priority Prediction (using SetFit)
+    2. Smart Assignment (matching skills and wellness)
+    3. Urgency Scoring (calculating relative importance)
+    """
     print(f"Analyzing task: {task.description[:50]}...")
     priority, confidence = priority_ai.predict(task.description)
     
@@ -191,6 +204,10 @@ def analyze_task(task: FullTaskRequest):
 
 @app.post("/analyze_wellness")
 def analyze_wellness(req: WellnessRequest):
+    """
+    Calculates a team member's health/wellness score.
+    Considers task volume and priority-induced stress.
+    """
     score = wellness_ai.calculate(req.active_tasks, req.high_priority_count, req.critical_urgency_count)
     status = wellness_ai.get_status(score)
     return {

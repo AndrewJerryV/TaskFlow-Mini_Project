@@ -149,9 +149,9 @@ export async function PATCH(request: Request) {
         if (updates.status && updates.status !== existingTask.status && requestUser.role !== 'Admin') {
             const validTransitions: Record<string, string[]> = {
                 'To Do': ['In Progress'],
-                'In Progress': ['Review'],
-                'Review': ['Done', 'In Progress'],
-                'Done': ['In Progress']
+                'In Progress': ['Review', 'To Do'],
+                'Review': ['Done', 'In Progress', 'To Do'],
+                'Done': ['In Progress', 'To Do']
             };
 
             const allowedNextStates = validTransitions[existingTask.status] || [];

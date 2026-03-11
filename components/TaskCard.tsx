@@ -4,7 +4,7 @@ import React from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Task } from '@/types';
-import { User as UserIcon, Tag, CalendarClock } from 'lucide-react';
+import { User as UserIcon, Tag, CalendarClock, Lock } from 'lucide-react';
 import { getPriorityColorBordered } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -93,7 +93,12 @@ function CardContent({ task }: { task: Task }) {
                         title={assignee?.name || 'Assigned'}
                     >
                         {assignee?.avatarUrl ? (
-                            <img src={assignee.avatarUrl} alt={assignee.name} className="w-full h-full object-cover" />
+                            <img 
+                                src={assignee.avatarUrl} 
+                                alt={assignee.name} 
+                                className="w-full h-full object-cover" 
+                                onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(assignee.name)}&background=random`; }}
+                            />
                         ) : (
                             assignee ? assignee.name.charAt(0) : <UserIcon size={14} className="text-white" />
                         )}
@@ -110,6 +115,11 @@ function CardContent({ task }: { task: Task }) {
 
 
             <div className="flex flex-wrap gap-1 mt-2">
+                {task.isPrivate && (
+                    <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800 font-medium">
+                        <Lock size={10} /> Private
+                    </span>
+                )}
                 {task.tags.map(tag => (
                     <span key={tag} className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-300 border border-gray-100 dark:border-gray-500">
                         <Tag size={10} /> {tag}

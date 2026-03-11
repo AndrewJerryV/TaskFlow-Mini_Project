@@ -1,33 +1,35 @@
 %%{init: {"sequence": {"mirrorActors": false}}}%%
 sequenceDiagram
     actor User
-    participant UI as Login Page (AuthContext)
+    participant Login as Login Form
+    participant Auth as AuthContext (Client)
     participant SB as Supabase Auth
-    participant IdP as Identity Provider (Google/GitHub)
     participant DB as Supabase DB
 
-    User->>UI: Select Login Method
+    User->>Login: Select Login Method
     
-    alt OAuth (Google/GitHub) via Supabase
-        UI->>SB: signInWithOAuth({provider, redirectTo})
-        SB->>IdP: Redirect to Provider (Google/GitHub)
-        User->>IdP: Authenticate & Authorize
-        IdP-->>SB: Auth Code / Callback
-        SB->>SB: Exchange Code for Session (JWT)
-        SB-->>UI: Session Established (Access & Refresh Tokens)
+    alt OAuth (Google/GitHub)
+        Login->>SB: signInWithOAuth({provider})
+        SB-->>User: Redirect to Provider
+        User->>SB: Authenticate & Authorize
+        SB->>SB: Exchange Code for Session
     else Email/Password
-        User->>UI: Enter Credentials
-        UI->>SB: signInWithPassword({email, password})
-        SB-->>UI: Session / Error
+        User->>Login: Enter Credentials
+        Login->>SB: signInWithPassword({email, password})
     end
 
-    alt Session Persistence (onAuthStateChange)
-        UI->>SB: getSession() (with persistSession: true)
-        SB-->>UI: Return Cached / Valid Session
+    SB-->>Auth: onAuthStateChange('SIGNED_IN')
+    Auth->>DB: SELECT * FROM users WHERE id = auth.uid() (loadProfile)
+    
+    alt User exists
+        DB-->>Auth: User Profile Data
+    else PGRST116 (Not Found - First time OAuth)
+        DB-->>Auth: PGRST116 Error
+        Auth->>DB: INSERT INTO users {id, email, name, role: 'Member', ...}
+        DB-->>Auth: Created User Profile Data
     end
-
-    alt Session Authenticated
-        UI->>DB: SELECT id, name, role FROM users WHERE id = auth.uid()
-        DB-->>UI: {profile data}
-        UI->>UI: setSession(session) & setUser(profile)
-    end
+    
+    Auth->>Auth: setCurrentUser(mappedUser)
+    Auth->>API: GET /api/users (Fetch all users for context)
+    API-->>Auth: users[]
+    Auth-->>User: Render fully authenticated app

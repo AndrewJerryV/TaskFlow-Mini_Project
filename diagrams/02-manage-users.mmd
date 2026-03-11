@@ -1,36 +1,37 @@
 %%{init: {"sequence": {"mirrorActors": false}}}%%
 sequenceDiagram
     actor Admin
-    participant UI as Admin Dashboard / People
+    participant UI as Admin Dashboard
     participant API as /api/users (Next.js)
+    participant DBLayer as lib/db.ts
     participant SB as Supabase Auth (Admin SDK)
     participant DB as Supabase DB (public.users)
     participant Email as Email Service (lib/email.ts)
 
     Admin->>UI: Fill Add User Form
-    UI->>API: POST /api/users {email, name, role, skills, dob}
+    UI->>API: POST /api/users {fullName, email, password, role, dob, skillExperience, maxWorkload}
+    API->>DBLayer: addUser(...)
     
     rect rgb(240, 240, 255)
-    API->>SB: admin_create_user_v2(p_email, p_password, ...)
+    DBLayer->>SB: auth.admin.createUser({email, password, email_confirm: true})
     
     alt Duplicate Email
-        SB-->>API: Error: "duplicate key value..."
-        API-->>UI: 400 Bad Request (Email exists)
+        SB-->>DBLayer: Error: "User already exists"
+        DBLayer-->>API: Throw Error
+        API-->>UI: 500 / 400 Error Response
     else Success
-        SB->>SB: Create auth.users record
-        SB->>DB: INSERT INTO public.users {...}
-        SB-->>API: Result: User UUID
+        SB-->>DBLayer: Created auth user (UUID)
+        DBLayer->>DB: INSERT INTO users {id, email, name, role, skills, ...}
+        DB-->>DBLayer: Result: User Row
     end
     end
     
     alt Success Flow
-        API->>Email: sendInviteEmail(email, p_password)
+        %% Feature requested to be kept ("if the sequence diagram shows any feature not in codebase, keep that feature")
+        API->>Email: sendInviteEmail(email, password)
         Email-->>Admin: "Invitation Sent"
         API-->>UI: 201 Created (User Object)
-        UI->>UI: Toast: "User added successfully"
-    else Failure
-        API-->>UI: 500 Internal Error
-        UI->>UI: Toast: "Operation failed"
+        UI->>UI: Close modal & Refresh users list
     end
 
     Admin->>UI: Update User Profile

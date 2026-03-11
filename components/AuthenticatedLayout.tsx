@@ -291,7 +291,12 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
                                 </span>
                                 <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full flex items-center justify-center font-semibold overflow-hidden">
                                     {currentUser.avatarUrl ? (
-                                        <img src={currentUser.avatarUrl} alt={currentUser.name} className="w-full h-full object-cover" />
+                                        <img 
+                                            src={currentUser.avatarUrl} 
+                                            alt={currentUser.name} 
+                                            className="w-full h-full object-cover" 
+                                            onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random`; }}
+                                        />
                                     ) : (
                                         currentUser.name.charAt(0)
                                     )}

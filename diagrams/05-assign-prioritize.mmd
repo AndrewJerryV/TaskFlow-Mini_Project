@@ -2,27 +2,34 @@
 sequenceDiagram
     actor User
     participant Dialog as CreateTaskDialog
-    participant API as AI Assign API (/api/ai/assign)
+    participant API as /api/ai/assign (Next.js)
     participant ML as ML Server (FastAPI:8000)
-    participant DB as Supabase DB
+    participant DB as lib/db.ts
 
     User->>Dialog: Click "Smart Assign"
-    Dialog->>API: POST /api/ai/assign {title, description}
+    Dialog->>API: POST /api/ai/assign {title, description, status, priority}
     
     rect rgb(240, 255, 240)
-    API->>DB: Fetch Candidates (skills, wellness, workload)
-    DB-->>API: List of Project Members
-    API->>ML: POST /analyze_task {task_text, candidates}
+    API->>API: checkMLServerAvailability()
+    API->>DB: getUsers()
+    API->>DB: getTasks()
+    API->>API: Calculate User Active Workload & Overdue counts
+    
+    API->>ML: POST http://127.0.0.1:8000/analyze_task {description, status, candidates[]}
+    Note right of API: Candidates array includes skills & pre-calculated wellness_data
+    
     ML->>ML: Match Skills via SBERT (Cosine Similarity)
     ML->>ML: Apply Wellness & Workload Penalties
-    ML-->>API: { matches: [{user_id, score, reason}, ...] }
+    ML-->>API: { suggested_assignees: [{id, match_percentage, wellness_score, ...}] }
+    
+    API->>API: Generate textual reasoning string for top match
+    API-->>Dialog: return Top Match (User ID + Reasoning)
     end
     
-    API-->>Dialog: return Top Matches (Sorted)
-    Dialog-->>User: Display Sorted List with Match %
+    Dialog-->>User: Display Suggested User with Match % and reasoning
     
     User->>Dialog: Select Assignee & Create
-    Dialog->>API: POST /api/tasks {title, ..., assignee_id}
-    API->>DB: INSERT INTO tasks
-    DB-->>API: Success
-    API-->>Dialog: Success
+    Dialog->>API: POST /api/tasks {title, ..., assigneeId}
+    API->>DB: addTask()
+    DB-->>API: Success (Task UUID)
+    API-->>Dialog: 200 OK

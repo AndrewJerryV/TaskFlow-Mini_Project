@@ -3,14 +3,15 @@ sequenceDiagram
     actor User
     participant Page as Task Detail View
     participant Ctx as TimerContext
-    participant API as /api/time-tracking
+    participant API as /api/tasks (Next.js)
     participant DB as Supabase DB
 
     User->>Page: Click "Start Timer"
-    Page->>Ctx: startTimer(task)
+    Page->>Ctx: startTimer(taskId)
     Ctx->>Ctx: Update Local State & LocalStorage
-    Ctx->>API: PATCH /api/tasks {id, activeTimerStart: now()}
-    API->>DB: UPDATE tasks SET active_timer_start = now()
+    Ctx->>API: PATCH /api/tasks {id: taskId, activeTimerStart: now()}
+    API->>DB: updateTask(taskId, {activeTimerStart: ...})
+    DB-->>API: 200 OK (Task Updated)
     
     rect rgb(240, 240, 255)
     loop Every 30 Seconds
@@ -20,13 +21,13 @@ sequenceDiagram
     
     User->>Page: Click "Stop Timer"
     Page->>Ctx: stopTimer()
-    Ctx->>API: GET /api/tasks/:id (fetch latest logs)
-    API-->>Ctx: current task data
+    Ctx->>API: GET /api/tasks/:id (fetch latest task data)
+    API-->>Ctx: Task object (with existing timeLogs)
     
     rect rgb(230, 255, 230)
-    Ctx->>Ctx: Append new log {userId, minutes, date}
+    Ctx->>Ctx: Append new log: {userId, minutes, date} to timeLogs array
     Ctx->>API: PATCH /api/tasks {id, timeLogs, activeTimerStart: null}
-    API->>DB: UPDATE tasks (Commit JSONB logs)
+    API->>DB: updateTask(taskId, {timeLogs, activeTimerStart: null})
     DB-->>API: 200 OK
     end
     
