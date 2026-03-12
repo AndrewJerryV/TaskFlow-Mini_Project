@@ -25,30 +25,77 @@ const STORAGE_KEY = 'taskflow_active_timer';
 export function TimerProvider({ children }: { children: ReactNode }) {
     const { currentUser } = useAuth();
     const [activeTimer, setActiveTimer] = useState<ActiveTimer | null>(null);
+    const [dbTimerId, setDbTimerId] = useState<string | null>(null);
     const [elapsedMinutes, setElapsedMinutes] = useState(0);
 
-    // Initial load from localStorage
+    // Initial load from DB (Source of truth) and localStorage (Speed)
     useEffect(() => {
         if (!currentUser) {
             setActiveTimer(null);
+            setDbTimerId(null);
             return;
         }
 
-        const savedTimer = localStorage.getItem(`${STORAGE_KEY}_${currentUser.id}`);
-        if (savedTimer) {
+        const syncTimer = async () => {
             try {
-                const parsed = JSON.parse(savedTimer);
-                setActiveTimer(parsed);
-                // Calculate initial elapsed time
-                const start = new Date(parsed.startTime);
-                const now = new Date();
-                const diff = Math.floor((now.getTime() - start.getTime()) / 60000);
-                setElapsedMinutes(Math.max(0, diff));
+                // 1. Check DB for active timer (Most reliable)
+                const res = await fetch(`/api/time-entries?userId=${currentUser.id}`);
+                if (res.ok) {
+                    const dbEntry = await res.json();
+                    if (dbEntry) {
+                        const newTimer: ActiveTimer = {
+                            taskId: dbEntry.taskId,
+                            taskTitle: '', // We might need to fetch this or ignore for UI
+                            projectId: dbEntry.projectId || '',
+                            startTime: dbEntry.startTime,
+                        };
+                        setActiveTimer(newTimer);
+                        setDbTimerId(dbEntry.id);
+                        
+                        const start = new Date(dbEntry.startTime);
+                        const diff = Math.floor((new Date().getTime() - start.getTime()) / 60000);
+                        setElapsedMinutes(Math.max(0, diff));
+                        return;
+                    }
+                }
+
+                // 2. Fallback to localStorage if DB is empty but we had something (less likely now)
+                const savedTimer = localStorage.getItem(`${STORAGE_KEY}_${currentUser.id}`);
+                if (savedTimer) {
+                    const parsed = JSON.parse(savedTimer);
+                    setActiveTimer(parsed);
+                    const start = new Date(parsed.startTime);
+                    const diff = Math.floor((new Date().getTime() - start.getTime()) / 60000);
+                    setElapsedMinutes(Math.max(0, diff));
+                }
             } catch (e) {
-                console.error('Failed to parse saved timer', e);
-                localStorage.removeItem(`${STORAGE_KEY}_${currentUser.id}`);
+                console.error('Failed to sync timer', e);
             }
-        }
+        };
+
+        syncTimer();
+    }, [currentUser]);
+
+    // Sync across tabs via localStorage
+    useEffect(() => {
+        const handleStorageChange = (e: StorageEvent) => {
+            if (currentUser && e.key === `${STORAGE_KEY}_${currentUser.id}`) {
+                if (e.newValue) {
+                    const parsed = JSON.parse(e.newValue);
+                    setActiveTimer(parsed);
+                    const start = new Date(parsed.startTime);
+                    const diff = Math.floor((new Date().getTime() - start.getTime()) / 60000);
+                    setElapsedMinutes(Math.max(0, diff));
+                } else {
+                    setActiveTimer(null);
+                    setDbTimerId(null);
+                    setElapsedMinutes(0);
+                }
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
     }, [currentUser]);
 
     // Update elapsed time counter
@@ -63,103 +110,79 @@ export function TimerProvider({ children }: { children: ReactNode }) {
             const now = new Date();
             const diff = Math.floor((now.getTime() - start.getTime()) / 60000);
             setElapsedMinutes(Math.max(0, diff));
-        }, 30000); // Update every 30 seconds
+        }, 30000); 
 
         return () => clearInterval(interval);
     }, [activeTimer]);
 
-    // Sync across tabs
-    useEffect(() => {
-        const handleStorageChange = (e: StorageEvent) => {
-            if (currentUser && e.key === `${STORAGE_KEY}_${currentUser.id}`) {
-                if (e.newValue) {
-                    setActiveTimer(JSON.parse(e.newValue));
-                } else {
-                    setActiveTimer(null);
-                }
-            }
-        };
-
-        window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
-    }, [currentUser]);
-
-    const startTimer = (task: Task) => {
+    const startTimer = async (task: Task) => {
         if (!currentUser) return;
 
-        const newTimer: ActiveTimer = {
-            taskId: task.id,
-            taskTitle: task.title,
-            projectId: task.projectId,
-            startTime: new Date().toISOString(),
-        };
-
-        // Instant local update
-        setActiveTimer(newTimer);
-        setElapsedMinutes(0);
-        localStorage.setItem(`${STORAGE_KEY}_${currentUser.id}`, JSON.stringify(newTimer));
-        window.dispatchEvent(new CustomEvent('timer-state-changed'));
-
-        // Also write to DB so other users can see this timer is active
-        fetch('/api/tasks', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                id: task.id,
-                userId: currentUser.id,
-                activeTimerStart: newTimer.startTime,
-            })
-        }).catch(err => console.error('Failed to set active_timer_start in DB:', err));
-    };
-
-    const stopTimer = async () => {
-        if (!activeTimer || !currentUser) return;
-
-        const endTime = new Date();
-        const startTime = new Date(activeTimer.startTime);
-        const diffMs = endTime.getTime() - startTime.getTime();
-        const totalMinutes = Math.max(1, Math.round(diffMs / 60000));
-
         try {
-            // 1. Fetch current task to get latest timeLogs
-            const res = await fetch(`/api/tasks/${activeTimer.taskId}`);
-            if (!res.ok) throw new Error('Failed to fetch task');
-            const task: Task = await res.json();
-
-            // 2. Prepare new time log
-            const newTimeLog = {
-                userId: currentUser.id,
-                minutes: totalMinutes,
-                date: endTime.toISOString()
-            };
-
-            const updatedTimeLogs = [...(task.timeLogs || []), newTimeLog];
-
-            // 3. Save to database
-            const updateRes = await fetch('/api/tasks', {
-                method: 'PATCH',
+            // 1. Create entry in DB immediately
+            const res = await fetch('/api/time-entries', {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    id: activeTimer.taskId,
+                    taskId: task.id,
                     userId: currentUser.id,
-                    activeTimerStart: null, // Ensure DB timer is cleared if it exists
-                    timeLogs: updatedTimeLogs
+                    projectId: task.projectId
                 })
             });
 
-            if (!updateRes.ok) throw new Error('Failed to update task');
+            if (!res.ok) throw new Error('Failed to start timer in DB');
+            const entry = await res.json();
+
+            const newTimer: ActiveTimer = {
+                taskId: task.id,
+                taskTitle: task.title,
+                projectId: task.projectId,
+                startTime: entry.startTime,
+            };
+
+            setActiveTimer(newTimer);
+            setDbTimerId(entry.id);
+            setElapsedMinutes(0);
+            
+            localStorage.setItem(`${STORAGE_KEY}_${currentUser.id}`, JSON.stringify(newTimer));
+            window.dispatchEvent(new CustomEvent('timer-state-changed'));
+        } catch (err) {
+            console.error('Failed to start timer:', err);
+        }
+    };
+
+    const stopTimer = async () => {
+        if (!dbTimerId || !currentUser) {
+            // Cleanup local state if we get stuck
+            setActiveTimer(null);
+            setDbTimerId(null);
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/time-entries', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: dbTimerId,
+                    note: 'Logged via TaskFlow Timer'
+                })
+            });
+
+            if (!res.ok) throw new Error('Failed to stop timer in DB');
 
             // 4. Clear local state
             setActiveTimer(null);
+            setDbTimerId(null);
             setElapsedMinutes(0);
             localStorage.removeItem(`${STORAGE_KEY}_${currentUser.id}`);
             window.dispatchEvent(new CustomEvent('timer-state-changed'));
 
         } catch (error) {
-            console.error('Error stopping timer and saving log:', error);
-            // Even if API fails, we clear local timer to stop the UI ribbon from being stuck
-            // Users can manually log time if needed, but a stuck ribbon is worse
+            console.error('Error stopping timer:', error);
+            // Even if API fails, we clear local timer to stop UI from being stuck
             setActiveTimer(null);
+            setDbTimerId(null);
             localStorage.removeItem(`${STORAGE_KEY}_${currentUser.id}`);
             window.dispatchEvent(new CustomEvent('timer-state-changed'));
         }

@@ -17,7 +17,6 @@ export function TimerRunningIndicator() {
         <div className="flex items-center gap-2 bg-blue-600 dark:bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-medium shadow-sm animate-in slide-in-from-right duration-300 max-w-[280px]">
             <div className="relative flex-shrink-0">
                 <Clock size={13} className="animate-spin-slow" />
-                <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
             </div>
             <span className="truncate max-w-[120px]" title={activeTimer.taskTitle}>
                 {activeTimer.taskTitle}

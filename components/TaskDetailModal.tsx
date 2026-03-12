@@ -48,6 +48,7 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
     const [editedTask, setEditedTask] = useState<Task | null>(null);
     const [comments, setComments] = useState<Comment[]>([]);
     const [history, setHistory] = useState<any[]>([]);
+    const [timeEntries, setTimeEntries] = useState<any[]>([]);
     const [deployments, setDeployments] = useState<Deployment[]>([]);
     const [activeTab, setActiveTab] = useState<'comments' | 'history' | 'time' | 'deployments'>('comments');
     const [newComment, setNewComment] = useState('');
@@ -65,6 +66,7 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
         setEditedTask(task);
         fetchComments(task.id);
         fetchHistory(task.id);
+        fetchTimeEntries(task.id);
         fetchDeployments(task.id);
 
         const supabase = getSupabase();
@@ -123,6 +125,18 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
             console.error('Error fetching comments:', error);
         } finally {
             setLoadingComments(false);
+        }
+    };
+
+    const fetchTimeEntries = async (taskId: string) => {
+        try {
+            const res = await fetch(`/api/time-entries?taskId=${taskId}`);
+            if (res.ok) {
+                const data = await res.json();
+                setTimeEntries(Array.isArray(data) ? data : []);
+            }
+        } catch (error) {
+            console.error('Error fetching time entries:', error);
         }
     };
 
@@ -223,22 +237,43 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
     };
 
     const handleAddTimeLog = async () => {
-        if (!timeLogMinutes || isNaN(Number(timeLogMinutes)) || Number(timeLogMinutes) <= 0 || !task || !currentUser || !editedTask) return;
+        if (!timeLogMinutes || isNaN(Number(timeLogMinutes)) || Number(timeLogMinutes) <= 0 || !task || !currentUser) return;
 
-        const newTimeLog = {
-            userId: currentUser.id,
-            minutes: Number(timeLogMinutes),
-            date: new Date().toISOString()
-        };
+        try {
+            // New logic: Directly use time-entries API (We'll send it as a closed entry)
+            // Note: Since this is manual, we'll set start_time and end_time accordingly
+            const minutes = Number(timeLogMinutes);
+            const endTime = new Date();
+            const startTime = new Date(endTime.getTime() - minutes * 60000);
 
-        const updatedTimeLogs = [...(editedTask.timeLogs || []), newTimeLog];
+            const res = await fetch('/api/time-entries', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    taskId: task.id,
+                    userId: currentUser.id,
+                    projectId: task.projectId
+                })
+            });
 
-        // Update local state immediately
-        setEditedTask({ ...editedTask, timeLogs: updatedTimeLogs });
-
-        // Save to backend via onUpdate (the parent component will handle API call)
-        onUpdate({ ...editedTask, timeLogs: updatedTimeLogs });
-        setTimeLogMinutes('');
+            if (res.ok) {
+                const entry = await res.json();
+                // Immediately "Stop" it with the manual duration
+                await fetch('/api/time-entries', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: entry.id,
+                        note: 'Manual log'
+                    })
+                });
+                
+                fetchTimeEntries(task.id);
+                setTimeLogMinutes('');
+            }
+        } catch (error) {
+            console.error('Error adding manual time log:', error);
+        }
     };
 
     if (!task || !editedTask) return null;
@@ -396,13 +431,13 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                                 <span>Created: {new Date(task.createdAt).toLocaleDateString()}</span>
                             </div>
 
-                            {/* Total Time Spent */}
+                            {/* Total Time Spent (Calculated from separate table) */}
                             <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-medium">
                                 <Clock size={14} />
                                 <span>
                                     Time Spent:{' '}
-                                    {Math.floor((editedTask.timeLogs || []).reduce((acc, log) => acc + log.minutes, 0) / 60)}h{' '}
-                                    {(editedTask.timeLogs || []).reduce((acc, log) => acc + log.minutes, 0) % 60}m
+                                    {Math.floor(timeEntries.reduce((acc, entry) => acc + (entry.durationMinutes || 0), 0) / 60)}h{' '}
+                                    {timeEntries.reduce((acc, entry) => acc + (entry.durationMinutes || 0), 0) % 60}m
                                 </span>
                             </div>
                         </div>
@@ -427,7 +462,7 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                         >
                             <span className="flex items-center gap-2">
                                 <Clock size={14} />
-                                Time Logs ({editedTask?.timeLogs?.length || 0})
+                                Time Logs ({timeEntries.length})
                             </span>
                         </button>
                         <button
@@ -497,20 +532,23 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                     ) : activeTab === 'time' ? (
                         <>
                             <div className="space-y-3 max-h-48 overflow-y-auto mt-4">
-                                {editedTask.timeLogs?.map((log, index) => (
-                                    <div key={index} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                                {timeEntries.map((entry) => (
+                                    <div key={entry.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
                                         <div className="flex justify-between items-start mb-1">
                                             <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                                                {getUserName(users, log.userId)}
+                                                {getUserName(users, entry.userId)}
                                             </span>
                                             <span className="text-xs text-gray-400 dark:text-gray-500">
-                                                {new Date(log.date).toLocaleString()}
+                                                {new Date(entry.startTime).toLocaleString()}
                                             </span>
                                         </div>
-                                        <p className="text-sm text-gray-600 dark:text-gray-300">Logged {log.minutes} minutes</p>
+                                        <p className="text-sm text-gray-600 dark:text-gray-300">
+                                            {entry.endTime ? `Logged ${entry.durationMinutes} minutes` : 'Timer still active...'}
+                                            {entry.note && <span className="block italic text-gray-400">"{entry.note}"</span>}
+                                        </p>
                                     </div>
                                 ))}
-                                {(!editedTask.timeLogs || editedTask.timeLogs.length === 0) && (
+                                {timeEntries.length === 0 && (
                                     <p className="text-sm text-gray-400 dark:text-gray-500 italic">No time logged yet</p>
                                 )}
                             </div>

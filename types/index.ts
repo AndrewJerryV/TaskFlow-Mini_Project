@@ -64,6 +64,18 @@ export interface TimeLog {
   date: string; // ISO Date string
 }
 
+export interface TimeEntry {
+  id: string;
+  taskId: string;
+  userId: string;
+  projectId?: string;
+  startTime: string; // ISO Date
+  endTime?: string | null; // ISO Date
+  durationMinutes?: number | null;
+  note?: string;
+  createdAt: string;
+}
+
 export interface Task {
   id: string;
   projectId: string;
@@ -78,7 +90,9 @@ export interface Task {
   updatedAt: string; // ISO Date
   tags: string[];
   isPrivate?: boolean;
+  /** @deprecated Use time_entries table instead */
   timeLogs?: TimeLog[];
+  /** @deprecated Use time_entries table instead */
   activeTimerStart?: string | null; // ISO Date string for when timer started
   dependencies?: string[]; // Array of task IDs this task depends on
 }

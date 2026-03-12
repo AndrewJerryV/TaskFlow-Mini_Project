@@ -217,3 +217,15 @@ export interface DbDeploymentTask {
   task_id: string;
   linked_at: string;
 }
+
+export interface DbTimeEntry {
+  id: string;
+  task_id: string;
+  user_id: string;
+  project_id?: string;
+  start_time: string;
+  end_time?: string | null;
+  duration_minutes?: number | null;
+  note?: string;
+  created_at: string;
+}

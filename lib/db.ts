@@ -163,8 +163,22 @@ function toDeployment(dbDep: DbDeployment): Deployment {
         updatedAt: dbDep.updated_at,
     };
 }
-import { getSupabase, DbUser, DbProject, DbTask, DbActivityLog, DbMessage, DbComment, DbForm, DbFormResponse, DbDocument, DbShortcut, DbRepoLink, DbNotification, DbDeployment, DbDeploymentTask } from './supabase';
-import { Project, Task, User, ActivityLog, Message, Comment, Form, FormResponse, Document, Notification, Deployment, DeploymentTask } from '@/types';
+
+function toTimeEntry(dbEntry: DbTimeEntry): TimeEntry {
+    return {
+        id: dbEntry.id,
+        taskId: dbEntry.task_id,
+        userId: dbEntry.user_id,
+        projectId: dbEntry.project_id,
+        startTime: dbEntry.start_time,
+        endTime: dbEntry.end_time,
+        durationMinutes: dbEntry.duration_minutes,
+        note: dbEntry.note,
+        createdAt: dbEntry.created_at,
+    };
+}
+import { getSupabase, DbUser, DbProject, DbTask, DbActivityLog, DbMessage, DbComment, DbForm, DbFormResponse, DbDocument, DbShortcut, DbRepoLink, DbNotification, DbDeployment, DbDeploymentTask, DbTimeEntry } from './supabase';
+import { Project, Task, User, ActivityLog, Message, Comment, Form, FormResponse, Document, Notification, Deployment, DeploymentTask, TimeEntry } from '@/types';
 
 // Database class with async Supabase operations
 class Database {
@@ -724,6 +738,93 @@ class Database {
             console.error('Error adding message:', error);
             throw new Error(`Failed to add message: ${error.message}`);
         }
+    }
+
+    // Time Entries
+    async getTimeEntries(taskId: string): Promise<TimeEntry[]> {
+        const { data, error } = await getSupabase()
+            .from('time_entries')
+            .select('*')
+            .eq('task_id', taskId)
+            .order('start_time', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching time entries:', error);
+            return [];
+        }
+        return (data || []).map(toTimeEntry);
+    }
+
+    async getActiveTimer(userId: string): Promise<TimeEntry | null> {
+        const { data, error } = await getSupabase()
+            .from('time_entries')
+            .select('*')
+            .eq('user_id', userId)
+            .is('end_time', null)
+            .maybeSingle();
+
+        if (error) {
+            console.error('Error fetching active timer:', error);
+            return null;
+        }
+        return data ? toTimeEntry(data) : null;
+    }
+
+    async startTimeEntry(taskId: string, userId: string, projectId?: string): Promise<TimeEntry | null> {
+        // Ensure no other timer is active for this user
+        const active = await this.getActiveTimer(userId);
+        if (active) {
+            await this.stopTimeEntry(active.id);
+        }
+
+        const { data, error } = await getSupabase()
+            .from('time_entries')
+            .insert({
+                task_id: taskId,
+                user_id: userId,
+                project_id: projectId,
+                start_time: new Date().toISOString(),
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error starting time entry:', error);
+            return null;
+        }
+        return toTimeEntry(data);
+    }
+
+    async stopTimeEntry(id: string, note?: string): Promise<TimeEntry | null> {
+        const { data: entry, error: fetchError } = await getSupabase()
+            .from('time_entries')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (fetchError || !entry) return null;
+
+        const endTime = new Date();
+        const startTime = new Date(entry.start_time);
+        const diffMs = endTime.getTime() - startTime.getTime();
+        const durationMinutes = Math.max(1, Math.round(diffMs / 60000));
+
+        const { data, error } = await getSupabase()
+            .from('time_entries')
+            .update({
+                end_time: endTime.toISOString(),
+                duration_minutes: durationMinutes,
+                note: note
+            })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error stopping time entry:', error);
+            return null;
+        }
+        return toTimeEntry(data);
     }
 
     // Get single task by ID
