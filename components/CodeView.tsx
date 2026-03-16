@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { Plus, ExternalLink, Github, Trash2, Clock, FolderGit2, Copy, Check } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { formatDate } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { User } from '@/types';
 
 interface CodeViewProps {
     projectId: string;
@@ -44,6 +46,203 @@ function parseGitHubUrl(url: string): { owner: string; repo: string } | null {
     }
 }
 
+function RepoCard({ repo, currentUser, onDelete, onOpenInNewTab, onCopyLink, copiedId }: { repo: RepoLink, currentUser: User | null, onDelete: (id: string) => void, onOpenInNewTab: (url: string) => void, onCopyLink: (id: string, url: string) => void, copiedId: string | null }) {
+    const [githubData, setGithubData] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        async function fetchRepoDetails() {
+            try {
+                const res = await fetch(`/api/github?owner=${repo.owner}&repo=${repo.repo}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setGithubData(data);
+                }
+            } catch (e) {
+                console.error("Failed to fetch GitHub data for repo", repo.repo);
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchRepoDetails();
+    }, [repo]);
+
+    const isAdminOrManager = currentUser?.role === 'Admin' || currentUser?.role === 'Manager';
+    const userName = currentUser?.name?.toLowerCase() || '';
+
+    // Filter issues based on role
+    let visibleIssues: any[] = [];
+    if (githubData?.issues?.list) {
+        if (isAdminOrManager) {
+            visibleIssues = githubData.issues.list;
+        } else {
+            // Find issues assigned to the user loosely by name
+            visibleIssues = githubData.issues.list.filter((i: any) => 
+                i.assignees?.nodes?.some((a: any) => a.login.toLowerCase().includes(userName) || userName.includes(a.login.toLowerCase()))
+            );
+        }
+    }
+
+    return (
+        <div
+            className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 hover:shadow-lg transition-all group flex flex-col h-full"
+        >
+            <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gray-900 dark:bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Github size={22} className="text-white dark:text-gray-900" />
+                    </div>
+                    <div>
+                        <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-1">
+                            {repo.repo}
+                        </h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {repo.owner}
+                        </p>
+                    </div>
+                </div>
+                <button
+                    onClick={() => onDelete(repo.id)}
+                    className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all"
+                    title="Remove"
+                >
+                    <Trash2 size={16} />
+                </button>
+            </div>
+
+            <div className="flex items-center gap-4 text-xs text-gray-400 dark:text-gray-500 mb-4">
+                <span className="flex items-center gap-1">
+                    <Clock size={12} />
+                    Added {formatDate(repo.added_at)}
+                </span>
+            </div>
+
+            {/* GitHub Live Data Section */}
+            <div className="flex-grow">
+                {loading ? (
+                    <div className="animate-pulse space-y-2 mb-4">
+                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                    </div>
+                ) : githubData ? (
+                    <div className="space-y-4 mb-4">
+                        {/* Issues */}
+                        <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                                <h4 className="text-xs font-semibold text-gray-900 dark:text-white uppercase tracking-wider">
+                                    {isAdminOrManager ? 'Open Issues' : 'Your Assigned Issues'}
+                                </h4>
+                                <span className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs px-2 py-0.5 rounded-full font-medium">
+                                    {visibleIssues.length}
+                                </span>
+                            </div>
+                            {visibleIssues.length > 0 ? (
+                                <ul className="space-y-1.5 max-h-32 overflow-y-auto no-scrollbar pr-1">
+                                    {visibleIssues.slice(0, 5).map((is: any) => (
+                                        <li key={is.number} className="text-sm">
+                                            <a href={is.url} target="_blank" rel="noreferrer" className="flex gap-2 group/issue">
+                                                <span className="text-green-500 flex-shrink-0 mt-0.5">⊙</span>
+                                                <span className="text-gray-700 dark:text-gray-300 group-hover/issue:text-blue-600 dark:group-hover/issue:text-blue-400 line-clamp-1 transition-colors">
+                                                    {is.title}
+                                                </span>
+                                            </a>
+                                        </li>
+                                    ))}
+                                    {visibleIssues.length > 5 && (
+                                        <li className="text-xs text-gray-500 dark:text-gray-400 pt-1">
+                                            And {visibleIssues.length - 5} more...
+                                        </li>
+                                    )}
+                                </ul>
+                            ) : (
+                                <p className="text-sm text-gray-500 dark:text-gray-400 italic">None</p>
+                            )}
+                        </div>
+
+                        {/* PRs (Only for Admin/Manager as requested "admin/manager can see all the issues as well PRs") */}
+                        {isAdminOrManager && (
+                            <div className="pt-3 border-t border-gray-100 dark:border-gray-700">
+                                <div className="flex items-center justify-between mb-1.5">
+                                    <h4 className="text-xs font-semibold text-gray-900 dark:text-white uppercase tracking-wider">Open PRs</h4>
+                                    <span className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs px-2 py-0.5 rounded-full font-medium">
+                                        {githubData.pullRequests?.total || 0}
+                                    </span>
+                                </div>
+                                {githubData.pullRequests?.list?.length > 0 ? (
+                                    <ul className="space-y-1.5 max-h-32 overflow-y-auto no-scrollbar pr-1">
+                                        {githubData.pullRequests.list.slice(0, 5).map((pr: any) => (
+                                            <li key={pr.number} className="text-sm">
+                                                <a href={pr.url} target="_blank" rel="noreferrer" className="flex gap-2 group/pr">
+                                                    <FolderGit2 size={14} className="text-purple-500 flex-shrink-0 mt-0.5" />
+                                                    <span className="text-gray-700 dark:text-gray-300 group-hover/pr:text-blue-600 dark:group-hover/pr:text-blue-400 line-clamp-1 transition-colors">
+                                                        {pr.title}
+                                                    </span>
+                                                </a>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 italic">No open pull requests</p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div className="text-sm text-red-500 mb-4">Failed to load repository data.</div>
+                )}
+            </div>
+
+            <div className="mt-auto">
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => onOpenInNewTab(repo.url)}
+                        className="flex-1 flex items-center justify-center gap-2 bg-gray-900 dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-100 text-white dark:text-gray-900 py-2 rounded-lg text-sm font-medium transition-colors"
+                    >
+                        <ExternalLink size={14} />
+                        GitHub
+                    </button>
+                    <button
+                        onClick={() => onCopyLink(repo.id, repo.url)}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                        title="Copy URL"
+                    >
+                        {copiedId === repo.id ? (
+                            <Check size={14} className="text-green-500" />
+                        ) : (
+                            <Copy size={14} />
+                        )}
+                    </button>
+                </div>
+
+                {/* Quick Links */}
+                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+                    <button
+                        onClick={() => onOpenInNewTab(`${repo.url}/issues`)}
+                        className="text-xs text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                        Issues
+                    </button>
+                    <span className="text-gray-300 dark:text-gray-600">•</span>
+                    <button
+                        onClick={() => onOpenInNewTab(`${repo.url}/pulls`)}
+                        className="text-xs text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                        Pull Requests
+                    </button>
+                    <span className="text-gray-300 dark:text-gray-600">•</span>
+                    <button
+                        onClick={() => onOpenInNewTab(`${repo.url}/actions`)}
+                        className="text-xs text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                        Actions
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function CodeView({ projectId }: CodeViewProps) {
     const [repos, setRepos] = useState<RepoLink[]>([]);
     const [isAddOpen, setIsAddOpen] = useState(false);
@@ -52,6 +251,8 @@ export default function CodeView({ projectId }: CodeViewProps) {
     const [urlError, setUrlError] = useState('');
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    
+    const { currentUser } = useAuth();
 
     // Load repos from the database via API
     useEffect(() => {
@@ -191,104 +392,17 @@ export default function CodeView({ projectId }: CodeViewProps) {
                     </button>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {repos.map(repo => (
-                        <div
-                            key={repo.id}
-                            className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 hover:shadow-lg transition-all group"
-                        >
-                            <div className="flex items-start justify-between mb-3">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-gray-900 dark:bg-white rounded-lg flex items-center justify-center">
-                                        <Github size={22} className="text-white dark:text-gray-900" />
-                                    </div>
-                                    <div>
-                                        <h3 className="font-semibold text-gray-900 dark:text-white">
-                                            {repo.repo}
-                                        </h3>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                                            {repo.owner}
-                                        </p>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => handleDeleteRepo(repo.id)}
-                                    className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all"
-                                    title="Remove"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-                            </div>
-
-                            {repo.description && (
-                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
-                                    {repo.description}
-                                </p>
-                            )}
-
-                            <div className="flex items-center gap-4 text-xs text-gray-400 dark:text-gray-500 mb-4">
-                                <span className="flex items-center gap-1">
-                                    <Clock size={12} />
-                                    Added {formatDate(repo.added_at)}
-                                </span>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => openInNewTab(repo.url)}
-                                    className="flex-1 flex items-center justify-center gap-2 bg-gray-900 dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-100 text-white dark:text-gray-900 py-2.5 rounded-lg text-sm font-medium transition-colors"
-                                >
-                                    <ExternalLink size={14} />
-                                    Open in GitHub
-                                </button>
-                                <button
-                                    onClick={() => copyLink(repo.id, repo.url)}
-                                    className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                                    title="Copy URL"
-                                >
-                                    {copiedId === repo.id ? (
-                                        <>
-                                            <Check size={14} className="text-green-500" />
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Copy size={14} />
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-
-                            {/* Quick Links */}
-                            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
-                                <button
-                                    onClick={() => openInNewTab(`${repo.url}/issues`)}
-                                    className="text-xs text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                                >
-                                    Issues
-                                </button>
-                                <span className="text-gray-300 dark:text-gray-600">•</span>
-                                <button
-                                    onClick={() => openInNewTab(`${repo.url}/pulls`)}
-                                    className="text-xs text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                                >
-                                    Pull Requests
-                                </button>
-                                <span className="text-gray-300 dark:text-gray-600">•</span>
-                                <button
-                                    onClick={() => openInNewTab(`${repo.url}/actions`)}
-                                    className="text-xs text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                                >
-                                    Actions
-                                </button>
-                                <span className="text-gray-300 dark:text-gray-600">•</span>
-                                <button
-                                    onClick={() => openInNewTab(`${repo.url}/settings`)}
-                                    className="text-xs text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                                >
-                                    Settings
-                                </button>
-                            </div>
-                        </div>
+                        <RepoCard 
+                            key={repo.id} 
+                            repo={repo} 
+                            currentUser={currentUser} 
+                            onDelete={handleDeleteRepo} 
+                            onOpenInNewTab={openInNewTab} 
+                            onCopyLink={copyLink} 
+                            copiedId={copiedId}
+                        />
                     ))}
 
                     {/* Add New Card */}
