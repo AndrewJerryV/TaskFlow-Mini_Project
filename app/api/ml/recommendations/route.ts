@@ -240,8 +240,17 @@ async function localMLRecommendations(tasks: Task[], currentUserId: string | nul
 
         if (task.dueDate && daysUntilDue <= 1 && task.status !== 'Done') {
             type = 'overdue_risk';
-            suggestedAction = daysUntilDue < 0 ? 'Reschedule' : undefined;
-            reasons.push(daysUntilDue < 0 ? `Overdue by ${Math.abs(daysUntilDue)}d` : 'Due soon');
+            // Show Reschedule for overdue, due-today, and due-soon (<=1 day) tasks
+            if (daysUntilDue <= 1) {
+                suggestedAction = 'Reschedule';
+            }
+            // Log for debugging
+            console.log(`[ML Rec] Task ${task.title} daysUntilDue:`, daysUntilDue);
+            reasons.push(
+                daysUntilDue < 0 ? `Overdue by ${Math.abs(daysUntilDue)}d`
+                : daysUntilDue === 0 ? 'Due today'
+                : daysUntilDue === 1 ? 'Due soon' : ''
+            );
         } else if (task.status === 'In Progress' && daysSinceUpdate > 3) {
             type = 'bottleneck';
             reasons.push(`Stale for ${daysSinceUpdate}d`);
