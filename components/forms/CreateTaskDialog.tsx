@@ -5,6 +5,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Priority, Status, Task, User } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
+import { Sparkles } from 'lucide-react';
 
 interface CreateTaskDialogProps {
     isOpen: boolean;
@@ -24,6 +25,8 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
     const [isPrivate, setIsPrivate] = useState(false);
     const [tags, setTags] = useState<string[]>([]);
     const [tagInput, setTagInput] = useState('');
+    const [dependencies, setDependencies] = useState<string[]>([]);
+    const [projectTasks, setProjectTasks] = useState<Task[]>([]);
 
     const { currentUser } = useAuth();
     const isMember = currentUser?.role === 'Member';
@@ -51,12 +54,14 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
             Promise.all([
                 fetch('/api/users').then(res => res.json()),
                 fetch(`/api/projects/${currentProjectId}/members`).then(res => res.json()),
-                fetch('/api/autocomplete').then(res => res.json())
+                fetch('/api/autocomplete').then(res => res.json()),
+                fetch(`/api/tasks?projectId=${currentProjectId}`).then(res => res.json())
             ])
-                .then(([allUsers, memberIds, autoData]) => {
+                .then(([allUsers, memberIds, autoData, tasksData]) => {
                     setUsers(allUsers);
                     setProjectMemberIds(memberIds);
                     setSuggestions(autoData);
+                    setProjectTasks(Array.isArray(tasksData) ? tasksData : []);
                     const projectUsers = allUsers.filter((u: User) => memberIds.includes(u.id));
                     // Set default assignee to first user if available
                     if (isMember && currentUser) {
@@ -164,6 +169,7 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
             assigneeId,
             tags: tags,
             isPrivate: isMember ? false : isPrivate,
+            dependencies: dependencies
         };
 
         onSubmit(newTask);
@@ -176,10 +182,32 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
         setDueDate('');
         setAiReasoning(null);
         setIsPrivate(false);
+        setDependencies([]);
     };
 
     // Get selected user's skills for display
     const selectedUser = users.find(u => u.id === assigneeId);
+    const topCandidate = dataRef.current?.allCandidates?.[0];
+    const insightUser = topCandidate
+        ? users.find(u => u.id === topCandidate.id) || selectedUser
+        : selectedUser;
+
+    const getSkillYears = (user: User | undefined, skill: string): number | null => {
+        if (!user?.skillExperience) return null;
+
+        const exact = user.skillExperience[skill];
+        if (typeof exact === 'number') return exact;
+
+        const matchedEntry = Object.entries(user.skillExperience).find(
+            ([key]) => key.toLowerCase() === skill.toLowerCase()
+        );
+        return matchedEntry ? matchedEntry[1] : null;
+    };
+
+    const skillMatchWithExperience = topCandidate?.matchingSkills?.slice(0, 4).map((skill: string) => {
+        const years = getSkillYears(insightUser, skill);
+        return years !== null ? `${skill} (${years}y)` : `${skill} (experience n/a)`;
+    }) || [];
 
     const formatDateToIndian = (dateStr: string) => {
         if (!dateStr) return '';
@@ -215,7 +243,7 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
                                 disabled={isAnalyzing || isMember}
                                 className={`text-xs px-2 py-1 rounded flex items-center gap-1 text-white transition-colors ${isAnalyzing || isMember ? 'bg-blue-300 dark:bg-blue-700 opacity-50 cursor-not-allowed' : 'bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:opacity-90'}`}
                             >
-                                {isAnalyzing ? 'Analyzing...' : '✨ Smart Assign'}
+                                {isAnalyzing ? 'Analyzing...' : <><Sparkles size={12} /> Smart Assign</>}
                             </button>
                         )}
                     </div>
@@ -271,27 +299,47 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
                     {aiReasoning && (
                         <div className="space-y-2">
                             <div className={`text-xs p-2 rounded ${aiRisk === 'High' ? 'bg-red-100 text-red-800 border border-red-200' : 'bg-white text-gray-600 border border-gray-200'}`}>
-                                <strong>AI Insight:</strong> {aiReasoning.split(/(\*\*.*?\*\*)/g).map((part, index) => (
-                                    part.startsWith('**') && part.endsWith('**')
-                                        ? <strong key={index} className="font-medium text-gray-900">{part.slice(2, -2)}</strong>
-                                        : <span key={index}>{part}</span>
-                                ))}
+                                <strong>AI Insight:</strong>
+                                <ul className="mt-1 space-y-1 list-disc pl-4">
+                                    <li>
+                                        <span className="font-medium text-gray-900">Skills Match:</span>{' '}
+                                        {skillMatchWithExperience.length > 0
+                                            ? `${topCandidate?.match_percentage ?? 'n/a'}% (${skillMatchWithExperience.join(', ')})`
+                                            : 'No strong skill overlaps detected.'}
+                                    </li>
+                                    <li>
+                                        <span className="font-medium text-gray-900">Wellness Score:</span>{' '}
+                                        {topCandidate
+                                            ? `${topCandidate.wellness_score}% (${topCandidate.wellness_status})`
+                                            : 'n/a'}
+                                    </li>
+                                    <li>
+                                        <span className="font-medium text-gray-900">Overall Assignment Score:</span>{' '}
+                                        {topCandidate ? `${topCandidate.score}/100` : 'n/a'}
+                                    </li>
+                                    {insightUser?.role && (
+                                        <li>
+                                            <span className="font-medium text-gray-900">Role Fit:</span> {insightUser.role}
+                                        </li>
+                                    )}
+                                </ul>
                                 {assigneeId && !projectMemberIds.includes(assigneeId) && (
                                     <div className="mt-1 text-yellow-600 font-semibold">⚠️ Note: {users.find(u => u.id === assigneeId)?.name} is not currently in the project. They will be added automatically.</div>
                                 )}
                             </div>
-                            {/* Debug View for User Feedback */}
-                            <div className="text-[10px] text-gray-500 bg-gray-50 dark:bg-gray-800 p-2 rounded border border-gray-100 dark:border-gray-700">
-                                <strong>Debug Scores:</strong>
-                                {(dataRef.current?.allCandidates || []).map((c: any) => (
-                                    <div key={c.name} className="flex justify-between">
-                                        <span>{c.name}</span>
-                                        <span>
-                                            Overall: {c.score} ({c.risk}) • Skills: {c.match_percentage}% • Wellness: {c.wellness_score} ({c.wellness_status})
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
+                            <details className="text-[10px] text-gray-500 bg-gray-50 dark:bg-gray-800 p-2 rounded border border-gray-100 dark:border-gray-700">
+                                <summary className="cursor-pointer font-semibold">Debug Scores</summary>
+                                <div className="mt-2 space-y-1">
+                                    {(dataRef.current?.allCandidates || []).map((c: any) => (
+                                        <div key={c.name} className="flex justify-between gap-3">
+                                            <span>{c.name}</span>
+                                            <span>
+                                                Overall: {c.score} ({c.risk}) • Skills: {c.match_percentage}% • Wellness: {c.wellness_score} ({c.wellness_status})
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </details>
                         </div>
                     )}
                 </div>
@@ -378,6 +426,32 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
                         </button>
                     </div>
                 </div>
+
+                {projectTasks.length > 0 && (
+                    <div className="border-t border-gray-100 dark:border-gray-700 pt-3">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Blocked By (Dependencies)</label>
+                        <p className="text-[10px] text-gray-500 mb-2">Select tasks that must be completed before this one can be started.</p>
+                        <div className="max-h-32 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded p-2 bg-gray-50 dark:bg-gray-800 space-y-1">
+                            {projectTasks.map(t => (
+                                <label key={t.id} className="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 p-1 rounded">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={dependencies.includes(t.id)}
+                                        onChange={(e) => {
+                                            if (e.target.checked) {
+                                                setDependencies([...dependencies, t.id]);
+                                            } else {
+                                                setDependencies(dependencies.filter(id => id !== t.id));
+                                            }
+                                        }}
+                                        className="w-3 h-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                                    />
+                                    <span className="truncate">{t.title}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>

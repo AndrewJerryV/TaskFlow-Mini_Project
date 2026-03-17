@@ -9,11 +9,13 @@ import { UserHistoryModal } from '@/components/UserHistoryModal';
 import { AddUserDialog } from '@/components/forms/AddUserDialog';
 import { User } from '@/types';
 import { EditSkillsDialog } from '@/components/forms/EditSkillsDialog';
+import { WellnessAlerts } from '@/components/WellnessAlerts';
 
 export default function TeamPage() {
     const { currentUser } = useAuth();
     const searchParams = useSearchParams();
     const [teamData, setTeamData] = useState<any[]>([]);
+    const [tasks, setTasks] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [isAddUserOpen, setIsAddUserOpen] = useState(false);
@@ -22,17 +24,20 @@ export default function TeamPage() {
     const fetchTeamData = () => {
         setLoading(true);
         if (currentUser?.role === 'Admin' || currentUser?.role === 'Manager') {
-            fetch(`/api/team?userId=${currentUser.id}`)
-                .then(res => res.json())
-                .then(data => {
+            Promise.all([
+                fetch(`/api/team?userId=${currentUser.id}`).then(res => res.json()),
+                fetch(`/api/tasks?userId=${currentUser.id}`).then(res => res.json())
+            ])
+                .then(([userData, taskData]) => {
                     if (currentUser) {
-                        data.sort((a: User, b: User) => {
+                        userData.sort((a: User, b: User) => {
                             if (a.id === currentUser.id) return -1;
                             if (b.id === currentUser.id) return 1;
                             return 0;
                         });
                     }
-                    setTeamData(data);
+                    setTeamData(userData);
+                    setTasks(Array.isArray(taskData) ? taskData : []);
                 })
                 .catch(console.error)
                 .finally(() => setLoading(false));
@@ -89,6 +94,12 @@ export default function TeamPage() {
                     </button>
                 )}
             </header>
+
+            {(currentUser?.role === 'Admin' || currentUser?.role === 'Manager') && (
+                <div className="mb-8">
+                    <WellnessAlerts tasks={tasks} users={teamData} />
+                </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {teamData.map(user => (

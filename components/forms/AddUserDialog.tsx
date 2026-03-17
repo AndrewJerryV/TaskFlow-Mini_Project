@@ -13,7 +13,7 @@ export function AddUserDialog({ isOpen, onClose, onSuccess }: AddUserDialogProps
     const [formData, setFormData] = useState({
         fullName: '',
         email: '',
-        password: '',
+        password: 'TaskFlow@123',
         role: 'Member',
         dob: '',
         maxWorkload: 5,
@@ -73,7 +73,7 @@ export function AddUserDialog({ isOpen, onClose, onSuccess }: AddUserDialogProps
             setFormData({
                 fullName: '',
                 email: '',
-                password: '',
+                password: 'TaskFlow@123',
                 role: 'Member',
                 dob: '',
                 maxWorkload: 5,
@@ -144,7 +144,7 @@ export function AddUserDialog({ isOpen, onClose, onSuccess }: AddUserDialogProps
                                 value={formData.password}
                                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                                placeholder="Leave blank for TaskFlow@123"
+                                placeholder="TaskFlow@123"
                             />
                             <p className="text-xs text-gray-500 mt-1">Users can use this to sign in initially.</p>
                         </div>
@@ -167,10 +167,11 @@ export function AddUserDialog({ isOpen, onClose, onSuccess }: AddUserDialogProps
 
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Date of Birth
+                                Date of Birth *
                             </label>
                             <input
                                 type="date"
+                                required
                                 max={new Date().toISOString().split('T')[0]}
                                 value={formData.dob}
                                 onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
@@ -239,19 +240,7 @@ export function AddUserDialog({ isOpen, onClose, onSuccess }: AddUserDialogProps
                             )}
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Max Workload (tasks)
-                            </label>
-                            <input
-                                type="number"
-                                min="1"
-                                max="20"
-                                value={formData.maxWorkload}
-                                onChange={(e) => setFormData({ ...formData, maxWorkload: parseInt(e.target.value) || 5 })}
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            />
-                        </div>
+
 
                     </div>
 

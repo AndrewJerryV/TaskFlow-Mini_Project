@@ -56,7 +56,7 @@ type ProfileRow = {
   auto_assign?: boolean | null;
   skill_match_priority?: boolean | null;
   ai_deadlines?: boolean | null;
-
+  dob?: string | null;
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -247,6 +247,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       autoAssign: data.auto_assign ?? undefined,
       skillMatchPriority: data.skill_match_priority ?? undefined,
       aiDeadlines: data.ai_deadlines ?? undefined,
+      dob: data.dob ?? undefined,
 
       authProvider: provider
     };

@@ -93,7 +93,7 @@ async function pythonSmartAssignment(users: User[], allTasks: Task[], title: str
             allCandidates: data.suggested_assignees.map((c) => ({
                 name: c.name,
                 id: c.id,
-                score: Math.round(c.combined_ranking_score),
+                score: Math.min(100, Math.round(c.combined_ranking_score)),
                 match_percentage: c.match_percentage,
                 wellness_score: c.wellness_score,
                 wellness_status: c.wellness_status,

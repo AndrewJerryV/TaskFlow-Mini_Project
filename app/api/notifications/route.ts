@@ -55,3 +55,28 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: 'Failed to update notification' }, { status: 500 });
     }
 }
+export async function POST(request: NextRequest) {
+    try {
+        const body = await request.json();
+        const { userId, type, title, message, link, entityId, projectId } = body;
+
+        if (!userId || !type || !title || !message) {
+            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+        }
+
+        await db.addNotification({
+            userId,
+            type,
+            title,
+            message,
+            link,
+            entityId,
+            projectId
+        });
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error('Error creating notification:', error);
+        return NextResponse.json({ error: 'Failed to create notification' }, { status: 500 });
+    }
+}

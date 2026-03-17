@@ -2,11 +2,14 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Project } from '@/types';
+import { useRouter } from 'next/navigation';
+import { Project, Task } from '@/types';
 import { CreateProjectDialog } from '@/components/forms/CreateProjectDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUserName, getActionDisplay } from '@/lib/utils';
-import { Sparkles, ArrowRight, Trash2, MessageSquare, Edit } from 'lucide-react';
+import { Sparkles, ArrowRight, Trash2, MessageSquare, Edit, ChevronDown, ChevronUp, Brain } from 'lucide-react';
+import { WellnessAlerts } from '@/components/WellnessAlerts';
+import { TaskOfTheDay } from '@/components/TaskOfTheDay';
 
 // Icon component to render Lucide icons by name
 const ActionIcon = ({ iconName, size = 14 }: { iconName: string; size?: number }) => {
@@ -30,19 +33,31 @@ type ProjectWithStats = Project & {
 
 export default function Home() {
   const { currentUser, users } = useAuth();
+  const router = useRouter();
   const [projects, setProjects] = useState<ProjectWithStats[]>([]);
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
+
   useEffect(() => {
-    const fetchProjects = async () => {
+    const fetchData = async () => {
       if (!currentUser?.id) return;
       try {
         setLoading(true);
-        const res = await fetch(`/api/projects?userId=${currentUser.id}`);
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setProjects(data);
+        const [projRes, taskRes] = await Promise.all([
+          fetch(`/api/projects?userId=${currentUser.id}`),
+          fetch(`/api/tasks?userId=${currentUser.id}`)
+        ]);
+        
+        const projData = await projRes.json();
+        if (Array.isArray(projData)) {
+          setProjects(projData);
+        }
+
+        const taskData = await taskRes.json();
+        if (Array.isArray(taskData)) {
+          setAllTasks(taskData);
         }
       } catch (err) {
         console.error(err);
@@ -50,10 +65,29 @@ export default function Home() {
         setLoading(false);
       }
     };
-    fetchProjects();
+    fetchData();
   }, [currentUser?.id]);
 
   const getOwnerName = (ownerId: string) => getUserName(users, ownerId);
+
+  // Filter users for wellness insights based on role
+  const getFilteredUsersForWellness = () => {
+    if (currentUser?.role === 'Admin') return users;
+    
+    if (currentUser?.role === 'Manager') {
+      const managedProjectIds = new Set(projects.map(p => p.id));
+      const membersInManagedProjects = new Set(
+        allTasks
+          .filter(t => managedProjectIds.has(t.projectId) && t.assigneeId)
+          .map(t => t.assigneeId)
+      );
+      return users.filter(u => membersInManagedProjects.has(u.id) || u.id === currentUser.id);
+    }
+    
+    return [];
+  };
+
+  const wellnessUsers = getFilteredUsersForWellness();
 
   return (
     <div className="p-8 mx-auto">
@@ -69,6 +103,20 @@ export default function Home() {
       {/* Create Project Dialog */}
       <CreateProjectDialog isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
 
+      {/* Task of the Day - show for Members always, Admin/Manager only if they have assigned tasks */}
+      {currentUser && (
+        (currentUser.role === 'Member' || allTasks.some(t => t.assigneeId === currentUser.id && t.status !== 'Done'))
+          ? (
+            <section className="mb-8">
+              <TaskOfTheDay
+                userId={currentUser.id}
+                onTaskClick={(task) => router.push(`/projects/${task.projectId}?task=${task.id}`)}
+              />
+            </section>
+          )
+          : null
+      )}
+
       {/* Recent Projects Section */}
       <section className="mb-10">
         <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase mb-4">Active Projects</h2>
@@ -77,7 +125,7 @@ export default function Home() {
           <div className="text-sm text-gray-400 dark:text-gray-500">Loading projects...</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
+            {/* ... project cards ... */}
             {projects.map(project => (
               <Link key={project.id} href={`/projects/${project.id}`} className="block group">
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-all cursor-pointer h-36 flex flex-col justify-between relative overflow-hidden">
@@ -140,6 +188,13 @@ export default function Home() {
           </div>
         )}
       </section>
+
+      {/* Wellness Alerts - Move under projects */}
+      {(currentUser?.role === 'Admin' || currentUser?.role === 'Manager') && allTasks.length > 0 && (
+        <div className="mb-10">
+          <WellnessAlerts tasks={allTasks} users={wellnessUsers} />
+        </div>
+      )}
 
       {/* Recent Activity Section */}
       <section>

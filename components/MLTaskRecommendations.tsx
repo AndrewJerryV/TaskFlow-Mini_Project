@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Task, User } from '@/types';
 import { Sparkles, ArrowRight, BrainCircuit, TrendingUp, Calendar, AlertCircle, ArrowDown, Loader2, Zap, Lightbulb } from 'lucide-react';
 import { BottleneckAlert } from '@/components/BottleneckAlert';
 import { Modal } from '@/components/ui/Modal';
+import { useTimer } from '@/contexts/TimerContext';
 
 interface Recommendation {
   id: string;
@@ -22,16 +24,20 @@ interface MLTaskRecommendationsProps {
   projectId: string;
   users: User[];
   currentUser: User | null;
-  onTaskUpdate?: (task: Task) => void;
+  onTaskUpdate?: (task: Task) => Promise<void> | void;
 }
 
 export default function MLTaskRecommendations({ tasks, projectId, users, currentUser, onTaskUpdate }: MLTaskRecommendationsProps) {
+  const router = useRouter();
+  const { activeTimer, startTimer, stopTimer } = useTimer();
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
   const [mlPowered, setMlPowered] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rescheduleData, setRescheduleData] = useState<{ isOpen: boolean, task: Task | null, days: string }>({ isOpen: false, task: null, days: '1' });
   const [isUnavailable, setIsUnavailable] = useState(false);
+  const [isApplyingAction, setIsApplyingAction] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const bottlenecksRef = useRef<HTMLDivElement>(null);
 
   const tasksSignature = tasks.map(t => `${t.id}-${t.updatedAt}-${t.status}`).join('|');
@@ -76,23 +82,68 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
     fetchRecommendations();
   }, [tasksSignature, currentUser?.id, projectId]);
 
-  const handleAction = (rec: Recommendation) => {
+  const applyTaskUpdate = async (task: Task) => {
+    if (!onTaskUpdate) {
+      throw new Error('Task update handler is not available.');
+    }
+
+    await onTaskUpdate(task);
+  };
+
+  const handleAction = async (rec: Recommendation) => {
     if (!onTaskUpdate) return;
+    setActionError(null);
     const task = tasks.find(t => t.id === rec.taskId);
     if (!task) return;
 
-    if (rec.suggestedAction === 'Complete Now') {
-      const confirmed = window.confirm(`Mark "${task.title}" as Done?`);
-      if (confirmed) onTaskUpdate({ ...task, status: 'Done' });
-    } else if (rec.suggestedAction === 'Start Task') {
-      onTaskUpdate({ ...task, status: 'In Progress' });
-    } else if (rec.suggestedAction === 'Reschedule') {
-      setRescheduleData({ isOpen: true, task, days: '1' });
-    } else if (rec.suggestedAction === 'Prioritize') {
-      // Set priority to High when prioritizing
-      onTaskUpdate({ ...task, priority: 'High' });
-    } else {
-      alert(`Action: ${rec.suggestedAction}\nTask: ${task.title}`);
+    const actionKey = `${rec.id}-${rec.suggestedAction || 'action'}`;
+    setIsApplyingAction(actionKey);
+
+    try {
+      if (rec.suggestedAction === 'Continue') {
+        // Ensure the task is active before starting/continuing timer.
+        await applyTaskUpdate({ ...task, status: 'In Progress' });
+
+        if (activeTimer?.taskId !== task.id) {
+          if (activeTimer) {
+            await stopTimer();
+          }
+          startTimer(task);
+        }
+
+        router.push(`/projects/${task.projectId}?tab=Backlog&task=${task.id}`);
+      } else if (rec.suggestedAction === 'Reschedule') {
+        setRescheduleData({ isOpen: true, task, days: '1' });
+      }
+    } catch (err) {
+      console.error('Failed to apply recommendation action:', err);
+      setActionError(err instanceof Error ? err.message : 'Failed to apply action.');
+    } finally {
+      setIsApplyingAction(null);
+    }
+  };
+
+  const submitReschedule = async () => {
+    if (!rescheduleData.task) return;
+    const days = parseInt(rescheduleData.days, 10);
+    if (isNaN(days) || days < 1) {
+      setActionError('Please enter a valid number of days (minimum 1).');
+      return;
+    }
+
+    setActionError(null);
+    setIsApplyingAction(`reschedule-${rescheduleData.task.id}`);
+
+    try {
+      const newDate = rescheduleData.task.dueDate ? new Date(rescheduleData.task.dueDate) : new Date();
+      newDate.setDate(newDate.getDate() + days);
+      await applyTaskUpdate({ ...rescheduleData.task, dueDate: newDate.toISOString() });
+      setRescheduleData({ isOpen: false, task: null, days: '1' });
+    } catch (err) {
+      console.error('Failed to reschedule task:', err);
+      setActionError(err instanceof Error ? err.message : 'Failed to reschedule task.');
+    } finally {
+      setIsApplyingAction(null);
     }
   };
 
@@ -147,6 +198,12 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
               </div>
             )}
 
+            {actionError && (
+              <div className="p-3 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                {actionError}
+              </div>
+            )}
+
             {recommendations.length === 0 ? (
               <div className="p-8 text-center bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
                 <h3 className="text-gray-900 dark:text-white font-medium">No immediate recommendations</h3>
@@ -198,13 +255,19 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
                     </div>
 
                     <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3 pl-4 border-l border-gray-100 dark:border-gray-700">
-                      <button
-                        onClick={() => handleAction(rec)}
-                        className="whitespace-nowrap px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md hover:bg-white dark:hover:bg-gray-600 hover:border-gray-300 dark:hover:border-gray-500 hover:shadow-sm transition-all flex items-center gap-2"
-                      >
-                        {rec.suggestedAction}
-                        <ArrowRight size={14} className="text-gray-400 group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300" />
-                      </button>
+                      {(rec.suggestedAction === 'Continue' || rec.suggestedAction === 'Reschedule') && (
+                        <button
+                          onClick={() => {
+                            void handleAction(rec);
+                          }}
+                          disabled={isApplyingAction === `${rec.id}-${rec.suggestedAction || 'action'}`}
+                          className="whitespace-nowrap px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md hover:bg-white dark:hover:bg-gray-600 hover:border-gray-300 dark:hover:border-gray-500 hover:shadow-sm transition-all flex items-center gap-2"
+                        >
+                          {isApplyingAction === `${rec.id}-${rec.suggestedAction || 'action'}` && <Loader2 size={14} className="animate-spin" />}
+                          {rec.suggestedAction}
+                          <ArrowRight size={14} className="text-gray-400 group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -233,13 +296,7 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
             onChange={(e) => setRescheduleData(prev => ({ ...prev, days: e.target.value }))}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
-                const days = parseInt(rescheduleData.days);
-                if (!isNaN(days) && rescheduleData.task) {
-                  const newDate = rescheduleData.task.dueDate ? new Date(rescheduleData.task.dueDate) : new Date();
-                  newDate.setDate(newDate.getDate() + days);
-                  onTaskUpdate?.({ ...rescheduleData.task, dueDate: newDate.toISOString() });
-                  setRescheduleData({ isOpen: false, task: null, days: '1' });
-                }
+                void submitReschedule();
               }
             }}
           />
@@ -252,17 +309,12 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
             </button>
             <button
               onClick={() => {
-                const days = parseInt(rescheduleData.days);
-                if (!isNaN(days) && rescheduleData.task) {
-                  const newDate = rescheduleData.task.dueDate ? new Date(rescheduleData.task.dueDate) : new Date();
-                  newDate.setDate(newDate.getDate() + days);
-                  onTaskUpdate?.({ ...rescheduleData.task, dueDate: newDate.toISOString() });
-                  setRescheduleData({ isOpen: false, task: null, days: '1' });
-                }
+                void submitReschedule();
               }}
+              disabled={isApplyingAction === `reschedule-${rescheduleData.task?.id}`}
               className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors shadow-sm"
             >
-              Confirm Update
+              {isApplyingAction === `reschedule-${rescheduleData.task?.id}` ? 'Updating...' : 'Confirm Update'}
             </button>
           </div>
         </div>

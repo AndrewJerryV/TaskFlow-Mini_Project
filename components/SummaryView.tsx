@@ -2,8 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { Task, ActivityLog, User } from '@/types';
-import { Activity, PieChart, Info, TrendingUp, Clock, AlertTriangle, CheckCircle2, Target } from 'lucide-react';
+import { Activity, PieChart, Info, TrendingUp, Clock, AlertTriangle, CheckCircle2, Target, Brain } from 'lucide-react';
 import { getUserName, formatRelativeTime, isOverdue, isDueWithinDays } from '@/lib/utils';
+import { WellnessAlerts } from './WellnessAlerts';
 
 interface SummaryViewProps {
   tasks: Task[];
@@ -468,25 +469,29 @@ export default function SummaryView({ tasks, projectId, currentUser }: SummaryVi
 
       {/* Advanced Analytics Row - Admin/Manager Only */}
       {(currentUser?.role === 'Admin' || currentUser?.role === 'Manager') && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-lg font-bold text-gray-800 dark:text-white">Project Health Index</h2>
+        <div className="space-y-6">
+          <WellnessAlerts tasks={tasks} users={users} />
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-lg font-bold text-gray-800 dark:text-white">Project Health Index</h2>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">
+                A balanced scorecard evaluating documentation, assignment parity, stability scaling and timeliness.
+              </p>
+              <ProjectHealthChart tasks={tasks} />
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">
-              A balanced scorecard evaluating documentation, assignment parity, stability scaling and timeliness.
-            </p>
-            <ProjectHealthChart tasks={tasks} />
-          </div>
 
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-lg font-bold text-gray-800 dark:text-white">Team Workload Distribution</h2>
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-lg font-bold text-gray-800 dark:text-white">Team Workload Distribution</h2>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">
+                Stacked visual inspection for spotting assignee bottlenecks.
+              </p>
+              <TeamWorkloadChart tasks={tasks} users={users} />
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">
-              Stacked visual inspection for spotting assignee bottlenecks.
-            </p>
-            <TeamWorkloadChart tasks={tasks} users={users} />
           </div>
         </div>
       )}

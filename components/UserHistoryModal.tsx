@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Task, ActivityLog, User } from '@/types';
 import { getActionDisplay } from '@/lib/utils';
-import { Calendar, CheckCircle2, Clock, History, PieChart as PieIcon, Phone, Building, Shield, HeartPulse, Pencil, Mail, Trash2, Loader2, AlertTriangle, Github } from 'lucide-react';
+import { Calendar, CheckCircle2, Clock, History, PieChart as PieIcon, Phone, Building, Shield, HeartPulse, Pencil, Mail, Trash2, Loader2, AlertTriangle } from 'lucide-react';
 import { PieChart, TaskTimeline } from '@/components/ui/Charts';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -20,7 +20,6 @@ export function UserHistoryModal({ isOpen, onClose, user, onEditSkills, onUserDe
     const [tasks, setTasks] = useState<Task[]>([]);
     const [logs, setLogs] = useState<ActivityLog[]>([]);
     const [loading, setLoading] = useState(false);
-    const [githubStats, setGithubStats] = useState<{ issues: number; prs: number; actions: number } | null>(null);
     const [activeTab, setActiveTab] = useState<'tasks' | 'activity' | 'visuals'>('tasks');
 
     // Deletion Flow State
@@ -96,11 +95,7 @@ export function UserHistoryModal({ isOpen, onClose, user, onEditSkills, onUserDe
                 .catch(console.error)
                 .finally(() => setLoading(false));
 
-            // Fetch GitHub stats
-            fetch(`/api/github/user/${user.id}`)
-                .then(res => res.ok ? res.json() : null)
-                .then(data => setGithubStats(data))
-                .catch(() => setGithubStats(null));
+
         }
     }, [isOpen, user]);
 
@@ -287,32 +282,7 @@ export function UserHistoryModal({ isOpen, onClose, user, onEditSkills, onUserDe
                             </div>
                         )}
 
-                        {githubStats && (
-                            <div className="mt-2 flex items-center">
-                                <div className="w-full flex items-center justify-between p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50">
-                                    <div className="flex items-center gap-2">
-                                        <Github size={14} className="text-gray-600 dark:text-gray-400" />
-                                        <span className="text-xs font-bold text-gray-700 dark:text-gray-300">GitHub Activity</span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="text-center">
-                                            <p className="text-[11px] font-bold text-gray-900 dark:text-gray-100 leading-none">{githubStats.issues}</p>
-                                            <p className="text-[9px] text-gray-500 uppercase tracking-tighter">Issues</p>
-                                        </div>
-                                        <div className="h-4 w-px bg-gray-200 dark:bg-gray-700"></div>
-                                        <div className="text-center">
-                                            <p className="text-[11px] font-bold text-gray-900 dark:text-gray-100 leading-none">{githubStats.prs}</p>
-                                            <p className="text-[9px] text-gray-500 uppercase tracking-tighter">PRs</p>
-                                        </div>
-                                        <div className="h-4 w-px bg-gray-200 dark:bg-gray-700"></div>
-                                        <div className="text-center">
-                                            <p className="text-[11px] font-bold text-gray-900 dark:text-gray-100 leading-none">{githubStats.actions}</p>
-                                            <p className="text-[9px] text-gray-500 uppercase tracking-tighter">Actions</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+
                     </div>
                 </div>
 

@@ -91,6 +91,18 @@ export function TaskBoard({ tasks, onTaskMove }: TaskBoardProps) {
 
                 const allowedNextStates = validTransitions[oldStatus] || [];
 
+                // Dependency validation
+                if (newStatus === 'In Progress' || newStatus === 'Done') {
+                    const taskDeps = activeTask.dependencies || [];
+                    const incompleteDeps = safeTasks.filter(t => taskDeps.includes(t.id) && t.status !== 'Done');
+                    
+                    if (incompleteDeps.length > 0) {
+                        alert(`Cannot move to ${newStatus}. This task is blocked by: ${incompleteDeps.map(t => t.title).join(', ')}`);
+                        setActiveId(null);
+                        return;
+                    }
+                }
+
                 if (allowedNextStates.includes(newStatus) || currentUser?.role === 'Admin' || currentUser?.role === 'Manager') {
                     onTaskMove(active.id as string, newStatus);
                 } else {

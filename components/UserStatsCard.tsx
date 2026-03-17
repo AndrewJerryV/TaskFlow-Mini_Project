@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { User } from '@/types';
 import { calculateAge } from '@/lib/utils';
-import { Pencil, Github, GitPullRequest, CircleDot, Activity } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface UserStatsCardProps {
@@ -22,25 +22,7 @@ export function UserStatsCard({ user, onClick, onEditSkills }: UserStatsCardProp
     const { stats, dob } = user;
     const age = calculateAge(dob);
     
-    const [githubStats, setGithubStats] = useState<{ issues: number, prs: number, actions: number } | null>(null);
-    const [loadingGithub, setLoadingGithub] = useState(true);
 
-    useEffect(() => {
-        const fetchGithubStats = async () => {
-            try {
-                const res = await fetch(`/api/github/user/${user.id}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    setGithubStats(data);
-                }
-            } catch (err) {
-                console.error("Failed to fetch Github stats for user", user.id);
-            } finally {
-                setLoadingGithub(false);
-            }
-        };
-        fetchGithubStats();
-    }, [user.id]);
 
     // Determine color based on status/wellness
     const getWellnessColor = (score: number) => {
@@ -99,41 +81,7 @@ export function UserStatsCard({ user, onClick, onEditSkills }: UserStatsCardProp
                 </div>
             </div>
 
-            {/* GitHub Stats Section */}
-            <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
-                <div className="flex items-center gap-2 mb-3">
-                    <Github size={14} className="text-gray-500 dark:text-gray-400" />
-                    <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">GitHub Activity</h4>
-                </div>
-                
-                {loadingGithub ? (
-                    <div className="flex items-center justify-center py-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
-                    </div>
-                ) : githubStats ? (
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2 flex flex-col items-center justify-center">
-                            <CircleDot size={14} className="text-green-500 mb-1" />
-                            <span className="text-sm font-semibold text-gray-900 dark:text-white">{githubStats.issues}</span>
-                            <span className="text-[10px] text-gray-500 dark:text-gray-400 uppercase">Issues</span>
-                        </div>
-                        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2 flex flex-col items-center justify-center">
-                            <GitPullRequest size={14} className="text-purple-500 mb-1" />
-                            <span className="text-sm font-semibold text-gray-900 dark:text-white">{githubStats.prs}</span>
-                            <span className="text-[10px] text-gray-500 dark:text-gray-400 uppercase">PRs</span>
-                        </div>
-                        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2 flex flex-col items-center justify-center">
-                            <Activity size={14} className="text-blue-500 mb-1" />
-                            <span className="text-sm font-semibold text-gray-900 dark:text-white">{githubStats.actions}</span>
-                            <span className="text-[10px] text-gray-500 dark:text-gray-400 uppercase">Actions</span>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="text-xs text-gray-400 dark:text-gray-500 italic text-center py-1">
-                        No GitHub data available
-                    </div>
-                )}
-            </div>
+
         </div>
     );
 }

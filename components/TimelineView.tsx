@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { Task, Status } from '@/types';
+import { Task, Status, Priority } from '@/types';
+import { TaskDetailModal } from './TaskDetailModal';
 import { Search, ChevronDown, User as UserIcon, Zap, Circle, ZoomIn, ZoomOut, Clock, Lock } from 'lucide-react';
 import { format, addMonths, subMonths, startOfMonth, eachMonthOfInterval, differenceInDays } from 'date-fns';
 import { STATUSES } from '@/lib/constants';
@@ -11,13 +12,16 @@ const TIMELINE_START = startOfMonth(new Date());
 const TIMELINE_END_MONTHS = addMonths(TIMELINE_START, 6);
 const TIMELINE_END_QUARTERS = addMonths(TIMELINE_START, 12);
 
-export default function TimelineView({ tasks = [] }: { tasks?: Task[] }) {
+export default function TimelineView({ tasks = [], onUpdateTask }: { tasks?: Task[], onUpdateTask?: (task: Task) => void }) {
   const [filter, setFilter] = useState('');
   const [viewMode, setViewMode] = useState<'Months' | 'Quarters'>('Months');
   const [statusFilter, setStatusFilter] = useState<Status | 'all'>('all');
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
   const { users } = useAuth();
+  
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   const headerScrollRef = useRef<HTMLDivElement>(null);
   const bodyScrollRef = useRef<HTMLDivElement>(null);
@@ -98,6 +102,11 @@ export default function TimelineView({ tasks = [] }: { tasks?: Task[] }) {
     }
   };
   const ROW_HEIGHT = 'h-[64px]'; 
+
+  const handleTaskClick = (task: Task) => {
+    setSelectedTask(task);
+    setIsDetailOpen(true);
+  };
 
   return (
     <div className="flex flex-col w-full h-full bg-slate-50/50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden font-sans">
@@ -180,6 +189,20 @@ export default function TimelineView({ tasks = [] }: { tasks?: Task[] }) {
         </div>
       </div>
 
+      <TaskDetailModal
+        task={selectedTask}
+        isOpen={isDetailOpen}
+        onClose={() => setIsDetailOpen(false)}
+        onUpdate={(updated) => {
+          onUpdateTask?.(updated);
+          setSelectedTask(updated);
+        }}
+        onDelete={(taskId) => {
+          setIsDetailOpen(false);
+          // Delete is usually handled by parent through sync
+        }}
+      />
+
       <div 
         ref={headerScrollRef}
         className="w-full overflow-hidden flex-shrink-0 border-b border-slate-200 dark:border-slate-800 bg-slate-50/95 dark:bg-slate-900/95 z-40"
@@ -226,6 +249,47 @@ export default function TimelineView({ tasks = [] }: { tasks?: Task[] }) {
           </div>
 
           <div className="relative z-10 flex flex-col w-full pb-10">
+            {/* Dependency Lines Overlay */}
+            <svg className="absolute inset-0 pointer-events-none z-10 overflow-visible" style={{ width: '100%', height: '100%' }}>
+              <defs>
+                <marker id="arrowhead" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
+                  <polygon points="0 0, 6 2, 0 4" fill="currentColor" className="text-blue-400" />
+                </marker>
+              </defs>
+              {filteredTasks.map((task) => {
+                if (!task.dependencies || task.dependencies.length === 0) return null;
+                
+                const targetIdx = filteredTasks.findIndex(t => t.id === task.id);
+                const targetStyle = getTaskStyle(task);
+                const targetLeft = parseFloat(targetStyle.left);
+                const targetY = targetIdx * 64 + 32;
+
+                return task.dependencies.map(depId => {
+                  const depTask = filteredTasks.find(t => t.id === depId);
+                  if (!depTask) return null;
+                  
+                  const depIdx = filteredTasks.findIndex(t => t.id === depId);
+                  const depStyle = getTaskStyle(depTask);
+                  const depRight = parseFloat(depStyle.left) + parseFloat(depStyle.width);
+                  const depY = depIdx * 64 + 32;
+
+                  // Simple path between tasks
+                  return (
+                    <path
+                      key={`${task.id}-${depId}`}
+                      d={`M ${(depRight / 100) * timelineWidth + 280} ${depY} C ${((depRight + 5) / 100) * timelineWidth + 280} ${depY}, ${((targetLeft - 5) / 100) * timelineWidth + 280} ${targetY}, ${(targetLeft / 100) * timelineWidth + 280} ${targetY}`}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeDasharray={depTask.status === 'Done' ? '0' : '4 2'}
+                      className={`${depTask.status === 'Done' ? 'text-blue-400 opacity-40' : 'text-amber-400 opacity-60'}`}
+                      markerEnd="url(#arrowhead)"
+                    />
+                  );
+                });
+              })}
+            </svg>
+
             {filteredTasks.map((task, idx) => {
               const assignee = users?.find(u => u.id === task.assigneeId);
               return (
@@ -246,6 +310,7 @@ export default function TimelineView({ tasks = [] }: { tasks?: Task[] }) {
                       className={`absolute h-[36px] top-1/2 -translate-y-1/2 rounded-full text-xs font-semibold flex items-center pr-4 pl-1.5 cursor-pointer transition-all duration-300 overflow-hidden shadow-sm group-hover:shadow-md group-hover:scale-[1.01] ring-1 ring-inset z-20 ${getStatusColor(task.status)}`}
                       style={getTaskStyle(task)}
                       title={`${task.title} • ${task.status}`}
+                      onClick={() => handleTaskClick(task)}
                     >
                       <div className="absolute top-0 left-0 right-0 h-1/2 bg-white/20 pointer-events-none" />
 

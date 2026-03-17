@@ -59,6 +59,7 @@ function toTask(dbTask: DbTask): Task {
         tags: dbTask.tags || [],
         timeLogs: typeof dbTask.time_logs === 'string' ? JSON.parse(dbTask.time_logs) : (dbTask.time_logs || []),
         activeTimerStart: dbTask.active_timer_start,
+        dependencies: dbTask.dependencies || [],
     };
 }
 
@@ -101,7 +102,7 @@ function toForm(dbForm: DbForm): Form {
         projectId: dbForm.project_id,
         title: dbForm.title,
         description: dbForm.description,
-        fields: JSON.parse(dbForm.fields || '[]'),
+        fields: typeof dbForm.fields === 'string' ? JSON.parse(dbForm.fields) : (dbForm.fields || []),
         status: dbForm.status,
         createdBy: dbForm.created_by,
         createdAt: dbForm.created_at,
@@ -114,7 +115,7 @@ function toFormResponse(dbResponse: DbFormResponse): FormResponse {
         id: dbResponse.id,
         formId: dbResponse.form_id,
         respondentId: dbResponse.respondent_id,
-        answers: JSON.parse(dbResponse.answers || '{}'),
+        answers: typeof dbResponse.answers === 'string' ? JSON.parse(dbResponse.answers) : (dbResponse.answers || {}),
         submittedAt: dbResponse.submitted_at,
     };
 }
@@ -537,6 +538,7 @@ class Database {
                 tags: task.tags,
                 time_logs: task.timeLogs || [],
                 active_timer_start: task.activeTimerStart || null,
+                dependencies: task.dependencies || [],
             });
 
         if (error) {
@@ -586,6 +588,7 @@ class Database {
         if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
         if (updates.timeLogs !== undefined) dbUpdates.time_logs = updates.timeLogs;
         if (updates.activeTimerStart !== undefined) dbUpdates.active_timer_start = updates.activeTimerStart === null ? null : updates.activeTimerStart; // handle clearing
+        if (updates.dependencies !== undefined) dbUpdates.dependencies = updates.dependencies;
 
         const { data, error } = await getSupabase()
             .from('tasks')

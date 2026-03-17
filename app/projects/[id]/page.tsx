@@ -277,6 +277,8 @@ export default function ProjectPage() {
     };
 
     const handleTaskUpdate = async (updatedTask: Task) => {
+        const previousTask = tasks.find(t => t.id === updatedTask.id);
+
         // Optimistic
         setTasks(prev => prev.map(t => t.id == updatedTask.id ? updatedTask : t));
 
@@ -303,7 +305,10 @@ export default function ProjectPage() {
         } catch (err: any) {
             console.error("Failed to update task", err);
             alert(err.message || "Failed to update task");
-            // Optionally revert update
+            if (previousTask) {
+                setTasks(prev => prev.map(t => t.id == previousTask.id ? previousTask : t));
+            }
+            throw err;
         }
     };
 

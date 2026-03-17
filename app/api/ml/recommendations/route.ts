@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { Task } from '@/types';
-import { isOverdue, checkMLServerAvailability } from '@/lib/utils';
+import { checkMLServerAvailability } from '@/lib/utils';
 
 interface MLAnalysis {
     predicted_priority: string;
@@ -16,6 +16,129 @@ interface MLResponse {
 const getErrorMessage = (error: unknown) =>
     error instanceof Error ? error.message : String(error);
 
+async function getTaskOfTheDay(userId: string) {
+    const allTasks = await db.getTasks();
+    const userTasks = allTasks.filter(
+        (t: Task) => t.assigneeId === userId && t.status !== 'Done'
+    );
+
+    if (userTasks.length === 0) {
+        return {
+            taskOfTheDay: null,
+            reason: 'No open tasks assigned.',
+            totalOpenTasks: 0
+        };
+    }
+
+    const isMLAvailable = await checkMLServerAvailability();
+    let scoredTasks: { task: Task; score: number; reason: string }[] = [];
+
+    if (isMLAvailable) {
+        const now = Date.now();
+        const mlPromises = userTasks.map(async (task: Task) => {
+            const daysUntilDue = task.dueDate
+                ? Math.ceil((new Date(task.dueDate).getTime() - now) / (1000 * 60 * 60 * 24))
+                : 999;
+            const daysSinceUpdate = Math.floor(
+                (now - new Date(task.updatedAt).getTime()) / (1000 * 60 * 60 * 24)
+            );
+
+            try {
+                const res = await fetch('http://127.0.0.1:8000/analyze_task', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        description: task.title + ' ' + (task.description || ''),
+                        status: task.status,
+                        days_until_due: daysUntilDue,
+                        days_since_update: daysSinceUpdate,
+                    }),
+                });
+
+                if (!res.ok) return null;
+                const data = await res.json();
+                const { urgency_score, predicted_priority } = data.analysis;
+
+                const reasons: string[] = [];
+                if (daysUntilDue < 0) reasons.push(`overdue by ${Math.abs(daysUntilDue)} day(s)`);
+                else if (daysUntilDue <= 2) reasons.push(`due in ${daysUntilDue} day(s)`);
+                if (task.priority === 'Critical') reasons.push('critical priority');
+                else if (task.priority === 'High') reasons.push('high priority');
+                if (predicted_priority === 'High' && task.priority !== 'High' && task.priority !== 'Critical') {
+                    reasons.push('AI predicts higher priority');
+                }
+                if (task.status === 'In Progress') reasons.push('already in progress');
+
+                let score = urgency_score;
+                if (task.status === 'In Progress') score += 10;
+
+                return {
+                    task,
+                    score,
+                    reason: reasons.length > 0
+                        ? `Recommended because: ${reasons.join(', ')}.`
+                        : `AI urgency score: ${Math.round(urgency_score)}/100.`,
+                };
+            } catch {
+                return null;
+            }
+        });
+
+        const results = await Promise.all(mlPromises);
+        scoredTasks = results.filter(Boolean) as typeof scoredTasks;
+    }
+
+    if (scoredTasks.length === 0) {
+        const now = Date.now();
+        scoredTasks = userTasks.map((task: Task) => {
+            let score = 0;
+            const reasons: string[] = [];
+
+            const priorityScores: Record<string, number> = { Critical: 40, High: 30, Medium: 15, Low: 5 };
+            score += priorityScores[task.priority] || 5;
+
+            if (task.dueDate) {
+                const daysUntil = Math.ceil(
+                    (new Date(task.dueDate).getTime() - now) / (1000 * 60 * 60 * 24)
+                );
+                if (daysUntil < 0) {
+                    score += 50;
+                    reasons.push(`overdue by ${Math.abs(daysUntil)} day(s)`);
+                } else if (daysUntil <= 2) {
+                    score += 30;
+                    reasons.push(`due in ${daysUntil} day(s)`);
+                }
+            }
+
+            if (task.status === 'In Progress') {
+                score += 15;
+                reasons.push('already in progress');
+            }
+
+            if (task.priority === 'Critical') reasons.push('critical priority');
+            else if (task.priority === 'High') reasons.push('high priority');
+
+            return {
+                task,
+                score,
+                reason: reasons.length > 0
+                    ? `Recommended because: ${reasons.join(', ')}.`
+                    : 'Best task to focus on based on priority and status.',
+            };
+        });
+    }
+
+    scoredTasks.sort((a, b) => b.score - a.score);
+    const best = scoredTasks[0];
+
+    return {
+        taskOfTheDay: best.task,
+        reason: best.reason,
+        score: Math.min(Math.round(best.score), 100),
+        totalOpenTasks: userTasks.length,
+    };
+}
+
 // =============================================
 // Local ML-powered batch recommendations (Python Backend)
 // =============================================
@@ -28,7 +151,7 @@ async function localMLRecommendations(tasks: Task[], currentUserId: string | nul
         description: string;
         score: number;
         reason: string;
-        suggestedAction: string;
+        suggestedAction?: string;
     }> = [];
 
     const now = Date.now();
@@ -108,23 +231,21 @@ async function localMLRecommendations(tasks: Task[], currentUserId: string | nul
 
         // 4. Categorization
         let type: 'focus' | 'bottleneck' | 'quick_win' | 'overdue_risk' | null = null;
-        let suggestedAction = 'View Details';
+        let suggestedAction: string | undefined;
 
         if (task.dueDate && daysUntilDue <= 1 && task.status !== 'Done') {
             type = 'overdue_risk';
-            suggestedAction = daysUntilDue < 0 ? 'Reschedule' : 'Prioritize';
+            suggestedAction = daysUntilDue < 0 ? 'Reschedule' : undefined;
             reasons.push(daysUntilDue < 0 ? `Overdue by ${Math.abs(daysUntilDue)}d` : 'Due soon');
         } else if (task.status === 'In Progress' && daysSinceUpdate > 3) {
             type = 'bottleneck';
-            suggestedAction = 'Update Status';
             reasons.push(`Stale for ${daysSinceUpdate}d`);
         } else if (task.status === 'To Do' && predicted_priority === 'Low' && finalScore < 40) {
             type = 'quick_win';
-            suggestedAction = 'Complete Now';
             reasons.push('Low Effort & Quick');
         } else if (finalScore >= 45 || (isAssignedToMe && finalScore >= 30)) {
             type = 'focus';
-            suggestedAction = task.status === 'To Do' ? 'Start Task' : 'Continue';
+            suggestedAction = 'Continue';
         }
 
         if (type && finalScore > 10) { // lowered threshold to include quick wins
@@ -185,9 +306,18 @@ async function localMLRecommendations(tasks: Task[], currentUserId: string | nul
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
+        const mode = searchParams.get('mode');
         const projectId = searchParams.get('projectId');
         const userId = searchParams.get('userId');
         const filterByUserId = searchParams.get('filterByUserId') === 'true';
+
+        if (mode === 'task-of-the-day') {
+            if (!userId) {
+                return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+            }
+            const taskOfTheDay = await getTaskOfTheDay(userId);
+            return NextResponse.json(taskOfTheDay);
+        }
 
         let tasks = projectId
             ? await db.getTasks(projectId)

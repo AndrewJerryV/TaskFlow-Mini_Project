@@ -1,7 +1,21 @@
 import torch
+import logging
 from sentence_transformers import SentenceTransformer, util
 from setfit import SetFitModel
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
+
+def get_device():
+    """Returns 'cuda' if available and working, otherwise 'cpu'."""
+    if torch.cuda.is_available():
+        try:
+            # Test CUDA with a small tensor operation
+            torch.zeros(1).cuda()
+            return "cuda"
+        except Exception as e:
+            logger.warning(f"CUDA available but failed test: {e}. Falling back to CPU.")
+    return "cpu"
 
 class TaskPriorityModel:
     """
@@ -11,8 +25,12 @@ class TaskPriorityModel:
     ID2LABEL = {0: "Low", 1: "Medium", 2: "High"}
 
     def __init__(self, path):
-        # Load the pre-trained SetFit model from the specified directory
+        # Load the pre-trained SetFit model, with CPU fallback
+        device = get_device()
+        logger.info(f"Loading TaskPriorityModel on device: {device}")
         self.model = SetFitModel.from_pretrained(path)
+        if device == "cpu":
+            self.model = self.model.to(device)
 
     def predict(self, text):
         """Predicts the priority of a given task description."""
@@ -91,6 +109,9 @@ class TaskAssigner:
                 combined_score *= 0.80
             else:
                 combined_score *= 1.10
+            
+            # Ensure the score never exceeds 100%
+            combined_score = min(100.0, combined_score)
 
             results.append({
                 "name": p["name"],

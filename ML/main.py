@@ -7,7 +7,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sentence_transformers import SentenceTransformer
-from models import TaskPriorityModel, TaskAssigner, UrgencyModel, FullTaskRequest, WellnessRequest, BottleneckRequest
+from models import TaskPriorityModel, TaskAssigner, UrgencyModel, FullTaskRequest, WellnessRequest, BottleneckRequest, get_device
 from wellness_model import WellnessModel
 from datetime import datetime, timezone
 
@@ -26,9 +26,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-print("\n--- INITIALIZING AI ENGINE ---")
+device = get_device()
+print(f"\n--- INITIALIZING AI ENGINE (device: {device}) ---")
 priority_ai = TaskPriorityModel(MODEL_PATH)
-sentence_model = SentenceTransformer(SKILL_MODEL_PATH)
+sentence_model = SentenceTransformer(SKILL_MODEL_PATH, device=device)
 assigner_ai = TaskAssigner(sentence_model)
 urgency_ai = UrgencyModel()
 wellness_ai = WellnessModel()

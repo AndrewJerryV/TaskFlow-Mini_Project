@@ -57,6 +57,8 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
     const [loadingComments, setLoadingComments] = useState(false);
     const [loadingHistory, setLoadingHistory] = useState(false);
     const [loadingDeployments, setLoadingDeployments] = useState(false);
+    const [projectTasks, setProjectTasks] = useState<Task[]>([]);
+    const [loadingProjectTasks, setLoadingProjectTasks] = useState(false);
 
     const isMember = currentUser?.role === 'Member';
 
@@ -68,6 +70,7 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
         fetchHistory(task.id);
         fetchTimeEntries(task.id);
         fetchDeployments(task.id);
+        fetchProjectTasks(task.projectId);
 
         const supabase = getSupabase();
         const channel = supabase
@@ -176,9 +179,34 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
             setLoadingDeployments(false);
         }
     };
+    
+    const fetchProjectTasks = async (projectId: string) => {
+        setLoadingProjectTasks(true);
+        try {
+            const res = await fetch(`/api/tasks?projectId=${projectId}`);
+            if (res.ok) {
+                const data = await res.json();
+                setProjectTasks(Array.isArray(data) ? data : []);
+            }
+        } catch (error) {
+            console.error('Error fetching project tasks:', error);
+        } finally {
+            setLoadingProjectTasks(false);
+        }
+    };
 
     const handleSave = () => {
         if (editedTask) {
+            // Check dependency validation if status is In Progress or Done
+            if ((editedTask.status === 'In Progress' || editedTask.status === 'Done') && editedTask.status !== task?.status) {
+                const incompleteDeps = projectTasks.filter(t => 
+                    editedTask.dependencies?.includes(t.id) && t.status !== 'Done'
+                );
+                if (incompleteDeps.length > 0) {
+                    alert(`Cannot update to ${editedTask.status}. This task is blocked by: ${incompleteDeps.map(t => t.title).join(', ')}`);
+                    return;
+                }
+            }
             onUpdate(editedTask);
             setIsEditing(false);
         }
@@ -404,6 +432,33 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                                 ))}
                             </select>
                         </div>
+                        
+                        {!isMember && (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Blocked By (Dependencies)</label>
+                                <div className="max-h-32 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded p-2 bg-gray-50 dark:bg-gray-800 space-y-1">
+                                    {projectTasks.filter(t => t.id !== editedTask.id).map(t => (
+                                        <label key={t.id} className="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 p-1 rounded">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={(editedTask.dependencies || []).includes(t.id)}
+                                                onChange={(e) => {
+                                                    const currentDeps = editedTask.dependencies || [];
+                                                    if (e.target.checked) {
+                                                        setEditedTask({ ...editedTask, dependencies: [...currentDeps, t.id] });
+                                                    } else {
+                                                        setEditedTask({ ...editedTask, dependencies: currentDeps.filter(id => id !== t.id) });
+                                                    }
+                                                }}
+                                                className="w-3 h-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                                            />
+                                            <span className="truncate">{t.title}</span>
+                                        </label>
+                                    ))}
+                                    {projectTasks.length <= 1 && <p className="text-xs text-gray-400 italic">No other tasks to link</p>}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     /* View Mode */
@@ -441,6 +496,23 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                                 </span>
                             </div>
                         </div>
+
+                        {task.dependencies && task.dependencies.length > 0 && (
+                            <div className="pt-2">
+                                <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Blocked By</h4>
+                                <div className="flex flex-wrap gap-2">
+                                    {task.dependencies.map(depId => {
+                                        const depTask = projectTasks.find(t => t.id === depId);
+                                        return (
+                                            <div key={depId} className="flex items-center gap-2 px-2 py-1 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-100 dark:border-amber-800 rounded-md text-[11px]">
+                                                <span className={`w-2 h-2 rounded-full ${depTask?.status === 'Done' ? 'bg-green-500' : 'bg-amber-500'}`} />
+                                                {depTask?.title || 'Unknown Task'}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
