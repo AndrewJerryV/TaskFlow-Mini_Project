@@ -407,13 +407,25 @@ export default function TimeTrackingView({ projectId, tasks: propTasks }: TimeTr
                     <button
                         key={tab.key}
                         onClick={() => setActiveSection(tab.key)}
-                        className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${activeSection === tab.key
-                            ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                        className={`group relative overflow-hidden flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 ${activeSection === tab.key
+                                ? 'text-white shadow-md'
+                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-gray-700/50 hover:shadow-sm'
                             }`}
                     >
-                        <tab.icon size={14} />
-                        {tab.label}
+                        {/* Selected Background Gradient */}
+                        <div
+                            className={`absolute inset-0 transition-opacity duration-300 ${activeSection === tab.key
+                                    ? 'opacity-100 bg-gradient-to-r from-[#1665C0] via-[#31A9DD] to-[#7DC672]'
+                                    : 'opacity-0 bg-gradient-to-r from-[#1665C0] via-[#31A9DD] to-[#7DC672] group-hover:opacity-10'
+                                }`}
+                        />
+                        {/* Hover Overlay Light Effect */}
+                        <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        
+                        <div className="relative z-10 flex items-center gap-2">
+                            <tab.icon size={14} className={`transition-transform duration-300 group-hover:scale-110 ${activeSection === tab.key ? 'animate-pulse' : ''}`} />
+                            {tab.label}
+                        </div>
                     </button>
                 ))}
             </div>
