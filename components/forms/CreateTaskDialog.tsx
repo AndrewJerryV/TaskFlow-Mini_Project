@@ -38,7 +38,6 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
 
     // AI State
     const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [aiReasoning, setAiReasoning] = useState<string | null>(null);
     const [aiRisk, setAiRisk] = useState<'Low' | 'Medium' | 'High'>('Low');
     const dataRef = React.useRef<any>(null); // Store full response for debug
     const [suggestions, setSuggestions] = useState<{ skills: string[], tags: string[], titles: string[] }>({
@@ -94,25 +93,6 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
 
     const [aiUnavailable, setAiUnavailable] = useState(false);
 
-    useEffect(() => {
-        const checkAiHealth = async () => {
-            try {
-                // Quick check to see if AI service is reachable
-                const res = await fetch('/api/ai/assign', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ healthCheck: true })
-                });
-                if (res.status === 503) {
-                    setAiUnavailable(true);
-                }
-            } catch (err) {
-                setAiUnavailable(true);
-            }
-        };
-        checkAiHealth();
-    }, []);
-
     const handleSmartAssign = async () => {
         if (!title) {
             alert('Please enter a summary first so the AI can analyze requirements.');
@@ -120,7 +100,8 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
         }
 
         setIsAnalyzing(true);
-        setAiReasoning(null);
+        dataRef.current = null;
+        setAiUnavailable(false);
 
         try {
             const res = await fetch('/api/ai/assign', {
@@ -139,7 +120,6 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
 
             dataRef.current = data;
             setAssigneeId(data.candidateId);
-            setAiReasoning(data.reasoning);
 
             const topCandidate = data.allCandidates?.[0];
             if (topCandidate) setAiRisk(topCandidate.risk);
@@ -180,7 +160,8 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
         setStatus('To Do');
         setStartDate('');
         setDueDate('');
-        setAiReasoning(null);
+        dataRef.current = null;
+        setAiUnavailable(false);
         setIsPrivate(false);
         setDependencies([]);
     };
@@ -296,7 +277,7 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
                         </div>
                     )}
 
-                    {aiReasoning && (
+                    {dataRef.current?.allCandidates?.length > 0 && (
                         <div className="space-y-2">
                             <div className={`text-xs p-2 rounded ${aiRisk === 'High' ? 'bg-red-100 text-red-800 border border-red-200' : 'bg-white text-gray-600 border border-gray-200'}`}>
                                 <strong>AI Insight:</strong>

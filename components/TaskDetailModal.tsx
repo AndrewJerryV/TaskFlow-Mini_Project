@@ -13,22 +13,20 @@ import { RealtimePostgresInsertPayload } from '@supabase/supabase-js';
 
 // Icon component to render Lucide icons by name
 const ActionIcon = ({ iconName, size = 14 }: { iconName: string; size?: number }) => {
-    switch (iconName) {
+    switch (iconName.toLowerCase()) {
         case 'trash': return <Trash2 size={size} />;
+        case 'trash2': return <Trash2 size={size} />;
         case 'calendar': return <Calendar size={size} />;
         case 'user': return <UserIcon size={size} />;
         case 'message': return <MessageSquare size={size} />;
+        case 'messagesquare': return <MessageSquare size={size} />;
         case 'clock': return <Clock size={size} />;
         case 'sparkles': return <Sparkles size={size} />;
         case 'arrow-right': return <ArrowRight size={size} />;
+        case 'arrowright': return <ArrowRight size={size} />;
         case 'edit': return <Edit size={size} />;
         case 'play': return <Play size={size} />;
         case 'square': return <Square size={size} />;
-        case 'Sparkles': return <Sparkles size={size} />;
-        case 'ArrowRight': return <ArrowRight size={size} />;
-        case 'Trash2': return <Trash2 size={size} />;
-        case 'MessageSquare': return <MessageSquare size={size} />;
-        case 'Edit': return <Edit size={size} />;
         default: return <Edit size={size} />;
     }
 };

@@ -111,6 +111,39 @@ export function BottleneckAlert({ tasks = [], users = [], currentUser = null, pr
         return 'text-red-600 dark:text-red-400';
     };
 
+    const renderBottleneckCard = (bottleneck: BottleneckResult, key: string | number) => (
+        <div key={key} className={`p-3 rounded-lg border ${severityColor[bottleneck.severity]} transition-all`}>
+            <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex-shrink-0">
+                    {bottleneck.type === 'process' ? (
+                        <AlertTriangle size={16} />
+                    ) : (
+                        <Users size={16} />
+                    )}
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className={`w-2 h-2 rounded-full ${severityDot[bottleneck.severity]}`} />
+                        <span className="text-xs font-bold uppercase tracking-wider">
+                            {bottleneck.type} bottleneck
+                        </span>
+                        {bottleneck.type !== 'process' && (
+                            <>
+                                <span className="opacity-50">•</span>
+                                <span className="text-xs font-medium">{bottleneck.location}</span>
+                            </>
+                        )}
+                    </div>
+                    <p className="text-sm leading-relaxed">{bottleneck.recommendation}</p>
+                    <div className="flex items-center gap-4 mt-2 text-xs opacity-75">
+                        <span>{bottleneck.taskCount} tasks</span>
+                        <span>Avg {bottleneck.avgDaysStuck} days stuck</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
     return (
         <div className="space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-800">
@@ -140,36 +173,7 @@ export function BottleneckAlert({ tasks = [], users = [], currentUser = null, pr
                     ) : (
                         <div className="space-y-3">
                             {projectGroup.bottlenecks.map((bottleneck, idx) => (
-                                <div key={`${projectGroup.projectId}-b-${idx}`} className={`p-3 rounded-lg border ${severityColor[bottleneck.severity]} transition-all`}>
-                                    <div className="flex items-start gap-3">
-                                        <div className="mt-0.5 flex-shrink-0">
-                                            {bottleneck.type === 'process' ? (
-                                                <AlertTriangle size={16} />
-                                            ) : (
-                                                <Users size={16} />
-                                            )}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className={`w-2 h-2 rounded-full ${severityDot[bottleneck.severity]}`} />
-                                                <span className="text-xs font-bold uppercase tracking-wider">
-                                                    {bottleneck.type} bottleneck
-                                                </span>
-                                                {bottleneck.type !== 'process' && (
-                                                    <>
-                                                        <span className="opacity-50">•</span>
-                                                        <span className="text-xs font-medium">{bottleneck.location}</span>
-                                                    </>
-                                                )}
-                                            </div>
-                                            <p className="text-sm leading-relaxed">{bottleneck.recommendation}</p>
-                                            <div className="flex items-center gap-4 mt-2 text-xs opacity-75">
-                                                <span>{bottleneck.taskCount} tasks</span>
-                                                <span>Avg {bottleneck.avgDaysStuck} days stuck</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                renderBottleneckCard(bottleneck, `${projectGroup.projectId}-b-${idx}`)
                             ))}
 
                             {projectGroup.overdueTasks.length > 0 && (
@@ -210,36 +214,7 @@ export function BottleneckAlert({ tasks = [], users = [], currentUser = null, pr
             ) : (
                 <div className="space-y-2">
                     {bottlenecks.map((bottleneck, idx) => (
-                        <div key={idx} className={`p-3 rounded-lg border ${severityColor[bottleneck.severity]} transition-all`}>
-                            <div className="flex items-start gap-3">
-                                <div className="mt-0.5 flex-shrink-0">
-                                    {bottleneck.type === 'process' ? (
-                                        <AlertTriangle size={16} />
-                                    ) : (
-                                        <Users size={16} />
-                                    )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className={`w-2 h-2 rounded-full ${severityDot[bottleneck.severity]}`} />
-                                        <span className="text-xs font-bold uppercase tracking-wider">
-                                            {bottleneck.type} bottleneck
-                                        </span>
-                                        {bottleneck.type !== 'process' && (
-                                            <>
-                                                <span className="opacity-50">•</span>
-                                                <span className="text-xs font-medium">{bottleneck.location}</span>
-                                            </>
-                                        )}
-                                    </div>
-                                    <p className="text-sm leading-relaxed">{bottleneck.recommendation}</p>
-                                    <div className="flex items-center gap-4 mt-2 text-xs opacity-75">
-                                        <span>{bottleneck.taskCount} tasks</span>
-                                        <span>Avg {bottleneck.avgDaysStuck} days stuck</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        renderBottleneckCard(bottleneck, idx)
                     ))}
                 </div>
             )}

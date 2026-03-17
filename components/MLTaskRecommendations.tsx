@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Task, User } from '@/types';
-import { Sparkles, ArrowRight, BrainCircuit, TrendingUp, Calendar, AlertCircle, ArrowDown, Loader2, Zap, Lightbulb } from 'lucide-react';
+import { Sparkles, ArrowRight, BrainCircuit, TrendingUp, Calendar, AlertCircle, ArrowDown, Loader2, Lightbulb } from 'lucide-react';
 import { BottleneckAlert } from '@/components/BottleneckAlert';
 import { Modal } from '@/components/ui/Modal';
 import { useTimer } from '@/contexts/TimerContext';

@@ -100,7 +100,7 @@ const BAR_COLORS = [
 ];
 
 export default function TimeTrackingView({ projectId, tasks: propTasks }: TimeTrackingViewProps) {
-    const { currentUser } = useAuth();
+    const { currentUser, users } = useAuth();
     const { activeTimer } = useTimer();
     const [data, setData] = useState<AnalyticsData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -202,6 +202,20 @@ export default function TimeTrackingView({ projectId, tasks: propTasks }: TimeTr
 
         return serverTimers;
     }, [data, activeTimer, currentUser]);
+
+    const userAvatarById = useMemo(() => {
+        return users.reduce<Record<string, string | undefined>>((acc, user) => {
+            acc[user.id] = user.avatarUrl;
+            return acc;
+        }, {});
+    }, [users]);
+
+    const [avatarLoadErrors, setAvatarLoadErrors] = useState<Record<string, boolean>>({});
+
+    const getUserAvatarUrl = useCallback((userId: string) => {
+        if (avatarLoadErrors[userId]) return undefined;
+        return userAvatarById[userId];
+    }, [avatarLoadErrors, userAvatarById]);
 
     if (loading) {
         return (
@@ -449,9 +463,18 @@ export default function TimeTrackingView({ projectId, tasks: propTasks }: TimeTr
                             <div className="divide-y divide-gray-50 dark:divide-gray-700/50">
                                 {data.perUser.map((user, idx) => (
                                     <div key={user.userId} className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${BAR_COLORS[idx % BAR_COLORS.length].replace('dark:bg-', 'dark:bg-').split(' ')[0]}`}>
-                                            {user.userName.charAt(0).toUpperCase()}
-                                        </div>
+                                        {getUserAvatarUrl(user.userId) ? (
+                                            <img
+                                                src={getUserAvatarUrl(user.userId)}
+                                                alt={user.userName}
+                                                className="w-8 h-8 rounded-full object-cover ring-1 ring-gray-200 dark:ring-gray-700"
+                                                onError={() => setAvatarLoadErrors(prev => ({ ...prev, [user.userId]: true }))}
+                                            />
+                                        ) : (
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${BAR_COLORS[idx % BAR_COLORS.length].replace('dark:bg-', 'dark:bg-').split(' ')[0]}`}>
+                                                {user.userName.charAt(0).toUpperCase()}
+                                            </div>
+                                        )}
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center justify-between mb-1">
                                                 <span className="text-sm font-medium text-gray-900 dark:text-white truncate">{user.userName}</span>

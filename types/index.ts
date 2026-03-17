@@ -90,10 +90,6 @@ export interface Task {
   updatedAt: string; // ISO Date
   tags: string[];
   isPrivate?: boolean;
-  /** @deprecated Use time_entries table instead */
-  timeLogs?: TimeLog[];
-  /** @deprecated Use time_entries table instead */
-  activeTimerStart?: string | null; // ISO Date string for when timer started
   dependencies?: string[]; // Array of task IDs this task depends on
 }
 

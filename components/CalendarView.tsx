@@ -149,9 +149,9 @@ export default function CalendarView({ projectId, tasks = [] }: CalendarViewProp
     }, [selectedDate]);
 
     return (
-        <div className="flex gap-6 h-full p-6">
+        <div className="h-full overflow-y-auto flex gap-6 p-6 items-start">
             {/* Calendar Grid */}
-            <div className="flex-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
+            <div className="flex-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col overflow-visible">
                 {/* Header */}
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
                     <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
@@ -183,7 +183,8 @@ export default function CalendarView({ projectId, tasks = [] }: CalendarViewProp
                 </div>
 
                 {/* Calendar Grid */}
-                <div className="flex-1 grid grid-cols-7 auto-rows-fr">
+                <div className="h-auto">
+                    <div className="grid grid-cols-7 auto-rows-[minmax(92px,auto)]">
                     {daysInMonth.map(({ date, isCurrentMonth }, idx) => {
                         const dateStr = toLocalISOString(date);
                         const dayEvents = getEventsForDate(date);
@@ -193,7 +194,7 @@ export default function CalendarView({ projectId, tasks = [] }: CalendarViewProp
                             <div
                                 key={idx}
                                 onClick={() => setSelectedDate(dateStr)}
-                                className={`p-1 border-r border-b border-gray-100 dark:border-gray-700 cursor-pointer transition-colors overflow-hidden
+                                className={`p-1 border-r border-b border-gray-100 dark:border-gray-700 cursor-pointer transition-colors
                                     ${isToday(date) ? 'bg-blue-50 dark:bg-blue-900/30' : !isCurrentMonth ? 'bg-gray-50 dark:bg-gray-900/50' : 'hover:bg-gray-50 dark:hover:bg-gray-700/30'}
                                     ${isSelected ? 'ring-2 ring-blue-500 ring-inset' : ''}
                                 `}
@@ -221,6 +222,7 @@ export default function CalendarView({ projectId, tasks = [] }: CalendarViewProp
                             </div>
                         );
                     })}
+                    </div>
                 </div>
             </div>
 

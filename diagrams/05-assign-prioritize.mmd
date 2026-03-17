@@ -7,7 +7,7 @@ sequenceDiagram
     participant DB as lib/db.ts
 
     User->>Dialog: Click "Smart Assign"
-    Dialog->>API: POST /api/ai/assign {title, description, status, priority}
+    Dialog->>API: POST /api/ai/assign {title, description, priority, projectId}
     
     rect rgb(240, 255, 240)
     API->>API: checkMLServerAvailability()
@@ -16,17 +16,17 @@ sequenceDiagram
     API->>API: Calculate User Active Workload & Overdue counts
     
     API->>ML: POST http://127.0.0.1:8000/analyze_task {description, status, candidates[]}
-    Note right of API: Candidates array includes skills & pre-calculated wellness_data
     
     ML->>ML: Match Skills via SBERT (Cosine Similarity)
     ML->>ML: Apply Wellness & Workload Penalties
     ML-->>API: { suggested_assignees: [{id, match_percentage, wellness_score, ...}] }
     
-    API->>API: Generate textual reasoning string for top match
-    API-->>Dialog: return Top Match (User ID + Reasoning)
+    API->>API: Build top candidate + ranked allCandidates[]
+    API-->>Dialog: {candidateId, reasoning, allCandidates[]}
     end
     
-    Dialog-->>User: Display Suggested User with Match % and reasoning
+    Dialog->>Dialog: Auto-select candidateId in Assignee dropdown
+    Dialog-->>User: Display AI Insight points
     
     User->>Dialog: Select Assignee & Create
     Dialog->>API: POST /api/tasks {title, ..., assigneeId}

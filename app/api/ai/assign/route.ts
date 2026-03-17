@@ -72,24 +72,9 @@ async function pythonSmartAssignment(users: User[], allTasks: Task[], title: str
             throw new Error("Suggested user not found in database");
         }
 
-        let reasoning = `**${suggestedUser.name}** is the top AI match with **${bestMatch.combined_ranking_score} assignment score**. `;
-        
-        reasoning += `This score reflects a **${bestMatch.match_percentage}% skill match** and a **${bestMatch.wellness_status} (${bestMatch.wellness_score}%)** wellness status. `;
-
-        if (suggestedUser.role === 'Member') {
-            reasoning += `They were prioritized due to their **Member** role. `;
-        } else {
-            reasoning += `They hold the role of **${suggestedUser.role}**. `;
-        }
-
-        if (bestMatch.matching_skills && bestMatch.matching_skills.length > 0) {
-            reasoning += `Their skills in **${bestMatch.matching_skills.slice(0, 3).join(', ')}** strongly match the task requirements. `;
-        }
-
         return {
             suggestedUser,
             candidateId: suggestedUser.id,
-            reasoning,
             allCandidates: data.suggested_assignees.map((c) => ({
                 name: c.name,
                 id: c.id,

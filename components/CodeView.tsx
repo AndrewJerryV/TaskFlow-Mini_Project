@@ -74,7 +74,8 @@ function RepoCard({ repo, currentUser, onDelete, onOpenInNewTab, onCopyLink, cop
     let visibleIssues: any[] = [];
     if (githubData?.issues?.list) {
         if (isAdminOrManager) {
-            visibleIssues = githubData.issues.list;
+            // API already returns issues ordered by CREATED_AT DESC.
+            visibleIssues = githubData.issues.list.slice(0, 3);
         } else {
             // Find issues assigned to the user loosely by name
             visibleIssues = githubData.issues.list.filter((i: any) => 
@@ -131,7 +132,7 @@ function RepoCard({ repo, currentUser, onDelete, onOpenInNewTab, onCopyLink, cop
                         <div>
                             <div className="flex items-center justify-between mb-1.5">
                                 <h4 className="text-xs font-semibold text-gray-900 dark:text-white uppercase tracking-wider">
-                                    {isAdminOrManager ? 'Open Issues' : 'Your Assigned Issues'}
+                                    {isAdminOrManager ? 'Latest Open Issues' : 'Your Assigned Issues'}
                                 </h4>
                                 <span className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs px-2 py-0.5 rounded-full font-medium">
                                     {visibleIssues.length}
@@ -139,7 +140,7 @@ function RepoCard({ repo, currentUser, onDelete, onOpenInNewTab, onCopyLink, cop
                             </div>
                             {visibleIssues.length > 0 ? (
                                 <ul className="space-y-1.5 max-h-32 overflow-y-auto no-scrollbar pr-1">
-                                    {visibleIssues.slice(0, 5).map((is: any) => (
+                                    {visibleIssues.map((is: any) => (
                                         <li key={is.number} className="text-sm">
                                             <a href={is.url} target="_blank" rel="noreferrer" className="flex gap-2 group/issue">
                                                 <span className="text-green-500 flex-shrink-0 mt-0.5">⊙</span>
@@ -149,11 +150,6 @@ function RepoCard({ repo, currentUser, onDelete, onOpenInNewTab, onCopyLink, cop
                                             </a>
                                         </li>
                                     ))}
-                                    {visibleIssues.length > 5 && (
-                                        <li className="text-xs text-gray-500 dark:text-gray-400 pt-1">
-                                            And {visibleIssues.length - 5} more...
-                                        </li>
-                                    )}
                                 </ul>
                             ) : (
                                 <p className="text-sm text-gray-500 dark:text-gray-400 italic">None</p>

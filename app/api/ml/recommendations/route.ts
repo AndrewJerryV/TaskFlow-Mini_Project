@@ -13,8 +13,40 @@ interface MLResponse {
     analysis: MLAnalysis;
 }
 
-const getErrorMessage = (error: unknown) =>
-    error instanceof Error ? error.message : String(error);
+async function analyzeTaskWithML(task: Task, now: number) {
+    const daysUntilDue = task.dueDate
+        ? Math.ceil((new Date(task.dueDate).getTime() - now) / (1000 * 60 * 60 * 24))
+        : 999;
+    const daysSinceUpdate = Math.floor(
+        (now - new Date(task.updatedAt).getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    try {
+        const res = await fetch('http://127.0.0.1:8000/analyze_task', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                description: task.title + ' ' + (task.description || ''),
+                status: task.status,
+                days_until_due: daysUntilDue,
+                days_since_update: daysSinceUpdate,
+            }),
+        });
+
+        if (!res.ok) {
+            return null;
+        }
+
+        const data = (await res.json()) as MLResponse;
+        return {
+            analysis: data.analysis,
+            daysUntilDue,
+            daysSinceUpdate,
+        };
+    } catch {
+        return null;
+    }
+}
 
 async function getTaskOfTheDay(userId: string) {
     const allTasks = await db.getTasks();
@@ -36,52 +68,32 @@ async function getTaskOfTheDay(userId: string) {
     if (isMLAvailable) {
         const now = Date.now();
         const mlPromises = userTasks.map(async (task: Task) => {
-            const daysUntilDue = task.dueDate
-                ? Math.ceil((new Date(task.dueDate).getTime() - now) / (1000 * 60 * 60 * 24))
-                : 999;
-            const daysSinceUpdate = Math.floor(
-                (now - new Date(task.updatedAt).getTime()) / (1000 * 60 * 60 * 24)
-            );
+            const mlResult = await analyzeTaskWithML(task, now);
+            if (!mlResult) return null;
 
-            try {
-                const res = await fetch('http://127.0.0.1:8000/analyze_task', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        description: task.title + ' ' + (task.description || ''),
-                        status: task.status,
-                        days_until_due: daysUntilDue,
-                        days_since_update: daysSinceUpdate,
-                    }),
-                });
+            const { urgency_score, predicted_priority } = mlResult.analysis;
+            const { daysUntilDue } = mlResult;
 
-                if (!res.ok) return null;
-                const data = await res.json();
-                const { urgency_score, predicted_priority } = data.analysis;
-
-                const reasons: string[] = [];
-                if (daysUntilDue < 0) reasons.push(`overdue by ${Math.abs(daysUntilDue)} day(s)`);
-                else if (daysUntilDue <= 2) reasons.push(`due in ${daysUntilDue} day(s)`);
-                if (task.priority === 'Critical') reasons.push('critical priority');
-                else if (task.priority === 'High') reasons.push('high priority');
-                if (predicted_priority === 'High' && task.priority !== 'High' && task.priority !== 'Critical') {
-                    reasons.push('AI predicts higher priority');
-                }
-                if (task.status === 'In Progress') reasons.push('already in progress');
-
-                let score = urgency_score;
-                if (task.status === 'In Progress') score += 10;
-
-                return {
-                    task,
-                    score,
-                    reason: reasons.length > 0
-                        ? `Recommended because: ${reasons.join(', ')}.`
-                        : `AI urgency score: ${Math.round(urgency_score)}/100.`,
-                };
-            } catch {
-                return null;
+            const reasons: string[] = [];
+            if (daysUntilDue < 0) reasons.push(`overdue by ${Math.abs(daysUntilDue)} day(s)`);
+            else if (daysUntilDue <= 2) reasons.push(`due in ${daysUntilDue} day(s)`);
+            if (task.priority === 'Critical') reasons.push('critical priority');
+            else if (task.priority === 'High') reasons.push('high priority');
+            if (predicted_priority === 'High' && task.priority !== 'High' && task.priority !== 'Critical') {
+                reasons.push('AI predicts higher priority');
             }
+            if (task.status === 'In Progress') reasons.push('already in progress');
+
+            let score = urgency_score;
+            if (task.status === 'In Progress') score += 10;
+
+            return {
+                task,
+                score,
+                reason: reasons.length > 0
+                    ? `Recommended because: ${reasons.join(', ')}.`
+                    : `AI urgency score: ${Math.round(urgency_score)}/100.`,
+            };
         });
 
         const results = await Promise.all(mlPromises);
@@ -171,32 +183,25 @@ async function localMLRecommendations(tasks: Task[], currentUserId: string | nul
 
     // Make parallel requests to Python backend
     const mlPromises = activeTasks.map(async task => {
-        const daysUntilDue = task.dueDate
+        const fallbackDaysUntilDue = task.dueDate
             ? Math.ceil((new Date(task.dueDate).getTime() - now) / (1000 * 60 * 60 * 24))
             : -1;
-        const daysSinceUpdate = Math.floor((now - new Date(task.updatedAt).getTime()) / (1000 * 60 * 60 * 24));
         const isAssignedToMe = task.assigneeId === currentUserId;
 
-        try {
-            const res = await fetch('http://127.0.0.1:8000/analyze_task', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    description: task.title + " " + (task.description || ""),
-                    status: task.status,
-                    days_until_due: task.dueDate ? daysUntilDue : 999, // default if no due date
-                    days_since_update: daysSinceUpdate
-                })
-            });
-
-            if (!res.ok) throw new Error(`ML API Error: ${res.status} ${res.statusText}`);
-            const data = (await res.json()) as MLResponse;
-
-            return { task, mlData: data.analysis, daysUntilDue, daysSinceUpdate, isAssignedToMe };
-        } catch (error) {
-            console.error(`Error analyzing task ${task.id}:`, getErrorMessage(error));
+        const mlResult = await analyzeTaskWithML(task, now);
+        if (!mlResult) {
+            console.error(`Error analyzing task ${task.id}:`, 'ML API unavailable for this task');
             return null;
         }
+
+        const daysUntilDue = task.dueDate ? mlResult.daysUntilDue : fallbackDaysUntilDue;
+        return {
+            task,
+            mlData: mlResult.analysis,
+            daysUntilDue,
+            daysSinceUpdate: mlResult.daysSinceUpdate,
+            isAssignedToMe
+        };
     });
 
     const results = await Promise.all(mlPromises);

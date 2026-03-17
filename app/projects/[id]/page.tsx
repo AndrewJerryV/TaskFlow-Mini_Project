@@ -201,7 +201,6 @@ export default function ProjectPage() {
                             createdAt: payload.new.created_at,
                             updatedAt: payload.new.updated_at,
                             tags: payload.new.tags || [],
-                            timeLogs: payload.new.time_logs ? (typeof payload.new.time_logs === 'string' ? JSON.parse(payload.new.time_logs) : payload.new.time_logs) : []
                         };
                         setTasks(prev => {
                             if (prev.some(t => t.id === newTask.id)) return prev;
@@ -219,7 +218,6 @@ export default function ProjectPage() {
                             startDate: payload.new.start_date,
                             updatedAt: payload.new.updated_at,
                             tags: payload.new.tags || [],
-                            timeLogs: payload.new.time_logs ? (typeof payload.new.time_logs === 'string' ? JSON.parse(payload.new.time_logs) : payload.new.time_logs) : t.timeLogs
                         } : t));
                     } else if (payload.eventType === 'DELETE') {
                         setTasks(prev => prev.filter(t => t.id !== payload.old.id));

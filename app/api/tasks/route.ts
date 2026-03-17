@@ -78,7 +78,6 @@ export async function POST(request: Request) {
             tags: body.tags || [],
             isPrivate: body.isPrivate || false,
             dependencies: body.dependencies || [],
-            timeLogs: []
         };
 
         await db.addTask(newTask, requestUserId as string);

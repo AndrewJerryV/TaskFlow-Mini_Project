@@ -4,7 +4,6 @@ import React, { useEffect, useState } from 'react';
 import { Task, ActivityLog, User } from '@/types';
 import { Activity, PieChart, Info, TrendingUp, Clock, AlertTriangle, CheckCircle2, Target, Brain } from 'lucide-react';
 import { getUserName, formatRelativeTime, isOverdue, isDueWithinDays } from '@/lib/utils';
-import { WellnessAlerts } from './WellnessAlerts';
 
 interface SummaryViewProps {
   tasks: Task[];
@@ -470,8 +469,6 @@ export default function SummaryView({ tasks, projectId, currentUser }: SummaryVi
       {/* Advanced Analytics Row - Admin/Manager Only */}
       {(currentUser?.role === 'Admin' || currentUser?.role === 'Manager') && (
         <div className="space-y-6">
-          <WellnessAlerts tasks={tasks} users={users} />
-          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between mb-2">
