@@ -268,7 +268,7 @@ async function localMLRecommendations(tasks: Task[], currentUserId: string | nul
                 taskId: task.id,
                 type,
                 title: task.title,
-                description: `Urgency: ${Math.min(100, Math.round(urgency_score))}/100 • Predicted priority: ${predicted_priority} (${confidence_score} conf)`,
+                description: `Urgency: ${Math.min(100, Math.round(urgency_score))}/100 • Predicted priority: ${predicted_priority} (${confidence_score} confidence)`,
                 score: Math.min(Math.round(finalScore), 100),
                 reason: reasons.join(' • ') || 'General Recommendation',
                 suggestedAction

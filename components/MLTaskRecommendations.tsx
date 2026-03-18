@@ -235,7 +235,7 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
                             {rec.type.replace('_', ' ')}
                           </span>
                           <span className="text-gray-300 dark:text-gray-600">•</span>
-                          <span className="text-xs text-gray-500 font-medium">Match: {rec.score}%</span>
+                          <span className="text-xs text-gray-500 font-medium">Action Score: {rec.score}/100</span>
                           {rec.reason && (
                             <>
                               <span className="text-gray-300 dark:text-gray-600">•</span>

@@ -77,37 +77,55 @@ const StatusChart = ({ tasks }: { tasks: Task[] }) => {
 
 // Priority-based work type chart
 const TypesOfWorkChart = ({ tasks }: { tasks: Task[] }) => {
-  const critical = tasks.filter(t => t.priority === 'Critical').length;
-  const high = tasks.filter(t => t.priority === 'High').length;
-  const medium = tasks.filter(t => t.priority === 'Medium').length;
-  const low = tasks.filter(t => t.priority === 'Low').length;
+  const getStats = (priority: string) => {
+    const pTasks = tasks.filter(t => t.priority === priority);
+    const count = pTasks.length;
+    const done = pTasks.filter(t => t.status === 'Done').length;
+    return { count, done };
+  };
+
+  const critical = getStats('Critical');
+  const high = getStats('High');
+  const medium = getStats('Medium');
+  const low = getStats('Low');
+  
   const total = tasks.length || 1;
 
   const priorities = [
-    { label: 'Critical', count: critical, color: 'bg-red-500', pct: (critical / total * 100).toFixed(0) },
-    { label: 'High', count: high, color: 'bg-orange-500', pct: (high / total * 100).toFixed(0) },
-    { label: 'Medium', count: medium, color: 'bg-yellow-500', pct: (medium / total * 100).toFixed(0) },
-    { label: 'Low', count: low, color: 'bg-green-500', pct: (low / total * 100).toFixed(0) },
+    { label: 'Critical', ...critical, color: 'bg-red-500', pct: (critical.count / total * 100).toFixed(0) },
+    { label: 'High', ...high, color: 'bg-orange-500', pct: (high.count / total * 100).toFixed(0) },
+    { label: 'Medium', ...medium, color: 'bg-yellow-500', pct: (medium.count / total * 100).toFixed(0) },
+    { label: 'Low', ...low, color: 'bg-green-500', pct: (low.count / total * 100).toFixed(0) },
   ];
 
   return (
-    <div className="space-y-3">
-      {priorities.map(p => (
-        <div key={p.label} className="flex items-center gap-3">
-          <div className="w-16 text-sm font-medium text-gray-600 dark:text-gray-400">{p.label}</div>
-          <div className="flex-1 h-6 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div
-              className={`h-full ${p.color} transition-all duration-500 ease-out rounded-full flex items-center justify-end pr-2`}
-              style={{ width: `${Math.max(Number(p.pct), p.count > 0 ? 15 : 0)}%` }}
-            >
-              {p.count > 0 && (
-                <span className="text-xs font-bold text-white">{p.count}</span>
-              )}
+    <div className="flex flex-col flex-1 justify-between mt-2">
+      <div className="space-y-6">
+        {priorities.map(p => (
+          <div key={p.label} className="flex flex-col justify-center">
+             <div className="flex items-center gap-3 mb-1">
+                <div className="w-16 text-sm font-medium text-gray-700 dark:text-gray-300">{p.label}</div>
+                <div className="flex-1 h-6 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full ${p.color} transition-all duration-500 ease-out rounded-full flex items-center justify-end pr-2`}
+                    style={{ width: `${Math.max(Number(p.pct), p.count > 0 ? 15 : 0)}%` }}
+                  >
+                    {p.count > 0 && (
+                      <span className="text-xs font-bold text-white">{p.count}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="w-12 text-right text-sm font-bold text-gray-800 dark:text-gray-200">{p.pct}%</div>
+            </div>
+            {/* Useful secondary info line below the bar to gracefully fill space */}
+            <div className="flex px-1 ml-16 pl-3 justify-between items-center opacity-75">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {p.done} completed
+                </span>
             </div>
           </div>
-          <div className="w-10 text-right text-sm text-gray-500 dark:text-gray-400">{p.pct}%</div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 };
@@ -164,7 +182,7 @@ const ActivityItem = ({ description, time }: { description: string, time: string
   </div>
 );
 
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts';
 
 const ProjectHealthChart = ({ tasks }: { tasks: Task[] }) => {
   const total = tasks.length || 1;
@@ -222,12 +240,38 @@ const ProjectHealthChart = ({ tasks }: { tasks: Task[] }) => {
             contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
             itemStyle={{ fontSize: '13px', fontWeight: 600 }}
             labelStyle={{ display: 'none' }}
-            formatter={(value: any) => [`${Math.round(Number(value) || 0)}/100`, 'Health Score']}
+            formatter={(value: any, name: any, props: any) => [`${Math.round(Number(value) || 0)}/100`, props?.payload?.subject || 'Health Score']}
           />
         </RadarChart>
       </ResponsiveContainer>
     </div>
   );
+};
+
+const CustomBarShape = (props: any) => {
+  const { fill, x, y, width, height, payload, value } = props;
+  const total = (payload.Todo || 0) + (payload.InProgress || 0) + (payload.Review || 0) + (payload.Done || 0);
+  
+  // Recharts passes value as [bottomValue, topValue] for stacked bars
+  const isTop = value && value[1] >= total;
+  const radius = isTop ? 6 : 0;
+
+  if (radius === 0 || height <= 0) {
+    return <rect x={x} y={y} width={width} height={height} fill={fill} />;
+  }
+
+  // Draw rectangle with top rounded corners
+  const path = `
+    M${x},${y + height}
+    L${x},${y + radius}
+    Q${x},${y} ${x + radius},${y}
+    L${x + width - radius},${y}
+    Q${x + width},${y} ${x + width},${y + radius}
+    L${x + width},${y + height}
+    Z
+  `;
+
+  return <path d={path} fill={fill} />;
 };
 
 const TeamWorkloadChart = ({ tasks, users }: { tasks: Task[], users: User[] }) => {
@@ -258,24 +302,7 @@ const TeamWorkloadChart = ({ tasks, users }: { tasks: Task[], users: User[] }) =
     <div className="h-64 mt-4 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 20, right: 20, left: -20, bottom: 5 }} barSize={36}>
-          <defs>
-            <linearGradient id="colorTodo" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#cbd5e1" stopOpacity={1} />
-              <stop offset="100%" stopColor="#94a3b8" stopOpacity={1} />
-            </linearGradient>
-            <linearGradient id="colorInProg" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#60a5fa" stopOpacity={1} />
-              <stop offset="100%" stopColor="#3b82f6" stopOpacity={1} />
-            </linearGradient>
-            <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#fde047" stopOpacity={1} />
-              <stop offset="100%" stopColor="#eab308" stopOpacity={1} />
-            </linearGradient>
-            <linearGradient id="colorDone" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#4ade80" stopOpacity={1} />
-              <stop offset="100%" stopColor="#22c55e" stopOpacity={1} />
-            </linearGradient>
-          </defs>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-gray-200 dark:stroke-gray-700" />
           <XAxis dataKey="name" tick={{ fill: '#6b7280', fontSize: 12, fontWeight: 500 }} tickLine={false} axisLine={false} />
           <YAxis tick={{ fill: '#6b7280', fontSize: 12 }} tickLine={false} axisLine={false} />
           <Tooltip
@@ -285,10 +312,10 @@ const TeamWorkloadChart = ({ tasks, users }: { tasks: Task[], users: User[] }) =
             labelStyle={{ fontWeight: 'bold', color: '#374151', marginBottom: '8px', fontSize: '14px' }}
           />
           <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} iconType="circle" />
-          <Bar dataKey="Todo" stackId="a" fill="url(#colorTodo)" name="To Do" />
-          <Bar dataKey="InProgress" stackId="a" fill="url(#colorInProg)" name="In Progress" />
-          <Bar dataKey="Review" stackId="a" fill="url(#colorRev)" name="Review" />
-          <Bar dataKey="Done" stackId="a" fill="url(#colorDone)" name="Done" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="Todo" stackId="a" fill="#9ca3af" name="To Do" shape={(props: any) => <CustomBarShape {...props} />} />
+          <Bar dataKey="InProgress" stackId="a" fill="#3b82f6" name="In Progress" shape={(props: any) => <CustomBarShape {...props} />} />
+          <Bar dataKey="Review" stackId="a" fill="#eab308" name="Review" shape={(props: any) => <CustomBarShape {...props} />} />
+          <Bar dataKey="Done" stackId="a" fill="#22c55e" name="Done" shape={(props: any) => <CustomBarShape {...props} />} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -434,7 +461,7 @@ export default function SummaryView({ tasks, projectId, currentUser }: SummaryVi
         </div>
 
         {/* 2. Priority Breakdown Card */}
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-bold text-gray-800 dark:text-white">Priority Breakdown</h2>
             <PieChart size={16} className="text-gray-400 dark:text-gray-500" />

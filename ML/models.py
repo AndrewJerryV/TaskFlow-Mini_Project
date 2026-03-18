@@ -22,7 +22,7 @@ class TaskPriorityModel:
     Model used to predict priority (Low, Medium, High) from task descriptions.
     Uses SetFit (Sentence Transformer Fine-Tuning) for few-shot text classification.
     """
-    ID2LABEL = {0: "Low", 1: "Medium", 2: "High"}
+    ID2LABEL = {0: "Low", 1: "Medium", 2: "High", 3: "Critical"}
 
     def __init__(self, path):
         # Load the pre-trained SetFit model, with CPU fallback

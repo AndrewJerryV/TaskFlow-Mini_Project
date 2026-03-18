@@ -265,9 +265,6 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
                         <BarChart3 className="text-blue-500" size={24} />
                         Project Reports
                     </h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        Analytics based on {totalTasks} task{totalTasks !== 1 ? 's' : ''} from database
-                    </p>
                 </div>
                 <div className="flex items-center gap-3">
                     <select
@@ -389,14 +386,14 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
             {/* Metric Cards - All Real Data */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {metrics.map((metric, idx) => (
-                    <div key={idx} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-                        <div className="flex items-center justify-between mb-3">
-                            <div className={`w-10 h-10 ${metric.color} rounded-lg flex items-center justify-center text-white`}>
-                                {metric.icon}
-                            </div>
+                    <div key={idx} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex items-center gap-4">
+                        <div className={`w-12 h-12 shrink-0 ${metric.color} rounded-lg flex items-center justify-center text-white`}>
+                            {metric.icon}
                         </div>
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white">{metric.value}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{metric.title}</p>
+                        <div>
+                            <p className="text-2xl font-bold text-gray-900 dark:text-white leading-tight">{metric.value}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">{metric.title}</p>
+                        </div>
                     </div>
                 ))}
             </div>
@@ -404,22 +401,22 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Completion Rate - Real Data */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-                    <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Completion Rate</h3>
-                    <div className="flex items-center justify-center">
-                        <div className="relative w-40 h-40">
+                    <h3 className="font-semibold text-gray-900 dark:text-white mb-6">Completion Rate</h3>
+                    <div className="flex items-center justify-center gap-12">
+                        <div className="relative w-44 h-44 shrink-0">
                             <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                                 <circle
                                     cx="50" cy="50" r="40"
                                     fill="none"
                                     stroke="currentColor"
-                                    strokeWidth="12"
+                                    strokeWidth="10"
                                     className="text-gray-100 dark:text-gray-700"
                                 />
                                 <circle
                                     cx="50" cy="50" r="40"
                                     fill="none"
                                     stroke="currentColor"
-                                    strokeWidth="12"
+                                    strokeWidth="10"
                                     strokeLinecap="round"
                                     strokeDasharray={`${completionRate * 2.51} 251`}
                                     className="text-green-500"
@@ -428,19 +425,20 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
                             <div className="absolute inset-0 flex items-center justify-center">
                                 <div className="text-center">
                                     <span className="text-3xl font-bold text-gray-900 dark:text-white">{completionRate}%</span>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">Complete</p>
+                                    <p className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-bold">Complete</p>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    <div className="mt-4 grid grid-cols-2 gap-4 text-center">
-                        <div>
-                            <p className="text-2xl font-semibold text-gray-900 dark:text-white">{completedTasks}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Tasks Done</p>
-                        </div>
-                        <div>
-                            <p className="text-2xl font-semibold text-gray-900 dark:text-white">{totalTasks - completedTasks}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Remaining</p>
+                        
+                        <div className="flex flex-col gap-4">
+                            <div className="bg-gray-50 dark:bg-gray-700/30 p-3 rounded-lg border border-gray-100 dark:border-gray-700 w-32 text-center">
+                                <p className="text-2xl font-bold text-gray-900 dark:text-white leading-none">{completedTasks}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 uppercase text-[10px] font-medium">Tasks Done</p>
+                            </div>
+                            <div className="bg-gray-50 dark:bg-gray-700/30 p-3 rounded-lg border border-gray-100 dark:border-gray-700 w-32 text-center">
+                                <p className="text-2xl font-bold text-gray-900 dark:text-white leading-none">{totalTasks - completedTasks}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 uppercase text-[10px] font-medium">Remaining</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -469,15 +467,15 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Priority Distribution - Real Data */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-                    <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Priority Breakdown</h3>
-                    <div className="space-y-3">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 flex flex-col">
+                    <h3 className="font-semibold text-gray-900 dark:text-white mb-6">Priority Breakdown</h3>
+                    <div className="space-y-4 flex-1">
                         {priorityDistribution.map((item, idx) => (
-                            <div key={idx} className="flex items-center gap-3">
-                                <div className={`w-3 h-3 rounded-full ${item.color}`} />
-                                <span className="flex-1 text-sm text-gray-600 dark:text-gray-400">{item.priority}</span>
-                                <span className="text-sm font-medium text-gray-900 dark:text-white">{item.count}</span>
-                                <span className="text-xs text-gray-400 w-12 text-right">
+                            <div key={idx} className="flex items-center gap-4">
+                                <div className={`w-3 h-3 rounded-full ${item.color} shrink-0`} />
+                                <span className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300">{item.priority}</span>
+                                <span className="text-base font-bold text-gray-900 dark:text-white">{item.count}</span>
+                                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-12 text-right">
                                     {totalTasks > 0 ? Math.round((item.count / totalTasks) * 100) : 0}%
                                 </span>
                             </div>
@@ -485,11 +483,11 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
                     </div>
 
                     {/* Mini bar chart */}
-                    <div className="mt-4 flex rounded-lg overflow-hidden h-4">
+                    <div className="mt-6 flex rounded-full overflow-hidden h-4 shadow-inner">
                         {priorityDistribution.map((item, idx) => (
                             <div
                                 key={idx}
-                                className={`${item.color} transition-all duration-500`}
+                                className={`${item.color} transition-all duration-500 border-r border-black/5 dark:border-white/5 last:border-0`}
                                 style={{ width: `${totalTasks > 0 ? (item.count / totalTasks) * 100 : 0}%` }}
                                 title={`${item.priority}: ${item.count}`}
                             />
@@ -521,7 +519,7 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
                 <h3 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                     <Users size={20} className="text-blue-500" />
-                    Team Performance (From Database)
+                    Team Performance
                 </h3>
                 <div className="overflow-x-auto">
                     <table className="w-full">

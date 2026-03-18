@@ -241,4 +241,27 @@ Fix misconfigured firewall blocking internal API communication | HIGH
 Resolve SLA breach due to API latency exceeding contractual limits | HIGH
 Reconfigure load balancer after health check failures | HIGH
 Investigate spike in failed login attempts indicating brute-force attack | HIGH
-Deploy emergency rollback after failed production release | HIGH
+Deploy emergency rollback after failed production release | HIGHProduction database cluster is completely down and applications cannot connect | Critical
+Massive data breach detected exposing customer credit card information | Critical
+Core backend service crashed causing 100% downtime for all users | Critical
+Zero-day vulnerability actively exploited on our main web servers | Critical
+Ransomware attack encrypted our primary source code repositories | Critical
+Payment processing system is rejecting all transactions globally | Critical
+Datacenter power failure caused total outage of all critical services | Critical
+Account takeover exploit found in production authentication flow | Critical
+Cloud infrastructure deleted accidentally by automated script | Critical
+Data corruption spreading through the main production tables | Critical
+All API endpoints returning 500 Internal Server Error | Critical
+DDoS attack overwhelming the load balancers, site is unreachable | Critical
+Major customer facing application throwing fatal exceptions on startup | Critical
+Security incident: unauthorized access by a malicious insider | Critical
+Critical memory leak bringing down all nodes in the Kubernetes cluster | Critical
+SSL certificates revoked unexpectedly, taking all services offline | Critical
+Complete network partition separating web servers from the database | Critical
+Enterprise client escalated a critical data loss issue in their environment | Critical
+Critical vulnerability disclosed in a core dependency, requires immediate patch | Critical
+Automated backup failure means we have no recent backups for prod database | Critical
+Identity provider integration is broken, no one can log in | Critical
+Major compliance violation discovered requiring immediate system shutdown | Critical
+Critical bug in billing system charging customers duplicate amounts | Critical
+Complete failure of the CI/CD pipeline blocking critical hotfixes | Critical

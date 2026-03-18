@@ -3,7 +3,7 @@
 ## 1. Authenticate User
 
 ### 1.1 Test Scenario #1 (i.e. User Authentication)
-**1.1.1 Sample Test Case #1 – (i.e. User Login - Normal)**
+**1.1.1 Test Case #1 – (i.e. User Login - Normal)**
 
 | Field | Description |
 | :--- | :--- |
@@ -18,7 +18,7 @@
 | **Approved, Conditionally Approved, or Rejected:** | |
 | **Failure Type:** | |
 
-**1.1.2 Sample Test Case #2 – (i.e. User Login - Error: Invalid Password)**
+**1.1.2 Test Case #2 – (i.e. User Login - Error: Invalid Password)**
 
 | Field | Description |
 | :--- | :--- |
@@ -38,7 +38,7 @@
 ## 2. Manage Users
 
 ### 2.1 Test Scenario #1 (i.e. User Management)
-**2.1.1 Sample Test Case #1 – (i.e. Add New User - Normal)**
+**2.1.1 Test Case #1 – (i.e. Add New User - Normal)**
 
 | Field | Description |
 | :--- | :--- |
@@ -53,7 +53,7 @@
 | **Approved, Conditionally Approved, or Rejected:** | |
 | **Failure Type:** | |
 
-**2.1.2 Sample Test Case #2 – (i.e. Add New User - Error: Duplicate Email)**
+**2.1.2 Test Case #2 – (i.e. Add New User - Error: Duplicate Email)**
 
 | Field | Description |
 | :--- | :--- |
@@ -73,7 +73,7 @@
 ## 3. Manage Projects
 
 ### 3.1 Test Scenario #2 (i.e. Project Management)
-**3.1.1 Sample Test Case #1 – (i.e. Create New Project - Normal)**
+**3.1.1 Test Case #1 – (i.e. Create New Project - Normal)**
 
 | Field | Description |
 | :--- | :--- |
@@ -88,7 +88,7 @@
 | **Approved, Conditionally Approved, or Rejected:** | |
 | **Failure Type:** | |
 
-**3.1.2 Sample Test Case #2 – (i.e. Create Project - Error: Missing Name)**
+**3.1.2 Test Case #2 – (i.e. Create Project - Error: Missing Name)**
 
 | Field | Description |
 | :--- | :--- |
@@ -108,7 +108,7 @@
 ## 4. Manage Tasks & Kanban
 
 ### 4.1 Test Scenario #3 (i.e. Task Status Flow)
-**4.1.1 Sample Test Case #1 – (i.e. Move Task to In Progress - Normal)**
+**4.1.1 Test Case #1 – (i.e. Move Task to In Progress - Normal)**
 
 | Field | Description |
 | :--- | :--- |
@@ -123,7 +123,7 @@
 | **Approved, Conditionally Approved, or Rejected:** | |
 | **Failure Type:** | |
 
-**4.1.2 Sample Test Case #2 – (i.e. Delete Task - Normal)**
+**4.1.2 Test Case #2 – (i.e. Delete Task - Normal)**
 
 | Field | Description |
 | :--- | :--- |
@@ -143,7 +143,7 @@
 ## 5. Assign & Prioritize Tasks
 
 ### 5.1 Test Scenario #4 (i.e. Task Assignment & Prioritization)
-**5.1.1 Sample Test Case #1 – (i.e. Assign Member and Set High Priority - Normal)**
+**5.1.1 Test Case #1 – (i.e. Assign Member and Set High Priority - Normal)**
 
 | Field | Description |
 | :--- | :--- |
@@ -158,7 +158,7 @@
 | **Approved, Conditionally Approved, or Rejected:** | |
 | **Failure Type:** | |
 
-**5.1.2 Sample Test Case #2 – (i.e. Change Assignee - Normal)**
+**5.1.2 Test Case #2 – (i.e. Change Assignee - Normal)**
 
 | Field | Description |
 | :--- | :--- |
@@ -178,7 +178,7 @@
 ## 6. Track & Analyze Time
 
 ### 6.1 Test Scenario #5 (i.e. Time Tracking)
-**6.1.1 Sample Test Case #1 – (i.e. Log Task Time via Timer - Normal)**
+**6.1.1 Test Case #1 – (i.e. Log Task Time via Timer - Normal)**
 
 | Field | Description |
 | :--- | :--- |
@@ -193,17 +193,17 @@
 | **Approved, Conditionally Approved, or Rejected:** | Approved |
 | **Failure Type:** | N/A |
 
-**6.1.2 Sample Test Case #2 – (i.e. Manual Time Entry - Normal)**
+**6.1.2 Test Case #2 – (i.e. Manual Time Entry - Normal)**
 
 | Field | Description |
 | :--- | :--- |
 | **Test Case Name:** | Manual Add Time – Normal State |
-| **Requirement #:** | 6.1.2 – Allow users to backdate or manually log hours. |
+| **Requirement #:** | 6.1.2 – Allow users to manually log minutes on a task. |
 | **Estimated Time (hours):** | 0.15 |
 | **Object, Function or Procedure Under Test:** | Manual Time Logger |
 | **Setup:** | • User assigned to task |
-| **Procedure:** | 1. Navigate to Task, click Add Time Log<br>2. Enter "2h 30m" and past date<br>3. Save |
-| **Expected Results:** | 1. System accepts manual time string<br>2. Time history displays the 2h 30m entry |
+| **Procedure:** | 1. Navigate to Task, open Time Logs tab<br>2. Enter "150" in Minutes spent field<br>3. Click "Log Time" |
+| **Expected Results:** | 1. System accepts positive numeric minutes<br>2. New log entry appears in task time history with manual log note |
 | **Observed Results:** | |
 | **Approved, Conditionally Approved, or Rejected:** | |
 | **Failure Type:** | |
@@ -213,7 +213,7 @@
 ## 7. Generate Productivity Reports
 
 ### 7.1 Test Scenario #6 (i.e. Reporting System)
-**7.1.1 Sample Test Case #1 – (i.e. Generate Weekly Report - Normal)**
+**7.1.1 Test Case #1 – (i.e. Generate Weekly Report - Normal)**
 
 | Field | Description |
 | :--- | :--- |
@@ -222,13 +222,13 @@
 | **Estimated Time (hours):** | 0.20 |
 | **Object, Function or Procedure Under Test:** | Analytics Module |
 | **Setup:** | • System has time log data for the past week |
-| **Procedure:** | 1. Navigate to "Reports"<br>2. Select "Productivity Report" and filter "Last 7 Days"<br>3. Click "Generate" |
+| **Procedure:** | 1. Navigate to "Reports"<br>2. Set time range to "Last 7 Days"<br>3. Apply optional filters (status/priority/assignee) |
 | **Expected Results:** | 1. System displays visual charts<br>2. Correct total tracked hours and completed tasks are shown |
 | **Observed Results:** | |
 | **Approved, Conditionally Approved, or Rejected:** | |
 | **Failure Type:** | |
 
-**7.1.2 Sample Test Case #2 – (i.e. Export Report - Normal)**
+**7.1.2 Test Case #2 – (i.e. Export Report - Normal)**
 
 | Field | Description |
 | :--- | :--- |
@@ -248,32 +248,32 @@
 ## 8. Detect Workflow Bottlenecks
 
 ### 8.1 Test Scenario #7 (i.e. Bottleneck Analytics)
-**8.1.1 Sample Test Case #1 – (i.e. Identify Stalled Stages - Normal)**
+**8.1.1 Test Case #1 – (i.e. View Workflow Health Bottlenecks - Normal)**
 
 | Field | Description |
 | :--- | :--- |
-| **Test Case Name:** | Identify Bottleneck Stages |
-| **Requirement #:** | 8.1.1 – System shall analyze flow metrics and highlight stalled workflow stages. |
+| **Test Case Name:** | View Workflow Health Bottlenecks |
+| **Requirement #:** | 8.1.1 – System shall show AI-detected bottlenecks and overdue risk indicators. |
 | **Estimated Time (hours):** | 0.20 |
 | **Object, Function or Procedure Under Test:** | Workflow Bottleneck Analytics |
 | **Setup:** | • Historical project data where tasks stuck in "Review" |
-| **Procedure:** | 1. Navigate to "Workflow Analytics"<br>2. Select target project<br>3. Locate "Time in Stage" chart |
-| **Expected Results:** | 1. System visually highlights the stalled stage (e.g., "Review" column in red to indicate bottleneck) |
+| **Procedure:** | 1. Navigate to project recommendations area<br>2. Open "Workflow Health" (or jump to bottlenecks)<br>3. Review returned bottleneck cards |
+| **Expected Results:** | 1. System displays bottleneck cards with severity and recommendations<br>2. Overdue tasks are listed when present |
 | **Observed Results:** | |
 | **Approved, Conditionally Approved, or Rejected:** | |
 | **Failure Type:** | |
 
-**8.1.2 Sample Test Case #2 – (i.e. Cycle Time Graph - Normal)**
+**8.1.2 Test Case #2 – (i.e. Workflow Health Availability State - Normal)**
 
 | Field | Description |
 | :--- | :--- |
-| **Test Case Name:** | View Cycle Time Graph |
-| **Requirement #:** | 8.1.2 – Render lead and cycle time distributions. |
+| **Test Case Name:** | View Workflow Health Availability Message |
+| **Requirement #:** | 8.1.2 – System shall handle ML bottleneck service availability gracefully. |
 | **Estimated Time (hours):** | 0.20 |
-| **Object, Function or Procedure Under Test:** | Analytics Scatterplot |
-| **Setup:** | • Project with completed tasks |
-| **Procedure:** | 1. Navigate to "Workflow Analytics"<br>2. View "Cycle Time" Scatterplot |
-| **Expected Results:** | 1. Graph loads successfully<br>2. Hovering over data points shows task specific cycle time duration |
+| **Object, Function or Procedure Under Test:** | Workflow Health Service Fallback |
+| **Setup:** | • ML bottleneck endpoint unavailable or returns unavailable state |
+| **Procedure:** | 1. Open recommendations section<br>2. Scroll to "Workflow Health" panel |
+| **Expected Results:** | 1. Friendly unavailable message is shown<br>2. Page remains usable without crashes |
 | **Observed Results:** | |
 | **Approved, Conditionally Approved, or Rejected:** | |
 | **Failure Type:** | |
@@ -283,7 +283,7 @@
 ## 9. ML Task Recommendations
 
 ### 9.1 Test Scenario #8 (i.e. ML Prioritization)
-**9.1.1 Sample Test Case #1 – (i.e. View Intelligent Task Suggestions - Normal)**
+**9.1.1 Test Case #1 – (i.e. View Intelligent Task Suggestions - Normal)**
 
 | Field | Description |
 | :--- | :--- |
@@ -292,13 +292,13 @@
 | **Estimated Time (hours):** | 0.25 |
 | **Object, Function or Procedure Under Test:** | ML Recommendation Engine |
 | **Setup:** | • User with multiple assigned tasks of varying deadlines/priorities |
-| **Procedure:** | 1. Navigate to User Dashboard (Recommendations section)<br>2. Observe top task list<br>3. Hover on insight tag |
-| **Expected Results:** | 1. The most logically urgent task (e.g. overdue/high priority) is surfaced top<br>2. Tooltip explains algorithm reasoning |
+| **Procedure:** | 1. Navigate to User Dashboard (Recommendations section)<br>2. Observe recommendation cards and ordering<br>3. Inspect reason and urgency text shown on each card |
+| **Expected Results:** | 1. Urgent tasks (overdue/due soon/high priority) are surfaced prominently<br>2. Reasoning is visible inline on the card |
 | **Observed Results:** | |
 | **Approved, Conditionally Approved, or Rejected:** | |
 | **Failure Type:** | |
 
-**9.1.2 Sample Test Case #2 – (i.e. Reschedule Action on Overdue - Normal)**
+**9.1.2 Test Case #2 – (i.e. Reschedule Action on Overdue - Normal)**
 
 | Field | Description |
 | :--- | :--- |
@@ -306,9 +306,9 @@
 | **Requirement #:** | 9.1.2 – Allow user action (Reschedule) directly from ML recommendation. |
 | **Estimated Time (hours):** | 0.20 |
 | **Object, Function or Procedure Under Test:** | Recommendation Actions Interface |
-| **Setup:** | • Overdue task showing in recommendations |
-| **Procedure:** | 1. Locate overdue suggestion<br>2. Click "Reschedule" button next to it<br>3. Pick a new date (Tomorrow) |
-| **Expected Results:** | 1. Task due date is updated to tomorrow<br>2. Task may re-sort in recommendation list based on new parameters |
+| **Setup:** | • Overdue or due-soon task showing in recommendations |
+| **Procedure:** | 1. Locate an overdue risk suggestion with "Reschedule" action<br>2. Click "Reschedule"<br>3. Enter number of delay days and confirm |
+| **Expected Results:** | 1. Task due date is shifted forward by entered days<br>2. Recommendation list updates after task update |
 | **Observed Results:** | |
 | **Approved, Conditionally Approved, or Rejected:** | |
 | **Failure Type:** | |
@@ -318,32 +318,34 @@
 ## 10. Collaborate via Chat / Comments
 
 ### 10.1 Test Scenario #9 (i.e. Task Collaboration)
-**10.1.1 Sample Test Case #1 – (i.e. Mention User in Comment - Normal)**
+**10.1.1 Test Case #1 – (i.e. Post Task Comment - Normal)**
 
 | Field | Description |
 | :--- | :--- |
-| **Test Case Name:** | Post and Receive Mention Comment |
-| **Requirement #:** | 10.1.1 – Allow commenting on tasks and user mentions. |
+| **Test Case Name:** | Post Task Comment |
+| **Requirement #:** | 10.1.1 – Allow users to add comments on tasks. |
 | **Estimated Time (hours):** | 0.25 |
 | **Object, Function or Procedure Under Test:** | Commenting System |
 | **Setup:** | • User A and B in same project |
-| **Procedure:** | 1. As User A, on a Task comment: type `@UserB` and message<br>2. Click "Post"<br>3. Login as User B in incognito |
-| **Expected Results:** | 1. System renders mention as a clickable tag<br>2. User B receives an unread notification routed to comment |
+| **Procedure:** | 1. Open a task details modal<br>2. Go to Comments tab<br>3. Enter comment text and click "Send" |
+| **Expected Results:** | 1. Comment appears in the thread with author and timestamp<br>2. Comment remains visible on reload |
 | **Observed Results:** | |
 | **Approved, Conditionally Approved, or Rejected:** | |
 | **Failure Type:** | |
 
-**10.1.2 Sample Test Case #2 – (i.e. Post Image Attachment - Normal)**
+**10.1.2 Test Case #2 – (i.e. Validate Comment Input - Normal)**
 
 | Field | Description |
 | :--- | :--- |
-| **Test Case Name:** | Attach image to comment |
-| **Requirement #:** | 10.1.2 – Support file/image attachments in task threads. |
+| **Test Case Name:** | Block Empty Comment Submission |
+| **Requirement #:** | 10.1.2 – System shall prevent empty task comments. |
 | **Estimated Time (hours):** | 0.15 |
-| **Object, Function or Procedure Under Test:** | Comment Attachment |
-| **Setup:** | • Any valid task URL, sample .png file |
-| **Procedure:** | 1. Click attachment icon on comment box<br>2. Upload .png file<br>3. Click "Post" |
-| **Expected Results:** | 1. Image attaches to drafted comment preview<br>2. Posted comment inline-renders or links the `.png` image |
+| **Object, Function or Procedure Under Test:** | Comment Validation |
+| **Setup:** | • Any valid task URL |
+| **Procedure:** | 1. Open task comments tab<br>2. Leave input empty<br>3. Attempt to click "Send" |
+| **Expected Results:** | 1. Send action is disabled for empty input<br>2. No empty comment is created |
 | **Observed Results:** | |
 | **Approved, Conditionally Approved, or Rejected:** | |
 | **Failure Type:** | |
+
+

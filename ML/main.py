@@ -12,7 +12,7 @@ from wellness_model import WellnessModel
 from datetime import datetime, timezone
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "my_setfit_model")
+MODEL_PATH = os.path.join(BASE_DIR, "my_setfit_model_critical")
 SKILL_MODEL_PATH = os.path.join(BASE_DIR, "skill_matcher_model")
 
 # ── App & Init ──────────────────────────────────────────
