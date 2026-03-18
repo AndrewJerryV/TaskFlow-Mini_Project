@@ -74,6 +74,29 @@ export async function POST(
         for (const userId of toRemove) {
             console.log(`Removing member ${userId} from project ${projectId}`);
             await db.removeProjectMember(projectId, userId);
+            
+            // Unassign tasks and notify admins/managers
+            try {
+                const unassignedCount = await db.unassignUserTasks(projectId, userId);
+                if (unassignedCount > 0) {
+                    const adminsAndManagers = await db.getProjectAdminsAndManagers(projectId);
+                    const removedUser = await db.getUser(userId);
+                    
+                    for (const admin of adminsAndManagers) {
+                        await db.addNotification({
+                            userId: admin.id,
+                            type: 'general',
+                            title: 'Tasks Unassigned',
+                            message: `${unassignedCount} tasks were unassigned because ${removedUser?.name || 'a member'} was removed from ${project.name}.`,
+                            projectId: projectId,
+                            link: `/projects/${projectId}`
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error('Error during task unassignment/notification:', err);
+            }
+
             try {
                 const user = await db.getUser(userId);
                 if (user && user.email) {

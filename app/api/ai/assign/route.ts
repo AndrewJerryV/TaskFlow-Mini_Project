@@ -86,6 +86,7 @@ async function pythonSmartAssignment(users: User[], allTasks: Task[], title: str
                 matchingSkills: c.matching_skills || [],
                 partialMatches: []
             })),
+            analysis: (data as any).analysis,
             mlPowered: true
         };
     } catch (error) {

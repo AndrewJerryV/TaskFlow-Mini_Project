@@ -474,6 +474,46 @@ class Database {
         return true;
     }
 
+    async unassignUserTasks(projectId: string, userId: string): Promise<number> {
+        const { data, error, count } = await getSupabase()
+            .from('tasks')
+            .update({ assignee_id: null })
+            .eq('project_id', projectId)
+            .eq('assignee_id', userId)
+            .select('*');
+
+        if (error) {
+            console.error('Error unassigning user tasks:', error);
+            return 0;
+        }
+        return (data || []).length;
+    }
+
+    async getProjectAdminsAndManagers(projectId: string): Promise<User[]> {
+        // First get member IDs from project_members who are NOT standard 'Member' role
+        // Or better, fetch all users who are project members AND have Admin/Manager role in the users table
+        const { data: members, error: memError } = await getSupabase()
+            .from('project_members')
+            .select('user_id, role')
+            .eq('project_id', projectId);
+
+        if (memError || !members) return [];
+
+        const adminManagerIds = members
+            .filter((m: any) => m.role === 'Admin' || m.role === 'Manager' || m.role === 'Owner')
+            .map((m: any) => m.user_id);
+
+        if (adminManagerIds.length === 0) return [];
+
+        const { data: users, error: userError } = await getSupabase()
+            .from('users')
+            .select('*')
+            .in('id', adminManagerIds);
+
+        if (userError) return [];
+        return (users || []).map(toUser);
+    }
+
     async deleteProject(id: string): Promise<boolean> {
         // Delete all tasks in this project first
         const { error: tasksError } = await getSupabase()

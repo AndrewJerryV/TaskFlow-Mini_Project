@@ -57,11 +57,57 @@ class TaskAssigner:
 
         skill_embeddings = self.model.encode(all_skills, convert_to_tensor=True)
 
-        scores = util.cos_sim(
+        semantic_scores = util.cos_sim(
             self.model.encode(task_text, convert_to_tensor=True),
             skill_embeddings,
         )[0]
-        ranked = sorted(zip(all_skills, scores.tolist()), key=lambda x: x[1], reverse=True)
+        
+        # Keyword Match Boost: If the skill name appears in the text, give it a massive boost
+        # Also handle common aliases (e.g., 'UI' -> 'Frontend', 'CSS' -> 'Tailwind')
+        task_lower = task_text.lower()
+        
+        # Define common aliases for mapping natural language to skills
+        aliases = {
+            "website": ["html5", "react", "next.js", "frontend", "javascript", "vue", "angular"],
+            "ui": ["react", "frontend", "figma", "tailwind css", "framer motion", "css"],
+            "color": ["tailwind css", "css", "frontend", "framer motion"],
+            "style": ["tailwind css", "css", "frontend"],
+            "button": ["react", "frontend", "tailwind css", "html5"],
+            "database": ["mongodb", "postgresql", "sql", "prisma", "mongoose", "supabase"],
+            "auth": ["firebase", "supabase", "next-auth", "jwt"],
+            "login": ["firebase", "supabase", "next-auth", "jwt", "react"]
+        }
+        
+        keyword_scores = []
+        for skill in all_skills:
+            skill_lower = skill.lower()
+            score = 0.0
+            
+            # Direct match
+            if skill_lower in task_lower:
+                score = 1.0
+            # Partial match for multi-word skills
+            elif " " in skill_lower:
+                parts = skill_lower.split()
+                if any(p in task_lower and len(p) > 2 for p in parts):
+                    score = 0.5
+            
+            # Alias match
+            for word, skill_list in aliases.items():
+                if word in task_lower and skill_lower in [s.lower() for s in skill_list]:
+                    score = max(score, 0.8) # High boost for alias match
+            
+            keyword_scores.append(score)
+        
+        # Combined score: Semantic (70%) + Keyword (30%)
+        # If there's a keyword match, it should almost certainly be included
+        final_similarity_scores = []
+        for s_score, k_score in zip(semantic_scores.tolist(), keyword_scores):
+            # Boost the semantic score significantly if keywords match
+            boosted = s_score + (k_score * 0.6)
+            final_similarity_scores.append(boosted)
+
+        ranked = sorted(zip(all_skills, final_similarity_scores), key=lambda x: x[1], reverse=True)
 
         # Find the biggest gap in the top candidates to separate signal from noise
         top = ranked[:max_skills * 2]
@@ -97,6 +143,10 @@ class TaskAssigner:
             # This ensures we don't assign to someone just because they are free if they lack skills,
             # but we also avoid burning out someone who is a perfect skill match.
             combined_score = (skill_match * 0.6) + (wellness_score * 0.4)
+
+            # Heavy penalty if they have absolutely NO matching skills when skills are required
+            if req_set and len(matched) == 0:
+                combined_score *= 0.10
 
             # Apply Organizational Role Preferences
             # Members are preferred (1.1x boost)
