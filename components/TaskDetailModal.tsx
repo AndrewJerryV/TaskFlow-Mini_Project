@@ -6,6 +6,7 @@ import { Task, Comment, Priority, Status, Deployment } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTimer } from '@/contexts/TimerContext';
 import { Trash2, Calendar, User as UserIcon, MessageSquare, Clock, Sparkles, ArrowRight, Edit, Play, Square, Rocket, Lock } from 'lucide-react';
+import { CustomSelect, SelectOption } from './ui/CustomSelect';
 import { PRIORITY_COLORS, STATUS_COLORS } from '@/lib/constants';
 import { getUserName, getActionDisplay } from '@/lib/utils';
 import { getSupabase } from '@/lib/supabase';
@@ -37,9 +38,10 @@ interface TaskDetailModalProps {
     onClose: () => void;
     onUpdate: (task: Task) => void;
     onDelete: (taskId: string) => void;
+    projectMemberIds?: string[];
 }
 
-export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: TaskDetailModalProps) {
+export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete, projectMemberIds = [] }: TaskDetailModalProps) {
     const { currentUser, users } = useAuth();
     const { activeTimer, startTimer, stopTimer, elapsedMinutes } = useTimer();
     const [isEditing, setIsEditing] = useState(false);
@@ -390,45 +392,58 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete }: T
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
-                                <select
-                                    className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                <CustomSelect
+                                    options={[
+                                        { value: 'To Do', label: 'To Do' },
+                                        { value: 'In Progress', label: 'In Progress' },
+                                        { value: 'Review', label: 'Review' },
+                                        { value: 'Done', label: 'Done' }
+                                    ]}
                                     value={editedTask.status}
-                                    onChange={(e) => setEditedTask({ ...editedTask, status: e.target.value as Status })}
-                                >
-                                    <option value="To Do">To Do</option>
-                                    <option value="In Progress">In Progress</option>
-                                    <option value="Review">Review</option>
-                                    <option value="Done">Done</option>
-                                </select>
+                                    onChange={(val) => setEditedTask({ ...editedTask, status: val as Status })}
+                                    searchable={false}
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Priority</label>
-                                <select
-                                    disabled={isMember}
-                                    className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60 disabled:bg-gray-100 dark:disabled:bg-gray-800"
+                                <CustomSelect
+                                    options={[
+                                        { value: 'Low', label: 'Low' },
+                                        { value: 'Medium', label: 'Medium' },
+                                        { value: 'High', label: 'High' },
+                                        { value: 'Critical', label: 'Critical' }
+                                    ]}
                                     value={editedTask.priority}
-                                    onChange={(e) => setEditedTask({ ...editedTask, priority: e.target.value as Priority })}
-                                >
-                                    <option value="Low">Low</option>
-                                    <option value="Medium">Medium</option>
-                                    <option value="High">High</option>
-                                    <option value="Critical">Critical</option>
-                                </select>
+                                    onChange={(val) => setEditedTask({ ...editedTask, priority: val as Priority })}
+                                    disabled={isMember}
+                                    searchable={false}
+                                />
                             </div>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assignee</label>
-                            <select
-                                disabled={isMember}
-                                className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-60 disabled:bg-gray-100 dark:disabled:bg-gray-800"
+                            <CustomSelect
+                                options={[
+                                    { value: '', label: 'Unassigned' },
+                                    ...users.filter(u => projectMemberIds.length === 0 || projectMemberIds.includes(u.id)).map(u => ({
+                                        value: u.id,
+                                        label: u.name,
+                                        group: projectMemberIds.length > 0 ? 'Project Members' : undefined,
+                                        avatar: u.name.charAt(0).toUpperCase(),
+                                        avatarUrl: u.avatarUrl
+                                    })),
+                                    ...users.filter(u => projectMemberIds.length > 0 && !projectMemberIds.includes(u.id)).map(u => ({
+                                        value: u.id,
+                                        label: u.name,
+                                        group: 'Other Members',
+                                        avatar: u.name.charAt(0).toUpperCase(),
+                                        avatarUrl: u.avatarUrl
+                                    }))
+                                ]}
                                 value={editedTask.assigneeId || ''}
-                                onChange={(e) => setEditedTask({ ...editedTask, assigneeId: e.target.value || undefined })}
-                            >
-                                <option value="">Unassigned</option>
-                                {users.map(user => (
-                                    <option key={user.id} value={user.id}>{user.name}</option>
-                                ))}
-                            </select>
+                                onChange={(val) => setEditedTask({ ...editedTask, assigneeId: val || undefined })}
+                                disabled={isMember}
+                            />
                         </div>
                         
                         {!isMember && (

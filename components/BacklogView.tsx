@@ -13,6 +13,7 @@ interface BacklogViewProps {
   onTaskCreate?: () => void;
   onTaskUpdate?: (task: Task) => void;
   onTaskDelete?: (taskId: string) => void;
+  projectMemberIds?: string[];
 }
 
 // Editable Task Item Component
@@ -99,14 +100,35 @@ const TaskItem = ({
           {item.priority}
         </span>
 
-        {item.assigneeId && (
-          <div
-            className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center text-xs text-white uppercase"
-            title={users?.find(u => u.id === item.assigneeId)?.name || 'Assigned'}
-          >
-            {users?.find(u => u.id === item.assigneeId)?.name?.charAt(0) || item.assigneeId.charAt(0)}
-          </div>
-        )}
+        {item.assigneeId && (() => {
+          const assignee = users?.find(u => u.id === item.assigneeId);
+          const initial = assignee?.name?.charAt(0) || item.assigneeId.charAt(0);
+          return assignee?.avatarUrl ? (
+            <img
+              src={assignee.avatarUrl}
+              alt={assignee.name || 'Assigned'}
+              title={assignee.name || 'Assigned'}
+              className="w-6 h-6 rounded-full object-cover"
+              onError={(e) => {
+                const el = e.target as HTMLImageElement;
+                el.style.display = 'none';
+                el.nextElementSibling?.classList.remove('hidden');
+              }}
+            />
+          ) : null;
+        })()}
+        {item.assigneeId && (() => {
+          const assignee = users?.find(u => u.id === item.assigneeId);
+          const initial = assignee?.name?.charAt(0) || item.assigneeId.charAt(0);
+          return (
+            <div
+              className={`w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center text-xs text-white uppercase ${assignee?.avatarUrl ? 'hidden' : ''}`}
+              title={assignee?.name || 'Assigned'}
+            >
+              {initial}
+            </div>
+          );
+        })()}
         <div className="relative">
           <button
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1"
@@ -149,8 +171,14 @@ const TaskItem = ({
   );
 };
 
-export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskDelete }: BacklogViewProps) {
-  const { users, currentUser } = useAuth();
+export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskDelete, projectMemberIds = [] }: BacklogViewProps) {
+  const { users: allUsers, currentUser } = useAuth();
+  
+  // Filter users to only include project members
+  const users = projectMemberIds.length > 0 
+    ? allUsers.filter(u => projectMemberIds.includes(u.id))
+    : allUsers;
+
   const [isSprintOpen, setIsSprintOpen] = useState(true);
   const [isBacklogOpen, setIsBacklogOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -208,6 +236,7 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskD
         onClose={() => setIsDetailOpen(false)}
         onUpdate={handleTaskUpdate}
         onDelete={handleTaskDelete}
+        projectMemberIds={projectMemberIds}
       />
 
       {/* Filters Component with Search */}

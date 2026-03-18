@@ -12,7 +12,7 @@ const TIMELINE_START = startOfMonth(new Date());
 const TIMELINE_END_MONTHS = addMonths(TIMELINE_START, 6);
 const TIMELINE_END_QUARTERS = addMonths(TIMELINE_START, 12);
 
-export default function TimelineView({ tasks = [], onUpdateTask }: { tasks?: Task[], onUpdateTask?: (task: Task) => void }) {
+export default function TimelineView({ tasks = [], onUpdateTask, projectMemberIds = [] }: { tasks?: Task[], onUpdateTask?: (task: Task) => void, projectMemberIds?: string[] }) {
   const [filter, setFilter] = useState('');
   const [viewMode, setViewMode] = useState<'Months' | 'Quarters'>('Months');
   const [statusFilter, setStatusFilter] = useState<Status | 'all'>('all');
@@ -201,6 +201,7 @@ export default function TimelineView({ tasks = [], onUpdateTask }: { tasks?: Tas
           setIsDetailOpen(false);
           // Delete is usually handled by parent through sync
         }}
+        projectMemberIds={projectMemberIds}
       />
 
       <div 

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Form, FormField, FormFieldType, FormResponse, User } from '@/types';
 import { Plus, FileText, Trash2, Edit3, BarChart3, ClipboardList, ChevronLeft, Send, CheckCircle2, Copy, X, Calendar, Users, AlertCircle, Inbox } from 'lucide-react';
+import { CustomSelect } from './ui/CustomSelect';
 
 interface FormsViewProps { projectId: string; }
 
@@ -400,10 +401,13 @@ export default function FormsView({ projectId }: FormsViewProps) {
                         <div className="flex items-start gap-3">
                             <input value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} placeholder="Question"
                                 className="flex-1 text-sm font-semibold bg-transparent border-b border-gray-200 dark:border-gray-600 outline-none py-2 text-gray-900 dark:text-white placeholder-gray-300 focus:border-blue-500 transition-colors" />
-                            <select value={field.type} onChange={e => changeFieldType(field.id, e.target.value as FormFieldType)}
-                                className="text-xs border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-2 bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 outline-none min-w-[140px]">
-                                {Object.entries(FIELD_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                            </select>
+                            <CustomSelect
+                                value={field.type}
+                                onChange={(val: string) => changeFieldType(field.id, val as FormFieldType)}
+                                options={Object.entries(FIELD_TYPES).map(([k, v]) => ({ value: k, label: v }))}
+                                className="min-w-[150px]"
+                                searchable={false}
+                            />
                         </div>
                         {/* Field body */}
                         <div className="mt-3">
@@ -543,11 +547,16 @@ export default function FormsView({ projectId }: FormsViewProps) {
                                 </label>
                             ))}
                             {field.type === 'dropdown' && (
-                                <select value={fillAnswers[field.id] || ''} onChange={e => setAnswer(field.id, e.target.value)}
-                                    className="text-sm border-b border-gray-200 dark:border-gray-600 bg-transparent outline-none py-2 text-gray-700 dark:text-gray-300 min-w-[200px] cursor-pointer">
-                                    <option value="">Select...</option>
-                                    {(field.choices || []).map((c, i) => <option key={i} value={c}>{c}</option>)}
-                                </select>
+                                <CustomSelect
+                                    value={fillAnswers[field.id] || ''}
+                                    onChange={(val: string) => setAnswer(field.id, val)}
+                                    options={[
+                                        { value: '', label: 'Select...' },
+                                        ...(field.choices || []).map(c => ({ value: c, label: c }))
+                                    ]}
+                                    placeholder="Select..."
+                                    className="min-w-[200px]"
+                                />
                             )}
                             {field.type === 'rating' && (
                                 <div>

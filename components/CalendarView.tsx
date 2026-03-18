@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Clock, Users, Tag, Calendar as CalendarIcon } from 'lucide-react';
 import { Task } from '@/types';
+import { CustomSelect } from './ui/CustomSelect';
 
 interface CalendarViewProps {
     projectId: string;
@@ -254,16 +255,18 @@ export default function CalendarView({ projectId, tasks = [] }: CalendarViewProp
                                 className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                             />
                             <div className="flex gap-2">
-                                <select
+                                <CustomSelect
                                     value={newEvent.type}
-                                    onChange={(e) => setNewEvent({ ...newEvent, type: e.target.value as CalendarEvent['type'] })}
-                                    className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                                >
-                                    <option value="task">Task</option>
-                                    <option value="meeting">Meeting</option>
-                                    <option value="deadline">Deadline</option>
-                                    <option value="milestone">Milestone</option>
-                                </select>
+                                    onChange={(val: string) => setNewEvent({ ...newEvent, type: val as CalendarEvent['type'] })}
+                                    options={[
+                                        { value: 'task', label: 'Task' },
+                                        { value: 'meeting', label: 'Meeting' },
+                                        { value: 'deadline', label: 'Deadline' },
+                                        { value: 'milestone', label: 'Milestone' }
+                                    ]}
+                                    className="flex-1"
+                                    searchable={false}
+                                />
                                 <input
                                     type="time"
                                     value={newEvent.time}

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Deployment, Task } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 interface CreateDeploymentDialogProps {
     isOpen: boolean;
@@ -106,27 +107,29 @@ export function CreateDeploymentDialog({ isOpen, onClose, currentProjectId, onDe
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Environment</label>
-                        <select
-                            className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
+                        <CustomSelect
                             value={environment}
-                            onChange={e => setEnvironment(e.target.value as Deployment['environment'])}
-                        >
-                            <option value="Development">Development</option>
-                            <option value="Staging">Staging</option>
-                            <option value="Production">Production</option>
-                        </select>
+                            onChange={(val: string) => setEnvironment(val as Deployment['environment'])}
+                            options={[
+                                { value: 'Development', label: 'Development' },
+                                { value: 'Staging', label: 'Staging' },
+                                { value: 'Production', label: 'Production' }
+                            ]}
+                            searchable={false}
+                        />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
-                        <select
-                            className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
+                        <CustomSelect
                             value={status}
-                            onChange={e => setStatus(e.target.value as Deployment['status'])}
-                        >
-                            <option value="In Progress">In Progress</option>
-                            <option value="Completed">Completed</option>
-                            <option value="Failed">Failed</option>
-                        </select>
+                            onChange={(val: string) => setStatus(val as Deployment['status'])}
+                            options={[
+                                { value: 'In Progress', label: 'In Progress' },
+                                { value: 'Completed', label: 'Completed' },
+                                { value: 'Failed', label: 'Failed' }
+                            ]}
+                            searchable={false}
+                        />
                     </div>
                 </div>
 

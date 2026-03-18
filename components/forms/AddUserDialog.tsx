@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import { useEffect } from 'react';
 
 interface AddUserDialogProps {
@@ -153,16 +154,17 @@ export function AddUserDialog({ isOpen, onClose, onSuccess }: AddUserDialogProps
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                 Role *
                             </label>
-                            <select
-                                required
+                            <CustomSelect
                                 value={formData.role}
-                                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            >
-                                <option value="Member">Member</option>
-                                <option value="Manager">Manager</option>
-                                <option value="Admin">Admin</option>
-                            </select>
+                                onChange={(val: string) => setFormData({ ...formData, role: val })}
+                                options={[
+                                    { value: 'Member', label: 'Member' },
+                                    { value: 'Manager', label: 'Manager' },
+                                    { value: 'Admin', label: 'Admin' }
+                                ]}
+                                required
+                                searchable={false}
+                            />
                         </div>
 
                         <div>

@@ -528,10 +528,10 @@ export default function ProjectPage() {
 
                 {activeTab === 'Recommendations' && <MLTaskRecommendations tasks={tasks} projectId={id} users={users} currentUser={currentUser} onTaskUpdate={handleTaskUpdate} />}
                 {activeTab === 'Summary' && <SummaryView tasks={tasks} projectId={id} currentUser={currentUser} />}
-                {activeTab === 'Backlog' && <BacklogView tasks={tasks} onTaskCreate={() => setIsCreateTaskOpen(true)} onTaskUpdate={handleTaskUpdate} onTaskDelete={handleTaskDelete} />}
+                {activeTab === 'Backlog' && <BacklogView tasks={tasks} onTaskCreate={() => setIsCreateTaskOpen(true)} onTaskUpdate={handleTaskUpdate} onTaskDelete={handleTaskDelete} projectMemberIds={projectMembers} />}
 
                 {activeTab === 'Board' && <TaskBoard tasks={tasks} onTaskMove={handleTaskMove} />}
-                {activeTab === 'Timeline' && <TimelineView tasks={tasks} />}
+                {activeTab === 'Timeline' && <TimelineView tasks={tasks} projectMemberIds={projectMembers} />}
                 {activeTab === 'Chat' && <ChatView projectId={id} />}
 
                 {activeTab === 'Code' && (

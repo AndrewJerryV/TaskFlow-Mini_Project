@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Clock, Users, BarChart3, Timer, Filter, X, TrendingUp, Activity, Briefcase, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { CustomSelect } from './ui/CustomSelect';
 import { Task, User } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTimer } from '@/contexts/TimerContext';
@@ -298,30 +299,36 @@ export default function TimeTrackingView({ projectId, tasks: propTasks }: TimeTr
                         {!projectId && (
                             <div>
                                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Project</label>
-                                <select
+                                <CustomSelect
                                     value={filterProject}
-                                    onChange={e => setFilterProject(e.target.value)}
-                                    className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                                >
-                                    <option value="">All Projects</option>
-                                    {data.projects.map(p => (
-                                        <option key={p.id} value={p.id}>{p.name}</option>
-                                    ))}
-                                </select>
+                                    onChange={(val: string) => setFilterProject(val)}
+                                    options={[
+                                        { value: '', label: 'All Projects' },
+                                        ...data.projects.map(p => ({ value: p.id, label: p.name }))
+                                    ]}
+                                    placeholder="All Projects"
+                                />
                             </div>
                         )}
                         <div>
                             <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">User</label>
-                            <select
+                            <CustomSelect
                                 value={filterUser}
-                                onChange={e => setFilterUser(e.target.value)}
-                                className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            >
-                                <option value="">All Users</option>
-                                {data.users.map(u => (
-                                    <option key={u.id} value={u.id}>{u.name}</option>
-                                ))}
-                            </select>
+                                onChange={(val: string) => setFilterUser(val)}
+                                options={[
+                                    { value: '', label: 'All Users' },
+                                    ...data.users.map(u => ({
+                                        value: u.id,
+                                        label: u.name,
+                                        icon: (
+                                            <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-[10px] text-white font-bold">
+                                                {u.name.charAt(0)}
+                                            </div>
+                                        )
+                                    }))
+                                ]}
+                                placeholder="All Users"
+                            />
                         </div>
                         <div>
                             <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Start Date</label>

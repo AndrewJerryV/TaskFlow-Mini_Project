@@ -5,7 +5,8 @@ import { Modal } from '@/components/ui/Modal';
 import { Priority, Status, Task, User } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
-import { Sparkles, Search, ChevronDown, Check, User as UserIcon, AlertCircle } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
+import { CustomSelect, SelectOption } from '@/components/ui/CustomSelect';
 
 interface CreateTaskDialogProps {
     isOpen: boolean;
@@ -223,10 +224,6 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
         return years !== null ? `${skill} (${years}y)` : `${skill} (experience n/a)`;
     }) || [];
 
-    const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
-    const [userSearch, setUserSearch] = useState('');
-    const dropdownRef = useRef<HTMLDivElement>(null);
-
     const getUserDisplaySkills = (user: User) => {
         const candidate = dataRef.current?.allCandidates?.find((c: any) => c.id === user.id);
         const matching = candidate?.matchingSkills || [];
@@ -241,21 +238,43 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
         return remaining > 0 ? `(${allSkills.slice(0, 2).join(', ')}...)` : '';
     };
 
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setIsUserDropdownOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
     const formatDateToIndian = (dateStr: string) => {
         if (!dateStr) return '';
         const [y, m, d] = dateStr.split('-');
         return `${d}-${m}-${y}`;
     };
+
+    const statusOptions: SelectOption[] = [
+        { value: 'To Do', label: 'To Do' },
+        { value: 'In Progress', label: 'In Progress' },
+        { value: 'Done', label: 'Done' },
+    ];
+
+    const priorityOptions: SelectOption[] = [
+        { value: 'Low', label: 'Low' },
+        { value: 'Medium', label: 'Medium' },
+        { value: 'High', label: 'High' },
+        { value: 'Critical', label: 'Critical' },
+    ];
+
+    const assigneeOptions: SelectOption[] = [
+        ...users.filter(u => projectMemberIds.includes(u.id)).map(u => ({
+            value: u.id,
+            label: u.name,
+            group: 'Project Members',
+            avatar: u.name.charAt(0).toUpperCase(),
+            avatarUrl: u.avatarUrl,
+            metadata: `${u.role} ${getUserDisplaySkills(u)}`
+        })),
+        ...users.filter(u => !projectMemberIds.includes(u.id)).map(u => ({
+            value: u.id,
+            label: u.name,
+            group: 'Other Members',
+            avatar: u.name.charAt(0).toUpperCase(),
+            avatarUrl: u.avatarUrl,
+            metadata: `${u.role} ${getUserDisplaySkills(u)}`
+        }))
+    ];
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Create Issue">
@@ -292,112 +311,14 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
                         </div>
                     </div>
 
-                    <div className="relative" ref={dropdownRef}>
-                        <button
-                            type="button"
-                            onClick={() => !isMember && setIsUserDropdownOpen(!isUserDropdownOpen)}
-                            disabled={loadingUsers || isMember}
-                            className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:text-white flex justify-between items-center hover:border-blue-400 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
-                        >
-                            <span className="truncate">
-                                {loadingUsers ? 'Loading members...' : (selectedUser ? `${selectedUser.name} (${selectedUser.role})` : 'Select Assignee')}
-                            </span>
-                            <ChevronDown size={14} className={`text-gray-400 transition-transform ${isUserDropdownOpen ? 'rotate-180' : ''}`} />
-                        </button>
-
-                        {isUserDropdownOpen && (
-                            <div className="absolute z-50 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg overflow-hidden flex flex-col max-h-80">
-                                <div className="p-3 border-b border-gray-100 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
-                                    <div className="relative">
-                                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" size={12} />
-                                        <input
-                                            type="text"
-                                            className="w-full border border-gray-200 dark:border-gray-700 rounded pl-7 pr-2 py-1.5 text-xs bg-gray-50 dark:bg-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                            placeholder="Search by name or skills (e.g. React, Java)..."
-                                            value={userSearch}
-                                            onChange={(e) => setUserSearch(e.target.value)}
-                                            autoFocus
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="overflow-y-auto flex-1 pt-1 pb-2">
-                                    {(() => {
-                                        const pMembers = users.filter(u => projectMemberIds.includes(u.id));
-                                        const otherMembers = users.filter(u => !projectMemberIds.includes(u.id));
-                                        const search = userSearch.toLowerCase();
-                                        
-                                        const filterFn = (u: User) => 
-                                            u.name.toLowerCase().includes(search) || 
-                                            u.skills?.some(s => s.toLowerCase().includes(search));
-
-                                        const filteredProject = pMembers.filter(filterFn);
-                                        const filteredOther = otherMembers.filter(filterFn);
-
-                                        return (
-                                            <>
-                                                <div className="px-2 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50/50 dark:bg-gray-700/30">Project Members</div>
-                                                {filteredProject.length > 0 ? (
-                                                    filteredProject.map(user => (
-                                                        <div
-                                                            key={user.id}
-                                                            onClick={() => {
-                                                                setAssigneeId(user.id);
-                                                                setIsUserDropdownOpen(false);
-                                                                setUserSearch('');
-                                                            }}
-                                                            className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center justify-between group ${assigneeId === user.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
-                                                        >
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-300 text-[10px] font-bold">
-                                                                    {user.name.charAt(0)}
-                                                                </div>
-                                                                <div>
-                                                                    <div className="font-medium text-gray-900 dark:text-gray-100">{user.name}</div>
-                                                                    <div className="text-[10px] text-gray-500 dark:text-gray-400 capitalize">{user.role} {getUserDisplaySkills(user)}</div>
-                                                                </div>
-                                                            </div>
-                                                            {assigneeId === user.id && <Check size={14} className="text-blue-500" />}
-                                                        </div>
-                                                    ))
-                                                ) : (
-                                                    <div className="px-3 py-4 text-center text-xs text-gray-400 italic">No matching project members</div>
-                                                )}
-
-                                                <div className="px-2 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50/50 dark:bg-gray-700/30">Other Members</div>
-                                                {filteredOther.length > 0 ? (
-                                                    filteredOther.map(user => (
-                                                        <div
-                                                            key={user.id}
-                                                            onClick={() => {
-                                                                setAssigneeId(user.id);
-                                                                setIsUserDropdownOpen(false);
-                                                                setUserSearch('');
-                                                            }}
-                                                            className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center justify-between group ${assigneeId === user.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
-                                                        >
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300 text-[10px] font-bold">
-                                                                    {user.name.charAt(0)}
-                                                                </div>
-                                                                <div>
-                                                                    <div className="font-medium text-gray-900 dark:text-gray-100">{user.name}</div>
-                                                                    <div className="text-[10px] text-gray-500 dark:text-gray-400">{user.role} {getUserDisplaySkills(user)}</div>
-                                                                </div>
-                                                            </div>
-                                                            {assigneeId === user.id && <Check size={14} className="text-blue-500" />}
-                                                        </div>
-                                                    ))
-                                                ) : (
-                                                    <div className="px-3 py-4 text-center text-xs text-gray-400 italic">No matching other members</div>
-                                                )}
-                                            </>
-                                        );
-                                    })()}
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                    <CustomSelect
+                        options={assigneeOptions}
+                        value={assigneeId}
+                        onChange={setAssigneeId}
+                        placeholder={loadingUsers ? 'Loading members...' : 'Select Assignee'}
+                        disabled={loadingUsers || isMember}
+                        searchPlaceholder="Search by name or skills..."
+                    />
 
                     {/* Show selected user's skills */}
                     {selectedUser && selectedUser.skills && selectedUser.skills.length > 0 && (
@@ -481,20 +402,21 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
-                        <select className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm dark:bg-gray-700 dark:text-white" value={status} onChange={e => setStatus(e.target.value as Status)}>
-                            <option value="To Do">To Do</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="Done">Done</option>
-                        </select>
+                        <CustomSelect
+                            options={statusOptions}
+                            value={status}
+                            onChange={(val) => setStatus(val as Status)}
+                            searchable={false}
+                        />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Priority</label>
-                        <select className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm dark:bg-gray-700 dark:text-white" value={priority} onChange={e => setPriority(e.target.value as Priority)}>
-                            <option value="Low">Low</option>
-                            <option value="Medium">Medium</option>
-                            <option value="High">High</option>
-                            <option value="Critical">Critical</option>
-                        </select>
+                        <CustomSelect
+                            options={priorityOptions}
+                            value={priority}
+                            onChange={(val) => setPriority(val as Priority)}
+                            searchable={false}
+                        />
                     </div>
                 </div>
 

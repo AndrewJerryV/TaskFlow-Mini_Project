@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { BarChart3, Users, CheckCircle, Clock, AlertTriangle, Download, Filter, X } from 'lucide-react';
 import { Task, User } from '@/types';
 import { getTimeRangeDate, isOverdue } from '@/lib/utils';
+import { CustomSelect } from './ui/CustomSelect';
 
 interface ReportsViewProps {
     projectId: string;
@@ -267,17 +268,18 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
                     </h2>
                 </div>
                 <div className="flex items-center gap-3">
-                    <select
+                    <CustomSelect
                         value={timeRange}
-                        onChange={(e) => setTimeRange(e.target.value)}
-                        className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                    >
-                        <option value="all">All Time</option>
-                        <option value="week">Last 7 days</option>
-                        <option value="month">Last 30 days</option>
-                        <option value="quarter">Last 90 days</option>
-                        <option value="year">Last year</option>
-                    </select>
+                        onChange={(val: string) => setTimeRange(val)}
+                        options={[
+                            { value: 'all', label: 'All Time' },
+                            { value: 'week', label: 'Last 7 days' },
+                            { value: 'month', label: 'Last 30 days' },
+                            { value: 'quarter', label: 'Last 90 days' },
+                            { value: 'year', label: 'Last year' },
+                        ]}
+                        className="w-40"
+                    />
                     <button
                         onClick={() => setShowFilters(true)}
                         className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors relative"
@@ -352,16 +354,24 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
                         {/* Assignee Filter */}
                         <div className="mb-6">
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Assignee</label>
-                            <select
+                            <CustomSelect
                                 value={filters.assignee}
-                                onChange={(e) => setFilters(prev => ({ ...prev, assignee: e.target.value }))}
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            >
-                                <option value="">All Team Members</option>
-                                {users.map(user => (
-                                    <option key={user.id} value={user.id}>{user.name}</option>
-                                ))}
-                            </select>
+                                onChange={(val: string) => setFilters(prev => ({ ...prev, assignee: val }))}
+                                options={[
+                                    { value: '', label: 'All Team Members' },
+                                    ...users.map(user => ({
+                                        value: user.id,
+                                        label: user.name,
+                                        icon: (
+                                            <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-[10px] text-white font-bold">
+                                                {user.name.charAt(0)}
+                                            </div>
+                                        )
+                                    }))
+                                ]}
+                                placeholder="All Team Members"
+                                maxHeight="200px"
+                            />
                         </div>
 
                         {/* Actions */}
