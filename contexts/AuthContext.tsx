@@ -1,14 +1,6 @@
 'use client';
 
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useRef,
-  ReactNode
-} from 'react';
-
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { getSupabase } from '../lib/supabase';
 import { User } from '@/types';
 
@@ -26,9 +18,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-/* ---------------------------------------------
-  Type of row in your `users` table
---------------------------------------------- */
 type ProfileRow = {
   id: string;
   email: string | null;
@@ -116,9 +105,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           async (event, session) => {
             console.log(`[Auth Event] ${event}`, session?.user?.id);
 
-            // Ignore events that don't change the primary user session state
-            // INITIAL_SESSION is already handled manually above
-            // TOKEN_REFRESHED happens in the background, we don't want to show a loading screen
             if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
               return;
             }

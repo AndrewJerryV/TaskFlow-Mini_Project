@@ -2,9 +2,6 @@ import { IndiePitcher } from 'indiepitcher';
 
 const indiePitcher = new IndiePitcher(process.env.INDIEPITCHER_API_KEY || 'sc_7712638fe25f9ed83061da2632e6f42441a084c1de1df080b3dbf608c64b3d50');
 
-/**
- * Sends an OTP email for user deletion verification using IndiePitcher.
- */
 export async function sendOTPEmail(to: string, otp: string) {
     try {
         console.log(`[Email] Sending OTP ${otp} to ${to} via IndiePitcher...`);
@@ -35,9 +32,6 @@ This code will expire in 5 minutes. If you did not request this deletion, please
     }
 }
 
-/**
- * Notify a user that they've been added to a project.
- */
 export async function sendProjectMemberAdded(to: string, projectName: string, addedBy?: string, projectLink?: string) {
     try {
         await indiePitcher.sendEmail({
@@ -62,9 +56,6 @@ ${projectLink ? `Open the project: ${projectLink}` : ''}
     }
 }
 
-/**
- * Notify a user that they've been removed from a project.
- */
 export async function sendProjectMemberRemoved(to: string, projectName: string, removedBy?: string) {
     try {
         await indiePitcher.sendEmail({

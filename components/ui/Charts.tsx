@@ -137,7 +137,6 @@ export function TaskTimeline({ tasks }: { tasks: Task[] }) {
 
     return (
         <div className="border border-gray-100 dark:border-gray-700/80 rounded-xl p-5 bg-white dark:bg-gray-800/80 shadow-sm relative overflow-hidden text-sm">
-            {/* Background grid lines */}
             <div className="absolute inset-0 pointer-events-none opacity-20 dark:opacity-10"
                 style={{ backgroundImage: 'linear-gradient(to right, #e5e7eb 1px, transparent 1px)', backgroundSize: '10% 100%' }}>
             </div>
@@ -154,7 +153,6 @@ export function TaskTimeline({ tasks }: { tasks: Task[] }) {
                     const left = ((task.start - minTime) / totalDuration) * 100;
                     const width = Math.max(((task.end - task.start) / totalDuration) * 100, 2); // Min 2% width for visibility
 
-                    // Simple solid colors without heavy shadows
                     const colorClass = task.status === 'Done' ? 'bg-emerald-500' :
                         task.status === 'In Progress' ? 'bg-blue-500' :
                             task.status === 'Review' ? 'bg-amber-500' :
@@ -168,7 +166,6 @@ export function TaskTimeline({ tasks }: { tasks: Task[] }) {
                                 </p>
                             </div>
                             <div className="col-span-8 md:col-span-9 relative h-3 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden border border-gray-200/50 dark:border-gray-700/50">
-                                {/* Simple animate-in effect and solid color bar */}
                                 <div
                                     className={`absolute h-full rounded-full ${colorClass} transition-all duration-300 ease-out`}
                                     style={{
@@ -196,7 +193,6 @@ export function TaskTimeline({ tasks }: { tasks: Task[] }) {
                 </div>
             </div>
 
-            {/* Add global styles for shimmer animation if it doesn't exist */}
             <style dangerouslySetInnerHTML={{
                 __html: `
                 @keyframes shimmer {

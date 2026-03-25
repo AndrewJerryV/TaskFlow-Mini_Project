@@ -112,7 +112,7 @@ export interface Project {
   id: string;
   name: string;
   description: string;
-  key: string; // e.g., "TF" -> TF-1
+  key: string;
   ownerId: string;
   createdAt: string;
   updatedAt: string;

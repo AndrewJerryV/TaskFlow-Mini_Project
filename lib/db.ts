@@ -176,6 +176,7 @@ function toTimeEntry(dbEntry: DbTimeEntry): TimeEntry {
         createdAt: dbEntry.created_at,
     };
 }
+
 import { getSupabase, DbUser, DbProject, DbTask, DbActivityLog, DbMessage, DbComment, DbForm, DbFormResponse, DbDocument, DbShortcut, DbRepoLink, DbNotification, DbDeployment, DbDeploymentTask, DbTimeEntry } from './supabase';
 import { Project, Task, User, ActivityLog, Message, Comment, Form, FormResponse, Document, Notification, Deployment, DeploymentTask, TimeEntry } from '@/types';
 
@@ -309,7 +310,6 @@ class Database {
         if (userId) {
             // Apply defaults
             const defaultAvatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.fullName)}&background=random`;
-            // Generates +91 9XXXXXXXXX or similar Indian number
             const firstDigit = Math.floor(Math.random() * 4) + 6;
             const remainingDigits = Math.floor(Math.random() * 1000000000).toString().padStart(9, '0');
             const defaultPhone = `+91 ${firstDigit}${remainingDigits.slice(0, 4)} ${remainingDigits.slice(4)}`;
@@ -490,8 +490,6 @@ class Database {
     }
 
     async getProjectAdminsAndManagers(projectId: string): Promise<User[]> {
-        // First get member IDs from project_members who are NOT standard 'Member' role
-        // Or better, fetch all users who are project members AND have Admin/Manager role in the users table
         const { data: members, error: memError } = await getSupabase()
             .from('project_members')
             .select('user_id, role')
@@ -1521,4 +1519,3 @@ class Database {
 }
 
 export const db = new Database();
-

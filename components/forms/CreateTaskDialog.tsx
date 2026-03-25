@@ -175,7 +175,6 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
             projectId: currentProjectId,
             title,
             description,
-            // ... existing code ...
             status,
             priority,
             startDate: startDate ? new Date(startDate).toISOString() : undefined,

@@ -8,7 +8,7 @@ export const PRIORITY_COLORS: Record<Priority, string> = {
     Critical: 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300',
 };
 
-// Priority color classes with borders (for TaskCard) - vibrant colors for visibility
+// Priority color classes with borders (for TaskCard)
 export const PRIORITY_COLORS_BORDERED: Record<Priority, string> = {
     Low: 'bg-teal-100 text-teal-700 border-teal-300 dark:bg-teal-500/30 dark:border-teal-500',
     Medium: 'bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-500/30 dark:border-blue-500',

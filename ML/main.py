@@ -1,21 +1,18 @@
 import os
 
-# Suppress TensorFlow logging to avoid clutter in the terminal
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sentence_transformers import SentenceTransformer
-from models import TaskPriorityModel, TaskAssigner, UrgencyModel, FullTaskRequest, WellnessRequest, BottleneckRequest, get_device
+from models import TaskPriorityModel, TaskAssigner, UrgencyModel, FullTaskRequest, WellnessRequest, BottleneckRequest, BatchPriorityRequest, RebalancingRequest, ClusterRequest, get_device
 from wellness_model import WellnessModel
 from datetime import datetime, timezone
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "my_setfit_model_critical")
 SKILL_MODEL_PATH = os.path.join(BASE_DIR, "skill_matcher_model")
-
-# ── App & Init ──────────────────────────────────────────
 
 app = FastAPI()
 app.add_middleware(
@@ -35,14 +32,10 @@ urgency_ai = UrgencyModel()
 wellness_ai = WellnessModel()
 print("[SUCCESS] All systems ready!\n")
 
-# ── Bottleneck Analysis Endpoint ───────────────────────
+# ── Bottleneck Analysis ───────────────────────
 
 @app.post("/analyze_bottlenecks")
 def analyze_bottlenecks(req: BottleneckRequest):
-    """
-    Analyzes project workflow to identify process bottlenecks.
-    Signals include: Overdue tasks, WIP limit breaches, and Aging WIP (stagnant tasks).
-    """
     tasks = req.tasks
 
     bottlenecks = []
@@ -98,7 +91,7 @@ def analyze_bottlenecks(req: BottleneckRequest):
                 "projectId": project_id,
                 "taskCount": len(overdue_tasks),
                 "avgDaysStuck": avg_days,
-                "recommendation": f"Overdue work detected ({len(overdue_tasks)} tasks). Review scope, unblock dependencies, and re-plan delivery.",
+                "recommendation": f"Overdue work detected ({len(overdue_tasks)} tasks).",
                 "severity": severity
             })
         # WIP limit breaches per status
@@ -148,7 +141,7 @@ def analyze_bottlenecks(req: BottleneckRequest):
         penalty += int(b["taskCount"]) * 2
         health_penalty += penalty
 
-    overallHealthScore = max(0, 100 - health_penalty)
+    overallHealthScore = max(0, min(100, 100 - health_penalty))
 
     if len(bottlenecks) == 0:
         healthSummary = "Workflow is healthy."
@@ -173,17 +166,9 @@ def analyze_bottlenecks(req: BottleneckRequest):
 def health_check():
     return {"status": "ok"}
 
-# ── Endpoint ────────────────────────────────────────────
-
 @app.post("/analyze_task")
 def analyze_task(task: FullTaskRequest):
-    """
-    Primary endpoint for AI-powered task analysis.
-    Performs:
-    1. Priority Prediction (using SetFit)
-    2. Smart Assignment (matching skills and wellness)
-    3. Urgency Scoring (calculating relative importance)
-    """
+
     print(f"Analyzing task: {task.description[:50]}...")
     priority, confidence = priority_ai.predict(task.description)
     
@@ -205,16 +190,141 @@ def analyze_task(task: FullTaskRequest):
 
 @app.post("/analyze_wellness")
 def analyze_wellness(req: WellnessRequest):
-    """
-    Calculates a team member's health/wellness score.
-    Considers task volume and priority-induced stress.
-    """
     score = wellness_ai.calculate(req.active_tasks, req.high_priority_count, req.critical_urgency_count)
     status = wellness_ai.get_status(score)
     return {
         "score": score,
         "status": status
     }
+
+# ── Batch Priority Check ──────────────────
+
+@app.post("/batch_priority_check")
+def batch_priority_check(req: BatchPriorityRequest):
+    print(f"--- Batch Priority Check ({len(req.tasks)} tasks) ---")
+    results = []
+    for task in req.tasks:
+        priority, confidence = priority_ai.predict(task.description)
+        results.append({
+            "id": task.id,
+            "predicted_priority": priority,
+            "confidence": round(confidence, 3)
+        })
+    return {"predictions": results}
+
+# ── Workload Rebalancing ──────────────────
+
+@app.post("/suggest_rebalancing")
+def suggest_rebalancing(req: RebalancingRequest):
+    suggestions = []
+
+    for entry in req.overloaded_members:
+        member_data = entry.get("member", {})
+        member_tasks = entry.get("tasks", [])
+        member_name = member_data.get("name", "Unknown")
+        member_id = member_data.get("id", "")
+        member_wellness = member_data.get("wellness_score", 0)
+
+        for task_data in member_tasks:
+            task_id = task_data.get("id", "")
+            task_title = task_data.get("title", "")
+            task_desc = task_data.get("description", "")
+            task_text = f"{task_title} {task_desc}".strip()
+
+            if not task_text:
+                continue
+
+            # Use skill matching to find the best available member
+            candidates = [
+                {
+                    "name": m.name,
+                    "id": m.id,
+                    "skills": m.skills,
+                    "role": m.role,
+                    "wellness_data": {
+                        "active_tasks": m.active_task_count,
+                        "high_priority_count": 0,
+                        "critical_urgency_count": 0
+                    }
+                }
+                for m in req.available_members
+            ]
+
+            if not candidates:
+                continue
+
+            ranked, required_skills = assigner_ai.find_best_match(
+                task_text, candidates, wellness_model=wellness_ai
+            )
+
+            if ranked and ranked[0]["combined_ranking_score"] > 10:
+                best = ranked[0]
+                suggestions.append({
+                    "taskId": task_id,
+                    "taskTitle": task_title,
+                    "taskPriority": task_data.get("priority", "Medium"),
+                    "fromUser": {"id": member_id, "name": member_name, "wellness": round(member_wellness)},
+                    "toUser": {
+                        "id": best["id"],
+                        "name": best["name"],
+                        "skillMatch": round(best["match_percentage"]),
+                        "wellness": round(best["wellness_score"]),
+                        "wellnessStatus": best["wellness_status"],
+                        "matchingSkills": best["matching_skills"]
+                    },
+                    "requiredSkills": required_skills
+                })
+
+    suggestions.sort(key=lambda s: s["toUser"]["skillMatch"], reverse=True)
+    return {"suggestions": suggestions[:5]}
+
+# ── Task Clustering ───────────────────────
+
+@app.post("/cluster_tasks")
+def cluster_tasks(req: ClusterRequest):
+    if len(req.tasks) < 2:
+        return {"clusters": []}
+
+    texts = [f"{t.title} {t.description}".strip() for t in req.tasks]
+    ids = [t.id for t in req.tasks]
+    titles = [t.title for t in req.tasks]
+
+    from sentence_transformers import util as st_util
+    embeddings = sentence_model.encode(texts, convert_to_tensor=True)
+
+    sim_matrix = st_util.cos_sim(embeddings, embeddings)
+
+    SIMILARITY_THRESHOLD = 0.40
+    visited = set()
+    clusters = []
+
+    for i in range(len(req.tasks)):
+        if i in visited:
+            continue
+        cluster_indices = [i]
+        for j in range(i + 1, len(req.tasks)):
+            if j in visited:
+                continue
+            if sim_matrix[i][j].item() >= SIMILARITY_THRESHOLD:
+                cluster_indices.append(j)
+
+        if len(cluster_indices) >= 2:
+            for idx in cluster_indices:
+                visited.add(idx)
+
+            cluster_tasks_list = [
+                {"id": ids[idx], "title": titles[idx], "similarity": round(sim_matrix[i][idx].item(), 2)}
+                for idx in cluster_indices
+            ]
+
+            clusters.append({
+                "taskIds": [ids[idx] for idx in cluster_indices],
+                "tasks": cluster_tasks_list,
+                "size": len(cluster_indices)
+            })
+
+    clusters.sort(key=lambda c: c["size"], reverse=True)
+    return {"clusters": clusters[:5]}
 
 if __name__ == "__main__":
     import uvicorn

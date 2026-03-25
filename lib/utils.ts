@@ -1,34 +1,17 @@
 import { User, Priority, Status } from '@/types';
-import {
-    PRIORITY_COLORS,
-    PRIORITY_COLORS_BORDERED,
-    STATUS_COLORS,
-    STATUS_COLORS_BACKLOG,
-    ROLE_COLORS,
-    ACTION_DISPLAY
-} from './constants';
+import { PRIORITY_COLORS, PRIORITY_COLORS_BORDERED, STATUS_COLORS, STATUS_COLORS_BACKLOG, ROLE_COLORS, ACTION_DISPLAY } from './constants';
 import { format, formatDistanceToNow, subDays, subMonths, subYears, addDays, isAfter, isBefore } from 'date-fns';
-
-// ============================================
-// Date Formatting Utilities (using date-fns)
-// ============================================
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
-/**
- * Helper to get a Date object forced to IST
- */
+/** Helper to get a Date object forced to IST */
 function getISTDate(dateStr: string | Date): Date {
     const date = new Date(dateStr);
-    // Get UTC time
     const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
-    // Add IST offset
     return new Date(utc + IST_OFFSET_MS);
 }
 
-/**
- * Format a date string for display (e.g., "Feb 8, 2026")
- */
+/** Format a date string for display (e.g., "Feb 8, 2026") */
 export function formatDate(dateStr: string): string {
     try {
         return format(getISTDate(dateStr), 'MMM d, yyyy');
@@ -37,22 +20,7 @@ export function formatDate(dateStr: string): string {
     }
 }
 
-/**
- * Format a date string with time (e.g., "Feb 8, 2026, 10:30 PM")
- */
-export function formatDateTime(dateStr: string): string {
-    try {
-        return format(getISTDate(dateStr), 'MMM d, yyyy, h:mm a');
-    } catch {
-        return 'Unknown date';
-    }
-}
-
-/**
- * Calculates current age from a Date of Birth string
- * @param dob Date of birth string (e.g., "1990-01-01")
- * @returns number representing age, or null if dob is invalid/missing
- */
+/** Calculates current age from a Date of Birth string */
 export function calculateAge(dob: string | undefined | null): number | null {
     if (!dob) return null;
 
@@ -63,7 +31,6 @@ export function calculateAge(dob: string | undefined | null): number | null {
     let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
 
-    // If birth month hasn't occurred yet this year, or it's the birth month but the day hasn't occurred yet
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
         age--;
     }
@@ -71,9 +38,7 @@ export function calculateAge(dob: string | undefined | null): number | null {
     return age;
 }
 
-/**
- * Format a date as relative time (e.g., "2 hours ago")
- */
+/** Format a date as relative time (e.g., "2 hours ago") */
 export function formatRelativeTime(dateStr: string): string {
     try {
         return formatDistanceToNow(new Date(dateStr), { addSuffix: true });
@@ -82,9 +47,7 @@ export function formatRelativeTime(dateStr: string): string {
     }
 }
 
-/**
- * Get the start date for a time range filter
- */
+/** Get the start date for a time range filter */
 export function getTimeRangeDate(range: 'week' | 'month' | 'quarter' | 'year' | 'all'): Date {
     const now = new Date();
     switch (range) {
@@ -102,9 +65,7 @@ export function getTimeRangeDate(range: 'week' | 'month' | 'quarter' | 'year' | 
     }
 }
 
-/**
- * Check if a date is within the next N days
- */
+/** Check if a date is within the next N days */
 export function isDueWithinDays(dateStr: string, days: number): boolean {
     try {
         const dueDate = new Date(dateStr);
@@ -116,9 +77,7 @@ export function isDueWithinDays(dateStr: string, days: number): boolean {
     }
 }
 
-/**
- * Check if a date is overdue
- */
+/** Check if a date is overdue */
 export function isOverdue(dateStr: string): boolean {
     try {
         return isBefore(new Date(dateStr), new Date());
@@ -127,13 +86,7 @@ export function isOverdue(dateStr: string): boolean {
     }
 }
 
-// ============================================
-// File Utilities
-// ============================================
-
-/**
- * Format file size in human readable format
- */
+/** Format file size in human readable format */
 export function formatFileSize(bytes: number): string {
     if (bytes === 0) return '0 B';
     const k = 1024;
@@ -142,72 +95,51 @@ export function formatFileSize(bytes: number): string {
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
-// ============================================
-// User Utilities
-// ============================================
-
-/**
- * Get user name by ID from a list of users
- */
+/** Get user name by ID from a list of users */
 export function getUserName(users: User[], userId: string): string {
     if (userId === 'system') return 'System';
     const user = users.find(u => u.id === userId);
     return user?.name || 'Unknown';
 }
 
-/**
- * Get priority color classes
- */
+/** Get priority color classes */
 export function getPriorityColor(priority: Priority): string {
     return PRIORITY_COLORS[priority] || PRIORITY_COLORS.Low;
 }
 
-/**
- * Get priority color classes with borders
- */
+/** Get priority color classes with borders */
 export function getPriorityColorBordered(priority: Priority): string {
     return PRIORITY_COLORS_BORDERED[priority] || PRIORITY_COLORS_BORDERED.Low;
 }
 
-/**
- * Get status color classes
- */
+/** Get status color classes */
 export function getStatusColor(status: Status): string {
     return STATUS_COLORS[status] || STATUS_COLORS['To Do'];
 }
 
-/**
- * Get status color classes for backlog view
- */
+/** Get status color classes for backlog view */
 export function getStatusColorBacklog(status: Status): string {
     return STATUS_COLORS_BACKLOG[status] || STATUS_COLORS_BACKLOG['To Do'];
 }
 
-/**
- * Get role color classes
- */
+/** Get role color classes */
 export function getRoleColor(role: string): string {
     return ROLE_COLORS[role] || ROLE_COLORS.Member;
 }
 
-/**
- * Get action display info (icon name and background color)
- */
+/** Get action display info (icon name and background color) */
 export function getActionDisplay(action: string): { iconName: string; bgColor: string } {
     return ACTION_DISPLAY[action] || ACTION_DISPLAY.Updated;
 }
 
-/**
- * Check if the local ML server (Python) is reachable.
- * Uses a short timeout to prevent blocking the Node.js event loop/request for too long.
- */
+/** Check if the local ML server (Python) is reachable. */
 export async function checkMLServerAvailability(url: string = 'http://127.0.0.1:8000/'): Promise<boolean> {
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 1000); // 1 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 1000);
 
         const response = await fetch(url, {
-            method: 'GET', // Use global health check
+            method: 'GET',
             signal: controller.signal
         });
 

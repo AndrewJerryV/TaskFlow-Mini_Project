@@ -17,9 +17,7 @@ interface AssignmentResponse {
     suggested_assignees: AssignmentCandidate[];
 }
 
-// =============================================
 // Smart assignment calling Python ML server
-// =============================================
 async function pythonSmartAssignment(users: User[], allTasks: Task[], title: string, description: string, status: string, daysUntilDue: number) {
     try {
         const payload = {
@@ -102,11 +100,7 @@ interface AssignRequest {
     projectId?: string;
 }
 
-
-
-// =============================================
 // API Route Handler
-// =============================================
 export async function POST(request: Request) {
     try {
         const body: AssignRequest = await request.json();

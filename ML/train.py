@@ -18,19 +18,13 @@ with open(DATA_FILE, "r", encoding="utf-8") as f:
         if not line:
             continue
         try:
-            # Data format: "Description text | Priority"
             text, priority = line.rsplit(" | ", 1)
-            # Standardize priority case
             priority = priority.strip().capitalize()
             if priority in label_map:
                 texts.append(text.strip())
                 labels.append(label_map[priority])
         except ValueError:
             print(f"Skipping incorrectly formatted line: {line}")
-
-if not texts:
-    print("No valid data found to train on!")
-    exit(1)
 
 print(f"Loaded {len(texts)} training samples.")
 
@@ -41,7 +35,6 @@ train_dataset = Dataset.from_dict({
 })
 
 # 3. Load Base Model
-# Starting from a fast, capable base sentence transformer
 print("Loading base SetFit model (all-MiniLM-L6-v2)...")
 model = SetFitModel.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
 

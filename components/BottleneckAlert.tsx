@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Task, User } from '@/types';
-import { AlertTriangle, Activity, Users, CheckCircle2, Loader2 } from 'lucide-react';
+import { AlertTriangle, Activity, Users, CheckCircle2, Loader2, ArrowRight, Sparkles, Heart } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 interface BottleneckAlertProps {
     tasks?: Task[];
@@ -19,6 +20,23 @@ interface BottleneckResult {
     recommendation: string;
     severity: 'low' | 'medium' | 'high';
     projectId?: string;
+    taskIds?: string[];
+}
+
+interface RebalanceSuggestion {
+    taskId: string;
+    taskTitle: string;
+    taskPriority: string;
+    fromUser: { id: string; name: string; wellness: number };
+    toUser: {
+        id: string;
+        name: string;
+        skillMatch: number;
+        wellness: number;
+        wellnessStatus: string;
+        matchingSkills: string[];
+    };
+    requiredSkills: string[];
 }
 
 export function BottleneckAlert({ tasks = [], users = [], currentUser = null, projectId = null }: BottleneckAlertProps) {
@@ -33,39 +51,31 @@ export function BottleneckAlert({ tasks = [], users = [], currentUser = null, pr
     const [mlPowered, setMlPowered] = useState(false);
     const [healthScore, setHealthScore] = useState<number | null>(null);
     const [healthSummary, setHealthSummary] = useState<string | null>(null);
-    const [unavailable, setUnavailable] = useState(false);
+    const [rebalanceSuggestions, setRebalanceSuggestions] = useState<RebalanceSuggestion[]>([]);
+
+    const router = useRouter();
 
     const deps = [tasks.length, users.length, currentUser?.id ?? null, projectId ?? null];
 
     useEffect(() => {
         async function fetchBottlenecks() {
             setLoading(true);
-            setUnavailable(false);
             try {
                 const params = new URLSearchParams();
                 if (currentUser?.id) params.set('userId', currentUser.id);
                 if (projectId) params.set('projectId', projectId);
                 const res = await fetch(`/api/analytics/bottlenecks?${params.toString()}`);
                 const data = await res.json();
-                // If API says unavailable or not ML powered, show a friendly message
-                if (data.unavailable || data.mlPowered === false) {
-                    setUnavailable(true);
-                    setBottlenecks([]);
-                    setProjectGroup(null);
-                    setMlPowered(false);
-                    setHealthScore(data.overallHealthScore ?? null);
-                    setHealthSummary(data.healthSummary ?? null);
-                    return;
-                }
+
                 setBottlenecks(data.bottlenecks || []);
                 const groups = data.projects || [];
                 setProjectGroup(groups.length > 0 ? groups[0] : null);
                 setMlPowered(data.mlPowered || false);
                 setHealthScore(data.overallHealthScore ?? null);
                 setHealthSummary(data.healthSummary ?? null);
+                setRebalanceSuggestions(data.rebalanceSuggestions || []);
             } catch (err) {
                 console.error('Failed to fetch bottlenecks:', err);
-                setUnavailable(true);
                 setBottlenecks([]);
                 setProjectGroup(null);
             } finally {
@@ -80,15 +90,6 @@ export function BottleneckAlert({ tasks = [], users = [], currentUser = null, pr
             <div className="p-6 text-center text-gray-500 text-sm flex items-center justify-center gap-2">
                 <Loader2 size={16} className="animate-spin text-indigo-500" />
                 Analyzing workflow health...
-            </div>
-        );
-    }
-    if (unavailable) {
-        return (
-            <div className="p-6 text-center text-gray-500 text-sm flex flex-col items-center gap-2">
-                <AlertTriangle size={20} className="text-yellow-500" />
-                <span>AI-powered bottleneck detection is currently unavailable.</span>
-                <span className="text-xs text-gray-400">Try again later or contact your admin.</span>
             </div>
         );
     }
@@ -109,6 +110,17 @@ export function BottleneckAlert({ tasks = [], users = [], currentUser = null, pr
         if (score >= 80) return 'text-green-600 dark:text-green-400';
         if (score >= 60) return 'text-yellow-600 dark:text-yellow-400';
         return 'text-red-600 dark:text-red-400';
+    };
+
+
+
+    const getPriorityColor = (priority: string) => {
+        switch (priority) {
+            case 'Critical': return 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400';
+            case 'High': return 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400';
+            case 'Medium': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400';
+            default: return 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400';
+        }
     };
 
     const renderBottleneckCard = (bottleneck: BottleneckResult, key: string | number) => (
@@ -135,10 +147,6 @@ export function BottleneckAlert({ tasks = [], users = [], currentUser = null, pr
                         )}
                     </div>
                     <p className="text-sm leading-relaxed">{bottleneck.recommendation}</p>
-                    <div className="flex items-center gap-4 mt-2 text-xs opacity-75">
-                        <span>{bottleneck.taskCount} tasks</span>
-                        <span>Avg {bottleneck.avgDaysStuck} days stuck</span>
-                    </div>
                 </div>
             </div>
         </div>
@@ -160,8 +168,8 @@ export function BottleneckAlert({ tasks = [], users = [], currentUser = null, pr
                 </div>
             </div>
 
-            {healthSummary && mlPowered && (
-                <p className="text-sm text-indigo-600 dark:text-indigo-400 italic px-1">
+            {healthSummary && (
+                <p className="text-sm text-gray-600 dark:text-gray-400 italic px-1">
                     {healthSummary}
                 </p>
             )}
@@ -175,31 +183,6 @@ export function BottleneckAlert({ tasks = [], users = [], currentUser = null, pr
                             {projectGroup.bottlenecks.map((bottleneck, idx) => (
                                 renderBottleneckCard(bottleneck, `${projectGroup.projectId}-b-${idx}`)
                             ))}
-
-                            {projectGroup.overdueTasks.length > 0 && (
-                                <div className="p-3 rounded-lg border bg-red-50/40 dark:bg-red-900/10 border-red-200 dark:border-red-800 transition-all">
-                                    <div className="flex items-start gap-3">
-                                        <div className="mt-0.5 flex-shrink-0">
-                                            <AlertTriangle size={16} className="text-red-600 dark:text-red-400" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="text-xs font-bold uppercase tracking-wider text-red-700 dark:text-red-300">
-                                                    Overdue Tasks
-                                                </span>
-                                            </div>
-                                            <div className="space-y-1 mt-1">
-                                                {projectGroup.overdueTasks.map(task => (
-                                                    <div key={task.id} className="flex items-center justify-between text-sm text-red-700 dark:text-red-300">
-                                                        <span className="truncate pr-3">{task.title}</span>
-                                                        <span className="whitespace-nowrap text-xs">{task.daysOverdue}d overdue</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     )}
                 </div>
@@ -215,6 +198,58 @@ export function BottleneckAlert({ tasks = [], users = [], currentUser = null, pr
                 <div className="space-y-2">
                     {bottlenecks.map((bottleneck, idx) => (
                         renderBottleneckCard(bottleneck, idx)
+                    ))}
+                </div>
+            )}
+
+            {/* AI Rebalancing Suggestions */}
+            {rebalanceSuggestions.length > 0 && (
+                <div className="mt-4 space-y-3">
+                    <div className="flex items-center gap-2 pb-1">
+                        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                            <Heart size={14} className="text-pink-500" />
+                            AI Rebalancing Suggestions
+                        </h4>
+                        <span className="text-[10px] bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded-full font-medium flex items-center gap-1 border border-indigo-200 dark:border-indigo-800">
+                            <Sparkles size={8} /> AI Powered
+                        </span>
+                    </div>
+
+                    {rebalanceSuggestions.map((suggestion, idx) => (
+                        <div key={idx} className="p-3 rounded-lg border border-indigo-100 dark:border-indigo-800/40 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 dark:from-indigo-900/10 dark:to-purple-900/10">
+                            <div className="flex items-start gap-3">
+                                <div className="mt-0.5 flex-shrink-0">
+                                    <ArrowRight size={16} className="text-indigo-500" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${getPriorityColor(suggestion.taskPriority)}`}>
+                                            {suggestion.taskPriority}
+                                        </span>
+                                        <button
+                                            onClick={() => router.push(`/projects/${projectId}?tab=Backlog&task=${suggestion.taskId}`)}
+                                            className="text-sm font-medium text-gray-900 dark:text-white truncate hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline transition-colors text-left"
+                                        >
+                                            {suggestion.taskTitle}
+                                        </button>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                                        <span className="font-semibold">{suggestion.fromUser.name} <span className={`font-normal text-[10px] ${getHealthColor(suggestion.fromUser.wellness)}`}>(Wellness: {Math.round(suggestion.fromUser.wellness)})</span></span>
+                                        <ArrowRight size={10} className="text-gray-400" />
+                                        <span className="font-semibold">{suggestion.toUser.name} <span className={`font-normal text-[10px] ${getHealthColor(suggestion.toUser.wellness)}`}>(Wellness: {Math.round(suggestion.toUser.wellness)})</span></span>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-1.5 mt-2 bg-white/50 dark:bg-black/20 rounded-md px-2 py-1 fit-content border border-indigo-100/50 dark:border-indigo-800/20 inline-flex">
+                                        <Sparkles size={10} className="text-indigo-400" />
+                                        <span className="text-[10px] text-gray-600 dark:text-gray-400">
+                                            <span className="font-medium text-indigo-600 dark:text-indigo-400">{suggestion.toUser.skillMatch}% skill match</span> 
+                                            {suggestion.toUser.matchingSkills.length > 0 && ` • ${suggestion.toUser.matchingSkills.join(', ')}`}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     ))}
                 </div>
             )}

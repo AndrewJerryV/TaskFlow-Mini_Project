@@ -99,7 +99,7 @@ export function TaskOfTheDay({ userId, onTaskClick }: TaskOfTheDayProps) {
             >
                 <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">
                     <Sparkles size={14} className="text-indigo-600 dark:text-indigo-400" />
-                    AI Recommended • Task of the Day
+                    Task of the Day
                 </div>
                 <div className="flex items-center gap-2">
                     {isOverdue && isCollapsed && (
@@ -149,11 +149,7 @@ export function TaskOfTheDay({ userId, onTaskClick }: TaskOfTheDayProps) {
                         )}
                     </button>
 
-                    {data.totalOpenTasks && data.totalOpenTasks > 1 && (
-                        <p className="text-[10px] text-slate-500 dark:text-slate-500 mt-3 font-medium">
-                            +{data.totalOpenTasks - 1} more task{data.totalOpenTasks > 2 ? 's' : ''} in your queue
-                        </p>
-                    )}
+
                 </div>
             )}
         </div>

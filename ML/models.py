@@ -7,10 +7,8 @@ from pydantic import BaseModel
 logger = logging.getLogger(__name__)
 
 def get_device():
-    """Returns 'cuda' if available and working, otherwise 'cpu'."""
     if torch.cuda.is_available():
         try:
-            # Test CUDA with a small tensor operation
             torch.zeros(1).cuda()
             return "cuda"
         except Exception as e:
@@ -18,14 +16,9 @@ def get_device():
     return "cpu"
 
 class TaskPriorityModel:
-    """
-    Model used to predict priority (Low, Medium, High) from task descriptions.
-    Uses SetFit (Sentence Transformer Fine-Tuning) for few-shot text classification.
-    """
     ID2LABEL = {0: "Low", 1: "Medium", 2: "High", 3: "Critical"}
 
     def __init__(self, path):
-        # Load the pre-trained SetFit model, with CPU fallback
         device = get_device()
         logger.info(f"Loading TaskPriorityModel on device: {device}")
         self.model = SetFitModel.from_pretrained(path)
@@ -39,18 +32,10 @@ class TaskPriorityModel:
         return self.ID2LABEL[pred_id.item()], confidence.item()
 
 class TaskAssigner:
-    """
-    Matches tasks to candidates based on semantic skill matching and wellness capacity.
-    """
     def __init__(self, sentence_model):
         self.model = sentence_model
 
     def find_best_match(self, task_text, candidates, wellness_model=None, max_skills=5, min_gap=0.10):
-        """
-        Ranks candidates by matching the task description against their known skills.
-        Uses cosine similarity of sentence embeddings.
-        """
-        # Extract all unique skills from the provided candidates
         all_skills = list({s for p in candidates for s in p.get("skills", [])})
         if not all_skills:
             return [], []
@@ -62,11 +47,8 @@ class TaskAssigner:
             skill_embeddings,
         )[0]
         
-        # Keyword Match Boost: If the skill name appears in the text, give it a massive boost
-        # Also handle common aliases (e.g., 'UI' -> 'Frontend', 'CSS' -> 'Tailwind')
         task_lower = task_text.lower()
         
-        # Define common aliases for mapping natural language to skills
         aliases = {
             "website": ["html5", "react", "next.js", "frontend", "javascript", "vue", "angular"],
             "ui": ["react", "frontend", "figma", "tailwind css", "framer motion", "css"],
@@ -83,24 +65,20 @@ class TaskAssigner:
             skill_lower = skill.lower()
             score = 0.0
             
-            # Direct match
             if skill_lower in task_lower:
                 score = 1.0
-            # Partial match for multi-word skills
             elif " " in skill_lower:
                 parts = skill_lower.split()
                 if any(p in task_lower and len(p) > 2 for p in parts):
                     score = 0.5
             
-            # Alias match
             for word, skill_list in aliases.items():
                 if word in task_lower and skill_lower in [s.lower() for s in skill_list]:
-                    score = max(score, 0.8) # High boost for alias match
+                    score = max(score, 0.8)
             
             keyword_scores.append(score)
         
         # Combined score: Semantic (70%) + Keyword (30%)
-        # If there's a keyword match, it should almost certainly be included
         final_similarity_scores = []
         for s_score, k_score in zip(semantic_scores.tolist(), keyword_scores):
             # Boost the semantic score significantly if keywords match
@@ -109,7 +87,6 @@ class TaskAssigner:
 
         ranked = sorted(zip(all_skills, final_similarity_scores), key=lambda x: x[1], reverse=True)
 
-        # Find the biggest gap in the top candidates to separate signal from noise
         top = ranked[:max_skills * 2]
         best_cut, max_drop = len(top), 0
         for i in range(1, len(top)):
@@ -139,19 +116,13 @@ class TaskAssigner:
                     wd.get("critical_urgency_count", 0)
                 )
 
-            # Combined Score: We prioritize skills (60%) but wellness is a strong factor (40%)
-            # This ensures we don't assign to someone just because they are free if they lack skills,
-            # but we also avoid burning out someone who is a perfect skill match.
+            # Combined Score: prioritize skills (60%) wellness factor (40%)
             combined_score = (skill_match * 0.6) + (wellness_score * 0.4)
 
             # Heavy penalty if they have absolutely NO matching skills when skills are required
             if req_set and len(matched) == 0:
                 combined_score *= 0.10
 
-            # Apply Organizational Role Preferences
-            # Members are preferred (1.1x boost)
-            # Managers are discouraged (-10% penalty)
-            # Admins are heavily discouraged (-20% penalty)
             role = p.get("role", "Member")
             if role == "Manager":
                 combined_score *= 0.90
@@ -160,7 +131,6 @@ class TaskAssigner:
             else:
                 combined_score *= 1.10
             
-            # Ensure the score never exceeds 100%
             combined_score = min(100.0, combined_score)
 
             results.append({
@@ -178,28 +148,20 @@ class TaskAssigner:
         return sorted(results, key=lambda x: x["combined_ranking_score"], reverse=True), required
 
 class UrgencyModel:
-    """
-    Calculates an urgency score based on task priority, status, due date, and staleness.
-    Higher scores indicate higher urgency.
-    """
     PRIORITY_SCORES = {"High": 40, "Medium": 20, "Low": 10}
     STATUS_MULTIPLIERS = {"To Do": 1.2, "In Progress": 1.0, "In Review": 0.5, "Done": 0.0}
 
     def predict(self, priority, status, days_until_due, days_since_update):
-        # Base score from priority
         score = self.PRIORITY_SCORES.get(priority, 10)
         
-        # Add urgency if the task is due soon or overdue
         if days_until_due <= 0:
             score += 50 + abs(days_until_due) * 10
         elif days_until_due <= 7:
             score += (7 - days_until_due) * 5
             
-        # Add urgency if the task hasn't been updated recently (staleness)
         if days_since_update > 3:
             score += (days_since_update - 3) * 2
             
-        # Apply status multiplier (e.g., Done tasks have 0 urgency)
         return round(score * self.STATUS_MULTIPLIERS.get(status, 1.0), 1)
 
     @staticmethod
@@ -235,3 +197,38 @@ class BottleneckTask(BaseModel):
 
 class BottleneckRequest(BaseModel):
     tasks: list[BottleneckTask]
+
+
+class BatchPriorityTask(BaseModel):
+    id: str
+    description: str
+
+class BatchPriorityRequest(BaseModel):
+    tasks: list[BatchPriorityTask]
+
+
+class RebalancingMember(BaseModel):
+    id: str
+    name: str
+    skills: list[str] = []
+    wellness_score: float = 100.0
+    active_task_count: int = 0
+    role: str = "Member"
+
+class RebalancingTask(BaseModel):
+    id: str
+    title: str
+    description: str = ""
+    priority: str = "Medium"
+
+class RebalancingRequest(BaseModel):
+    overloaded_members: list[dict]
+    available_members: list[RebalancingMember]
+
+class ClusterTask(BaseModel):
+    id: str
+    title: str
+    description: str = ""
+
+class ClusterRequest(BaseModel):
+    tasks: list[ClusterTask]

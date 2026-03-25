@@ -36,7 +36,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         setHighContrastState(savedHighContrast);
     }, []);
 
-    // Apply theme whenever it changes
     useEffect(() => {
         let dark = false;
 
@@ -48,18 +47,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
         setIsDark(dark);
 
-        // Apply dark class to document
         if (dark) {
             document.documentElement.classList.add('dark');
         } else {
             document.documentElement.classList.remove('dark');
         }
 
-        // Save to localStorage
         localStorage.setItem('theme', theme);
     }, [theme]);
 
-    // Apply reduce motion
     useEffect(() => {
         if (reduceMotion) {
             document.documentElement.classList.add('reduce-motion');
@@ -69,7 +65,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('reduceMotion', String(reduceMotion));
     }, [reduceMotion]);
 
-    // Apply high contrast
     useEffect(() => {
         if (highContrast) {
             document.documentElement.classList.add('high-contrast');
@@ -79,7 +74,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('highContrast', String(highContrast));
     }, [highContrast]);
 
-    // Listen for system theme changes
     useEffect(() => {
         if (theme !== 'System') return;
 

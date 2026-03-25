@@ -283,7 +283,6 @@ export function WellnessAlerts({ tasks, users }: WellnessAlertsProps) {
             <Brain size={18} />
             <h3 className="text-sm tracking-tight flex items-center gap-1.5 font-semibold">
               AI Wellness Insights
-              <span className="bg-rose-200 dark:bg-rose-800 text-[10px] px-1.5 py-0.5 rounded-full uppercase">Beta</span>
             </h3>
           </div>
           <div className="flex items-center gap-3">
@@ -418,9 +417,18 @@ export function WellnessAlerts({ tasks, users }: WellnessAlertsProps) {
                             </div>
                             <div className="min-w-0">
                               <div className="text-xs text-gray-900 dark:text-white truncate">{option.backupUser.name}</div>
-                              <div className="flex items-center gap-1 mt-0.5">
-                                <span className="text-[9px] bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-1 rounded">{option.skillScore}% match</span>
-                                <span className="text-[9px] text-gray-400 truncate">{option.matchingSkills.slice(0, 2).join(', ')}</span>
+                              <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                                <span className="text-[9px] bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-1 rounded whitespace-nowrap">{option.skillScore}% match</span>
+                                <span className={`text-[9px] px-1 rounded whitespace-nowrap ${
+                                  (option.backupUser.wellnessScore || 0) >= 80 
+                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' 
+                                    : (option.backupUser.wellnessScore || 0) >= 60 
+                                    ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400' 
+                                    : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                                }`}>
+                                  {option.backupUser.wellnessScore || 0}% wellness
+                                </span>
+                                <span className="text-[9px] text-gray-400 truncate max-w-[80px]">{option.matchingSkills.slice(0, 2).join(', ')}</span>
                               </div>
                             </div>
                           </div>

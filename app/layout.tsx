@@ -17,11 +17,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body suppressHydrationWarning className="font-sans bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors">
         <ThemeProvider>
-          {/* AuthProvider must wrap everything to provide session state */}
           <AuthProvider>
-            {/* We keep AuthenticatedLayout here, but inside that component, 
-               you must ensure it doesn't redirect if the path is '/login' 
-            */}
             <AuthenticatedLayout>
               {children}
             </AuthenticatedLayout>
