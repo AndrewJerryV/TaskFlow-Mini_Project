@@ -22,6 +22,7 @@ export async function PATCH(
             skillMatchPriority: body.skillMatchPriority,
             aiDeadlines: body.aiDeadlines,
             dob: body.dob,
+            companySize: body.companySize,
         });
 
         if (!updatedUser) {

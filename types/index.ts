@@ -25,6 +25,7 @@ export interface User {
   quietHoursEnd?: string;
   quietHoursWeekends?: boolean;
   twoFactorEnabled?: boolean;
+  companySize?: 'Small (1-10)' | 'Medium (11-50)' | 'Large (50+)';
   // AI Settings
   burnoutSensitivity?: number;
   autoAssign?: boolean;

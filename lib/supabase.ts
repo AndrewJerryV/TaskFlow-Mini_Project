@@ -56,6 +56,7 @@ export interface DbUser {
   quiet_hours_end?: string;
   quiet_hours_weekends?: boolean;
   two_factor_enabled?: boolean;
+  company_size?: string;
 
   burnout_sensitivity?: number;
   auto_assign?: boolean;

@@ -22,6 +22,7 @@ function toUser(dbUser: DbUser): User {
         quietHoursEnd: dbUser.quiet_hours_end,
         quietHoursWeekends: dbUser.quiet_hours_weekends,
         twoFactorEnabled: dbUser.two_factor_enabled,
+        companySize: dbUser.company_size as any,
         // AI Settings
         burnoutSensitivity: dbUser.burnout_sensitivity,
         autoAssign: dbUser.auto_assign,
@@ -216,6 +217,7 @@ class Database {
         quietHoursEnd: string;
         quietHoursWeekends: boolean;
         twoFactorEnabled: boolean;
+        companySize: string;
         maxWorkload: number;
         burnoutSensitivity: number;
         autoAssign: boolean;
@@ -232,6 +234,7 @@ class Database {
                 quiet_hours_end: settings.quietHoursEnd,
                 quiet_hours_weekends: settings.quietHoursWeekends,
                 two_factor_enabled: settings.twoFactorEnabled,
+                company_size: settings.companySize,
                 max_workload: settings.maxWorkload,
                 burnout_sensitivity: settings.burnoutSensitivity,
                 auto_assign: settings.autoAssign,

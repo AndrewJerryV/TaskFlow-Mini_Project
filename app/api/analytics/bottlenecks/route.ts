@@ -3,8 +3,7 @@ import { db } from '@/lib/db';
 import { Task } from '@/types';
 import { checkMLServerAvailability } from '@/lib/utils';
 
-const STALE_THRESHOLD_DAYS = 5;
-const COLUMN_OVERFLOW_THRESHOLD = 8;
+
 
 interface BottleneckResult {
     type: 'person' | 'process';
@@ -44,7 +43,11 @@ function calculateAvgDays(tasks: Task[], now: Date): number {
 }
 
 // Rule-based Detection
-function detectBottlenecks(tasks: Task[], users: { id: string; name: string }[]) {
+function detectBottlenecks(
+    tasks: Task[], 
+    users: { id: string; name: string }[],
+    thresholds: { stale: number, overflow: number }
+) {
     const now = new Date();
     const bottlenecks: BottleneckResult[] = [];
 
@@ -59,9 +62,9 @@ function detectBottlenecks(tasks: Task[], users: { id: string; name: string }[])
         const columnTasks = tasks.filter(t => t.status === status);
         const avgDays = calculateAvgDays(columnTasks, now);
 
-        if (columnTasks.length >= COLUMN_OVERFLOW_THRESHOLD) {
-            const severity = columnTasks.length >= COLUMN_OVERFLOW_THRESHOLD * 1.5 ? 'high' :
-                columnTasks.length >= COLUMN_OVERFLOW_THRESHOLD ? 'medium' : 'low';
+        if (columnTasks.length >= thresholds.overflow) {
+            const severity = columnTasks.length >= thresholds.overflow * 1.5 ? 'high' :
+                columnTasks.length >= thresholds.overflow ? 'medium' : 'low';
 
             bottlenecks.push({
                 type: 'process',
@@ -109,7 +112,7 @@ function detectBottlenecks(tasks: Task[], users: { id: string; name: string }[])
         const staleTasks = userTasks.filter(t => {
             const updatedAt = new Date(t.updatedAt);
             const days = Math.floor((now.getTime() - updatedAt.getTime()) / (1000 * 60 * 60 * 24));
-            return days > STALE_THRESHOLD_DAYS;
+            return days > thresholds.stale;
         });
 
         if (staleTasks.length >= 3) {
@@ -133,7 +136,7 @@ function detectBottlenecks(tasks: Task[], users: { id: string; name: string }[])
         if (t.status === 'Done') return false;
         const updatedAt = new Date(t.updatedAt);
         const days = Math.floor((now.getTime() - updatedAt.getTime()) / (1000 * 60 * 60 * 24));
-        return days >= STALE_THRESHOLD_DAYS;
+        return days >= thresholds.stale;
     });
 
     if (agingTasks.length >= 3 && !bottlenecks.some(b => b.location === 'Aging WIP')) {
@@ -144,7 +147,7 @@ function detectBottlenecks(tasks: Task[], users: { id: string; name: string }[])
             taskCount: agingTasks.length,
             avgDaysStuck: avgDays,
             severity: agingTasks.length >= 5 ? 'high' : 'medium',
-            recommendation: `${agingTasks.length} tasks have been idle for ${STALE_THRESHOLD_DAYS}+ days.`
+            recommendation: `${agingTasks.length} tasks have been idle for ${thresholds.stale}+ days.`
         });
     }
 
@@ -301,8 +304,20 @@ export async function GET(request: Request) {
             tasks = tasks.filter(t => projectIds.has(t.projectId));
         }
 
+        // Determine dynamic thresholds based on Admin's companySize
+        let companySize = 'Medium (11-50)';
+        const adminUser = users.find(u => u.role === 'Admin');
+        if (adminUser && (adminUser as any).companySize) {
+            companySize = (adminUser as any).companySize;
+        }
+
+        const thresholds = {
+            stale: companySize === 'Small (1-10)' ? 3 : companySize === 'Large (50+)' ? 7 : 5,
+            overflow: companySize === 'Small (1-10)' ? 5 : companySize === 'Large (50+)' ? 15 : 8,
+        };
+
         // 1. Rule-based detection (always works)
-        const result = detectBottlenecks(tasks, users);
+        const result = detectBottlenecks(tasks, users, thresholds);
 
         // 2. AI rebalancing (optional)
         const isMLAvailable = await checkMLServerAvailability();
