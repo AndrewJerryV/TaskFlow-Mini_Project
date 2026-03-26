@@ -1,0 +1,38 @@
+%%{init: {"sequence": {"mirrorActors": false}}}%%
+sequenceDiagram
+    actor User
+    participant Dash as Dashboard
+    participant API as Backend API
+    participant ML as AI Server
+    participant DB as Supabase
+    participant Tasks as /api/tasks
+
+    User->>Dash: Open Recommendations
+    Dash->>API: GET /api/ml/recommendations
+    
+    API->>DB: Fetch Active Tasks
+    API->>API: Rule Scoring (Priority & Due Date)
+
+    opt AI Server Available
+        par AI Enrichment
+            API->>ML: POST /batch_priority_check
+            API->>ML: POST /cluster_tasks
+        end
+        API->>API: Adjust Scores (AI Insights)
+    end
+
+    API-->>Dash: recommendations[], clusters[]
+    Dash-->>User: Show Rec Cards
+
+    alt Click "Continue"
+        Dash->>Tasks: PATCH status: "In Progress"
+        Dash->>User: Navigate
+    else Click "Reschedule"
+        User->>Dash: Confirm Date
+        Dash->>Tasks: PATCH dueDate
+    end
+
+    User->>Dash: View Task of Day
+    Dash->>API: GET recommendations?mode=totd
+    API->>API: Rank (Rules + AI)
+    API-->>Dash: {task, reason, score}

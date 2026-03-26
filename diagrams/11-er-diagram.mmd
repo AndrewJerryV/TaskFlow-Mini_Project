@@ -1,0 +1,213 @@
+%%{init: {"sequence": {"mirrorActors": false}}}%%
+erDiagram
+    users ||--o{ projects : "projects.owner_id"
+    users ||--o{ tasks : "tasks.assignee_id"
+    users ||--o{ documents : "documents.created_by"
+    users ||--o{ notifications : "notifications.user_id"
+    users ||--o{ project_members : "project_members.user_id"
+    users ||--o{ messages : "messages.user_id"
+    users ||--o{ comments : "comments.user_id"
+    
+    projects ||--o{ tasks : "tasks.project_id"
+    projects ||--o{ documents : "documents.project_id"
+    projects ||--o{ messages : "messages.project_id"
+    projects ||--o{ forms : "forms.project_id"
+    projects ||--o{ shortcuts : "shortcuts.project_id"
+    projects ||--o{ repo_links : "repo_links.project_id"
+    projects ||--o{ project_members : "project_members.project_id"
+    projects ||--o{ deployments : "deployments.project_id"
+    
+    tasks ||--o{ comments : "comments.task_id"
+    tasks ||--o{ deployment_tasks : "deployment_tasks.task_id"
+    
+    deployments ||--o{ deployment_tasks : "deployment_tasks.deployment_id"
+    
+    forms ||--o{ form_responses : "form_responses.form_id"
+    users ||--o{ form_responses : "form_responses.respondent_id"
+
+    users {
+        uuid id PK
+        text name
+        text email
+        text avatar_url
+        text role
+        timestamptz created_at
+        _text skills "ARRAY"
+        int4 wellness_score
+        int4 max_workload
+        text phone
+        text office_address
+        text timezone
+        text last_active
+        text quiet_hours_start
+        text quiet_hours_end
+        bool quiet_hours_weekends
+        bool two_factor_enabled
+        int4 burnout_sensitivity
+        bool auto_assign
+        bool skill_match_priority
+        bool ai_deadlines
+        jsonb skill_experience
+    }
+
+    projects {
+        uuid id PK
+        text name
+        text description
+        text key
+        uuid owner_id FK
+        text meeting_url
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    project_members {
+        uuid project_id PK, FK
+        uuid user_id PK, FK
+        text role
+        timestamptz joined_at
+    }
+
+    tasks {
+        uuid id PK
+        uuid project_id FK
+        text title
+        text description
+        text status
+        text priority
+        uuid assignee_id FK
+        timestamptz due_date
+        timestamptz start_date
+        timestamptz created_at
+        timestamptz updated_at
+        _text tags "ARRAY"
+        jsonb time_logs
+        timestamptz active_timer_start
+    }
+
+    documents {
+        uuid id PK
+        uuid project_id FK
+        text title
+        text type
+        text content
+        text file_path
+        text file_type
+        int4 size
+        uuid created_by FK
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    activity_logs {
+        uuid id PK
+        text entity_type
+        text entity_id
+        text action
+        text details
+        uuid user_id FK
+        timestamptz timestamp
+    }
+
+    messages {
+        uuid id PK
+        uuid project_id FK
+        uuid user_id FK
+        text content
+        timestamptz timestamp
+        text attachment
+    }
+
+    comments {
+        uuid id PK
+        uuid task_id FK
+        uuid user_id FK
+        text content
+        timestamptz created_at
+    }
+
+    forms {
+        uuid id PK
+        uuid project_id FK
+        text title
+        text description
+        jsonb fields
+        text status
+        uuid created_by FK
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    form_responses {
+        uuid id PK
+        uuid form_id FK
+        uuid respondent_id FK
+        jsonb answers
+        timestamptz submitted_at
+    }
+
+    shortcuts {
+        uuid id PK
+        uuid project_id FK
+        text name
+        text url
+        text type
+        timestamptz created_at
+    }
+
+    repo_links {
+        uuid id PK
+        uuid project_id FK
+        text name
+        text url
+        text owner
+        text repo
+        text description
+        timestamptz added_at
+    }
+
+    notifications {
+        uuid id PK
+        uuid user_id FK
+        text type
+        text title
+        text message
+        bool is_read
+        text link
+        text entity_id
+        uuid project_id FK
+        timestamptz created_at
+    }
+
+    otps {
+        uuid id PK
+        text email
+        text otp
+        timestamptz created_at
+        timestamptz expires_at
+    }
+
+    deployments {
+        uuid id PK
+        uuid project_id FK
+        text environment
+        text version
+        text status
+        text release_notes
+        text commit_hash
+        text branch
+        text pull_request_url
+        text pipeline_url
+        text pipeline_provider
+        int4 duration_seconds
+        text triggered_by
+        uuid created_by FK
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    deployment_tasks {
+        uuid deployment_id PK, FK
+        uuid task_id PK, FK
+        timestamptz linked_at
+    }

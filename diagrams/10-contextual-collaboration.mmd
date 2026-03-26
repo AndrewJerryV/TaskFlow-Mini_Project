@@ -1,0 +1,52 @@
+%%{init: {"sequence": {"mirrorActors": false}}}%%
+sequenceDiagram
+    actor UserA as User A
+    actor UserB as User B
+    participant View as Task Detail / Chat UI
+    participant API as Next.js API Routes
+    participant DB as Supabase DB
+    participant RT as Supabase Realtime
+
+    UserA->>View: Open Chat view
+    View->>API: GET /api/messages?projectId
+    API->>DB: Fetch messages
+    DB-->>API: Messages[]
+    API-->>View: Render messages
+    
+    UserA->>View: Type & send message (with optional attachment)
+    View->>View: Optimistic UI render
+    View->>API: POST /api/messages {projectId, content, userId, attachment}
+    API->>DB: INSERT INTO messages
+    DB-->>API: New message created
+    API-->>View: Confirm success
+    
+    %% Implicit refetch loop in ChatView.tsx
+    View->>API: GET /api/messages?projectId (re-fetch)
+    API->>DB: Fetch messages
+    DB-->>API: Messages[]
+    API-->>View: Render messages
+    
+    DB->>RT: 'postgres_changes' (INSERT on messages)
+    RT-->>UserB: Broadcast payload (New message)
+    UserB->>View: Update state & Render chat bubble
+    
+    UserA->>View: Open Task Detail
+    UserA->>View: Write comment
+    View->>API: POST /api/comments {taskId, userId, content}
+    API->>DB: INSERT INTO comments
+    DB-->>API: Comment added
+    API-->>View: Render comment
+    
+    UserA->>View: Edit task status
+    View->>API: PATCH /api/tasks {id, status, ...updates}
+    API->>DB: UPDATE tasks
+    DB-->>API: Updated task
+    API-->>View: Render updated task
+    
+    UserA->>View: Set Up Meeting
+    View->>API: POST /api/meeting {projectId, meetingUrl: "meet.google.com/..."}
+    API->>DB: Save Google Meet Link
+    
+    UserB->>View: Click "Join Meeting"
+    View->>View: Load Google Meet
+    UserB->>View: Join same Google Meet room

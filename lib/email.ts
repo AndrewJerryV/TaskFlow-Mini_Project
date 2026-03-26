@@ -79,3 +79,69 @@ If you believe this was a mistake, please contact your workspace admin.
         throw err;
     }
 }
+
+export async function sendTaskAssigned(
+    to: string,
+    taskTitle: string,
+    projectName: string,
+    assignedBy: string,
+    taskLink: string
+) {
+    try {
+        await indiePitcher.sendEmail({
+            to,
+            subject: `Task assigned to you: ${taskTitle}`,
+            body: `
+### New Task Assigned
+
+**${assignedBy}** has assigned you to the following task in **${projectName}**:
+
+## ${taskTitle}
+
+[View Task](${taskLink})
+
+---
+&copy; ${new Date().getFullYear()} TaskFlow
+            `,
+            bodyFormat: 'markdown'
+        });
+        return { success: true };
+    } catch (err) {
+        console.error('Error sending task assigned email:', err);
+        throw err;
+    }
+}
+
+export async function sendTaskSwapped(
+    to: string,
+    taskTitle: string,
+    projectName: string,
+    fromUserName: string,
+    toUserName: string,
+    taskLink: string
+) {
+    try {
+        await indiePitcher.sendEmail({
+            to,
+            subject: `Your task has been reassigned: ${taskTitle}`,
+            body: `
+### Task Reassigned
+
+The task **${taskTitle}** in **${projectName}** has been moved from **${fromUserName}** to **${toUserName}** to balance workload.
+
+[View Task](${taskLink})
+
+If you have any questions, please contact your project manager.
+
+---
+&copy; ${new Date().getFullYear()} TaskFlow
+            `,
+            bodyFormat: 'markdown'
+        });
+        return { success: true };
+    } catch (err) {
+        console.error('Error sending task swapped email:', err);
+        throw err;
+    }
+}
+

@@ -1,0 +1,37 @@
+%%{init: {"sequence": {"mirrorActors": false}}}%%
+sequenceDiagram
+    actor User
+    participant Page as Task Detail View
+    participant Ctx as TimerContext
+    participant API as /api/tasks (Next.js)
+    participant DB as Supabase DB
+
+    User->>Page: Click "Start Timer"
+    Page->>Ctx: startTimer(taskId)
+    Ctx->>Ctx: Update Local State & LocalStorage
+    Ctx->>API: PATCH /api/tasks {id: taskId, activeTimerStart: now()}
+    API->>DB: updateTask(taskId, {activeTimerStart: ...})
+    DB-->>API: 200 OK (Task Updated)
+    
+    rect rgb(240, 240, 255)
+    loop Every 30 Seconds
+        Ctx->>Ctx: Re-calculate "Elapsed" minutes for UI
+    end
+    end
+    
+    User->>Page: Click "Stop Timer"
+    Page->>Ctx: stopTimer()
+    Ctx->>API: GET /api/tasks/:id (fetch latest task data)
+    API-->>Ctx: Task object (with existing timeLogs)
+    
+    rect rgb(230, 255, 230)
+    Ctx->>Ctx: Append new log: {userId, minutes, date} to timeLogs array
+    Ctx->>API: PATCH /api/tasks {id, timeLogs, activeTimerStart: null}
+    API->>DB: updateTask(taskId, {timeLogs, activeTimerStart: null})
+    DB-->>API: 200 OK
+    end
+    
+    API-->>Ctx: Success
+    Ctx->>Ctx: Clear LocalState & LocalStorage
+    Ctx-->>Page: Timer Reset
+    Page-->>User: "Time logged successfully"

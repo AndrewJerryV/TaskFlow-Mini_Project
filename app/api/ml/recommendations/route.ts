@@ -3,9 +3,6 @@ import { db } from '@/lib/db';
 import { Task } from '@/types';
 import { checkMLServerAvailability } from '@/lib/utils';
 
-
-// Types
-
 interface Recommendation {
     id: string;
     taskId: string;
@@ -26,7 +23,6 @@ interface TaskCluster {
 
 
 // Rule-based Core (always works, no ML needed)
-
 function ruleBasedRecommendations(tasks: Task[], currentUserId: string | null): Recommendation[] {
     const now = Date.now();
     const generated: Recommendation[] = [];
@@ -139,7 +135,6 @@ function ruleBasedRecommendations(tasks: Task[], currentUserId: string | null): 
 
 
 // AI Enrichment: Priority Mismatch Detection
-
 async function enrichWithPriorityMismatch(recommendations: Recommendation[], tasks: Task[]): Promise<void> {
     const activeTasks = tasks.filter(t => t.status !== 'Done');
     if (activeTasks.length === 0) return;
@@ -191,7 +186,6 @@ async function enrichWithPriorityMismatch(recommendations: Recommendation[], tas
 
 
 // AI Feature: Task Clustering
-
 async function getTaskClusters(tasks: Task[]): Promise<TaskCluster[]> {
     const activeTasks = tasks.filter(t => t.status !== 'Done');
     if (activeTasks.length < 2) return [];
@@ -220,7 +214,6 @@ async function getTaskClusters(tasks: Task[]): Promise<TaskCluster[]> {
 
 
 // Task of the Day (preserved from original)
-
 async function getTaskOfTheDay(userId: string) {
     const allTasks = await db.getTasks();
     const userTasks = allTasks.filter(
@@ -366,7 +359,6 @@ async function getTaskOfTheDay(userId: string) {
 
 
 // API Route Handler
-
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);

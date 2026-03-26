@@ -43,8 +43,7 @@ function calculateAvgDays(tasks: Task[], now: Date): number {
     return Math.round(total / tasks.length);
 }
 
-
-// Rule-based Detection (always works)
+// Rule-based Detection
 function detectBottlenecks(tasks: Task[], users: { id: string; name: string }[]) {
     const now = new Date();
     const bottlenecks: BottleneckResult[] = [];
@@ -175,9 +174,7 @@ function detectBottlenecks(tasks: Task[], users: { id: string; name: string }[])
     };
 }
 
-
-// AI Feature: Workload Rebalancing
-
+// Workload Rebalancing
 async function getRebalancingSuggestions(tasks: Task[], users: { id: string; name: string; skills?: string[]; role?: string }[]): Promise<RebalanceSuggestion[]> {
     const now = new Date();
 
@@ -283,9 +280,7 @@ async function getRebalancingSuggestions(tasks: Task[], users: { id: string; nam
     }
 }
 
-
 // API Route Handler
-
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);

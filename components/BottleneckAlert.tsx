@@ -54,6 +54,33 @@ export function BottleneckAlert({ tasks = [], users = [], currentUser = null, pr
     const [rebalanceSuggestions, setRebalanceSuggestions] = useState<RebalanceSuggestion[]>([]);
 
     const router = useRouter();
+    const [applyingSwap, setApplyingSwap] = useState<string | null>(null);
+    const [appliedSwaps, setAppliedSwaps] = useState<Set<string>>(new Set());
+
+    const handleApplySwap = async (suggestion: RebalanceSuggestion) => {
+        if (!currentUser?.id) return;
+        setApplyingSwap(suggestion.taskId);
+        try {
+            const res = await fetch('/api/tasks', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: suggestion.taskId,
+                    userId: currentUser.id,
+                    assigneeId: suggestion.toUser.id,
+                    isSwap: true,
+                }),
+            });
+            if (res.ok) {
+                setAppliedSwaps(prev => new Set([...prev, suggestion.taskId]));
+                router.refresh();
+            }
+        } catch (err) {
+            console.error('Failed to apply swap:', err);
+        } finally {
+            setApplyingSwap(null);
+        }
+    };
 
     const deps = [tasks.length, users.length, currentUser?.id ?? null, projectId ?? null];
 
@@ -247,6 +274,25 @@ export function BottleneckAlert({ tasks = [], users = [], currentUser = null, pr
                                             {suggestion.toUser.matchingSkills.length > 0 && ` • ${suggestion.toUser.matchingSkills.join(', ')}`}
                                         </span>
                                     </div>
+                                </div>
+                                <div className="mt-3 flex justify-end">
+                                    {appliedSwaps.has(suggestion.taskId) ? (
+                                        <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                                            <CheckCircle2 size={12} /> Applied
+                                        </span>
+                                    ) : (
+                                        <button
+                                            onClick={() => handleApplySwap(suggestion)}
+                                            disabled={applyingSwap === suggestion.taskId}
+                                            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md disabled:opacity-50 transition-colors"
+                                        >
+                                            {applyingSwap === suggestion.taskId ? (
+                                                <><Loader2 size={10} className="animate-spin" /> Applying…</>
+                                            ) : (
+                                                <><CheckCircle2 size={10} /> Apply Swap</>
+                                            )}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </div>

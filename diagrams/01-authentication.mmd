@@ -1,0 +1,35 @@
+%%{init: {"sequence": {"mirrorActors": false}}}%%
+sequenceDiagram
+    actor User
+    participant Login as Login Form
+    participant Auth as AuthContext (Client)
+    participant SB as Supabase Auth
+    participant DB as Supabase DB
+
+    User->>Login: Select Login Method
+    
+    alt OAuth (Google/GitHub)
+        Login->>SB: signInWithOAuth({provider})
+        SB-->>User: Redirect to Provider
+        User->>SB: Authenticate & Authorize
+        SB->>SB: Exchange Code for Session
+    else Email/Password
+        User->>Login: Enter Credentials
+        Login->>SB: signInWithPassword({email, password})
+    end
+
+    SB-->>Auth: onAuthStateChange('SIGNED_IN')
+    Auth->>DB: SELECT * FROM users WHERE id = auth.uid() (loadProfile)
+    
+    alt User exists
+        DB-->>Auth: User Profile Data
+    else PGRST116 (Not Found - First time OAuth)
+        DB-->>Auth: PGRST116 Error
+        Auth->>DB: INSERT INTO users {id, email, name, role: 'Member', ...}
+        DB-->>Auth: Created User Profile Data
+    end
+    
+    Auth->>Auth: setCurrentUser(mappedUser)
+    Auth->>API: GET /api/users (Fetch all users for context)
+    API-->>Auth: users[]
+    Auth-->>User: Render fully authenticated app

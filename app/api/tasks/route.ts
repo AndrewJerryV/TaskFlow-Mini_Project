@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { Task } from '@/types';
 import { NextResponse } from 'next/server';
+import { sendTaskAssigned, sendTaskSwapped } from '@/lib/email';
 
 export async function GET(request: Request) {
     try {
@@ -101,6 +102,17 @@ export async function POST(request: Request) {
                     entityId: newTask.id,
                     projectId: body.projectId,
                 });
+                // Send email notification (fire-and-forget)
+                const assigneeUser = await db.getUser(body.assigneeId);
+                if (assigneeUser?.email) {
+                    sendTaskAssigned(
+                        assigneeUser.email,
+                        newTask.title,
+                        project?.name || 'a project',
+                        requestUser.name,
+                        `${process.env.NEXT_PUBLIC_APP_URL || ''}/projects/${body.projectId}?task=${newTask.id}`
+                    ).catch(e => console.error('Task assigned email error:', e));
+                }
             }
         }
 
@@ -129,13 +141,10 @@ export async function PATCH(request: Request) {
         const existingTask = await db.getTaskById(id);
         if (!existingTask) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
 
-        // RBAC constraints for Members
         if (requestUser.role === 'Member') {
             if (existingTask.assigneeId !== requestUser.id) {
                 return NextResponse.json({ error: 'Members can only update their own tasks' }, { status: 403 });
             }
-
-            // Lock down metadata edits
             const restrictedFields = ['title', 'description', 'priority', 'dueDate', 'isPrivate', 'dependencies', 'assigneeId'];
             const attemptRestrictedEdit = restrictedFields.some(field => field in updates);
 
@@ -187,6 +196,7 @@ export async function PATCH(request: Request) {
             // Notify new assignee if it's someone else
             if (updates.assigneeId !== userId) {
                 const project = await db.getProject(existingTask.projectId);
+                const taskLink = `${process.env.NEXT_PUBLIC_APP_URL || ''}/projects/${existingTask.projectId}?task=${updatedTask.id}`;
                 await db.addNotification({
                     userId: updates.assigneeId,
                     type: 'task_assigned',
@@ -196,6 +206,31 @@ export async function PATCH(request: Request) {
                     entityId: updatedTask.id,
                     projectId: existingTask.projectId,
                 });
+                // Send email to new assignee
+                const newAssigneeUser = await db.getUser(updates.assigneeId);
+                if (newAssigneeUser?.email) {
+                    sendTaskAssigned(
+                        newAssigneeUser.email,
+                        updatedTask.title,
+                        project?.name || 'a project',
+                        requestUser.name,
+                        taskLink
+                    ).catch(e => console.error('Task assigned email error:', e));
+                }
+                // If this is a swap, also notify the previous assignee
+                if (updates.isSwap && existingTask.assigneeId) {
+                    const prevAssigneeUser = await db.getUser(existingTask.assigneeId);
+                    if (prevAssigneeUser?.email) {
+                        sendTaskSwapped(
+                            prevAssigneeUser.email,
+                            updatedTask.title,
+                            project?.name || 'a project',
+                            prevAssigneeUser.name,
+                            newAssigneeUser?.name || 'another team member',
+                            taskLink
+                        ).catch(e => console.error('Task swapped email error:', e));
+                    }
+                }
             }
         }
 

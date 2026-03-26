@@ -1,0 +1,51 @@
+graph TB
+    subgraph ClientLayer["<<device>> Client Machine"]
+        Browser["<<executionEnvironment>> Web Browser\n—\nNext.js SPA\nTailwindCSS\nSupabase Realtime Subscriptions"]
+    end
+
+    subgraph VercelCloud["<<cloud>> Vercel Platform"]
+        subgraph NextServer["<<executionEnvironment>> Next.js Runtime"]
+            SSR["<<component> Server-Side Rendering\n—\nApp Router"]
+            APIRoutes["<<component>> API Routes\n—\n/api/tasks\n/api/projects\n/api/users\n/api/ai/assign\n/api/ml/recommendations\n/api/analytics/bottlenecks"]
+            DBLayer["<<component>> Database Layer\n—\nlib/db.ts\nlib/email.ts\nlib/supabase.ts"]
+        end
+    end
+
+    subgraph ExternalSaaS["<<cloud>> External Services"]
+        IndiePitcher["IndiePitcher\n(Email SaaS / SMTP)"]
+    end
+
+    subgraph MLServerNode["<<device>> ML Server (Local/Host)"]
+        subgraph PythonRuntime["<<executionEnvironment>> FastAPI (Port 8000)"]
+            FastAPIApp["<<component>> FastAPI Application"]
+            PriorityModel["<<component>> TaskPriority (SetFit)"]
+            AssignerModel["<<component>> TaskAssignee (SBERT)"]
+            UrgencyWellness["<<component>> Urgency & Wellness Models"]
+        end
+        ModelArtifacts["<<artifact>> Model Files (.safetensors, .json)"]
+    end
+
+    subgraph SupabaseCloud["<<cloud>> Supabase Cloud"]
+        subgraph SupabaseServices["<<executionEnvironment>> Supabase BaaS"]
+            PostgreSQL["<<database>> PostgreSQL 17\n(Core Tables: tasks, projects, users...)"]
+            Auth["<<component>> Supabase Auth"]
+            Realtime["<<component>> Supabase Realtime (CDC)"]
+            Storage["<<component>> Supabase Storage (Docs)"]
+        end
+    end
+
+    Browser -- "HTTPS / JSON" --> SSR
+    Browser -- "API Calls" --> APIRoutes
+    Browser -- "WebSockets" --> Realtime
+    
+    APIRoutes --> DBLayer
+    APIRoutes -- "HTTP/REST" --> FastAPIApp
+    DBLayer -- "Send Notifications" --> IndiePitcher
+    
+    FastAPIApp --> PriorityModel
+    FastAPIApp --> AssignerModel
+    FastAPIApp --> UrgencyWellness
+    
+    DBLayer -- "Supabase SDK" --> SupabaseServices
+    Auth -- "JWT" --> DBLayer
+    Realtime -- "Broadcasts" --> Browser

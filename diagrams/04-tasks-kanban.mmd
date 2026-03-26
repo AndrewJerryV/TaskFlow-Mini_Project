@@ -1,0 +1,45 @@
+%%{init: {"sequence": {"mirrorActors": false}}}%%
+sequenceDiagram
+    actor User
+    participant Board as Kanban Board (@dnd-kit)
+    participant API as /api/tasks
+    participant DB as lib/db.ts
+    participant RT as Supabase Realtime (CDC)
+    participant Email as Email Service (IndiePitcher)
+
+    Board->>RT: Subscribe to channel: tasks (filter: project_id=id)
+    User->>Board: Drag Task "T-101" to "Done"
+    
+    rect rgb(230, 255, 230)
+    Board->>Board: Update tasks state optimistically
+    Board-->>User: Immediate UI update (Zero latency)
+    end
+    
+    Board->>API: PATCH /api/tasks {id: "T-101", status: "Done"}
+    API->>API: Dependency checks (Are blockers Done?)
+    
+    alt Blockers Not Done
+        API-->>Board: 400 Bad Request
+        Board->>Board: Rollback tasks state to previous
+        Board-->>User: Show Error Toast (Constraint Violated)
+    else State Transition Valid
+        API->>DB: updateTask(id, {status: "Done", ...})
+        DB-->>API: 200 OK (Updated Task)
+        
+        %% Triggering in-app notifications
+        loop For Project Admins & Assignees
+            API->>DB: addNotification({type: 'task_status_changed', ...})
+        end
+        
+        API-->>Board: 200 OK
+        
+        DB->>RT: Row Updated (CDC Event)
+        RT-->>Board: Broadcast event (type: UPDATE, record: {...})
+        Board->>Board: Sync state with broadcasted record (if not already synced)
+    end
+    
+    User->>Board: Reassign Task to User B
+    Board->>API: PATCH /api/tasks {id: "T-101", assigneeId: "User_B"}
+    %% Requested to be kept from original diagram
+    API->>Email: sendTaskAssigned email (to User B)
+    API-->>Board: 200 OK

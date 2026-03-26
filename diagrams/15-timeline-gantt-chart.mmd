@@ -1,0 +1,61 @@
+---
+config:
+  theme: base
+  themeVariables:
+    primaryColor: "#4f46e5"
+    primaryTextColor: "#ffffff"
+    primaryBorderColor: "#3730a3"
+    secondaryColor: "#06b6d4"
+    secondaryTextColor: "#ffffff"
+    secondaryBorderColor: "#0891b2"
+    tertiaryColor: "#f59e0b"
+    tertiaryTextColor: "#1e1e1e"
+    tertiaryBorderColor: "#d97706"
+    lineColor: "#6366f1"
+    textColor: "#1e293b"
+    sectionBkgColor: "#e0e7ff"
+    sectionBkgColor2: "#dbeafe"
+    altSectionBkgColor: "#f0fdf4"
+    taskBkgColor: "#818cf8"
+    taskTextColor: "#ffffff"
+    taskBorderColor: "#6366f1"
+    activeTaskBkgColor: "#f97316"
+    activeTaskBorderColor: "#ea580c"
+    doneTaskBkgColor: "#22c55e"
+    doneTaskBorderColor: "#16a34a"
+    gridColor: "#cbd5e1"
+    todayLineColor: "#ef4444"
+    fontFamily: "Segoe UI, Roboto, sans-serif"
+    fontSize: "14px"
+---
+gantt
+    title TaskFlow - Project Development Timeline
+    dateFormat  YYYY-MM-DD
+    axisFormat  %b %d
+    tickInterval 1week
+
+    section Core Planning
+    Requirement Analysis             :done, p1, 2026-01-05, 5d
+    Design & Architecture            :done, p2, after p1, 7d
+    Database Schema (ER)             :done, p3, after p2, 3d
+
+    section Foundation
+    Next.js 15 & Supabase Setup      :done, f1, 2026-01-20, 4d
+    Auth & User Profiles             :done, f2, after f1, 5d
+    Project & Membership Logic       :done, f3, after f2, 4d
+
+    section Features
+    Kanban Board & CRUD              :done, i1, 2026-02-02, 7d
+    TimerContext & Time Tracking     :done, i2, after i1, 5d
+    Contextual Assets (Docs/Forms)   :done, i3, after i2, 6d
+    Analytics & Recharts Dashboard   :done, i4, after i3, 5d
+
+    section AI Integration
+    FastAPI ML Server Setup          :done, m1, 2026-02-15, 3d
+    Smart Task Assignment (SBERT)    :done, m2, after m1, 6d
+    Recs & Bottlenecks (SetFit)      :done, m3, after m2, 7d
+
+    section Delivery
+    Testing & Bug Fixes              :done, t1, 2026-03-01, 5d
+    Documentation & Diagrams         :active, t2, after t1, 4d
+    Final Review                     :t3, after t2, 2d

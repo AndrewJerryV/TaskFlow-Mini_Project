@@ -8,10 +8,6 @@ class WellnessModel:
         self.PENALTY_CONTEXT_SWITCH = 2      
 
     def calculate(self, active_tasks, high_priority_count, critical_urgency_count):
-        """
-        Calculates a Wellness/Health score (0-100).
-        100 = Perfect balance. < 30 = Burnout risk.
-        """
         score = 100
         
         if active_tasks > self.COMFORTABLE_LOAD:
