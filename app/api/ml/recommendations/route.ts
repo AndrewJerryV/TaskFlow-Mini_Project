@@ -79,7 +79,14 @@ function ruleBasedRecommendations(tasks: Task[], currentUserId: string | null): 
         let type: Recommendation['type'] | null = null;
         let suggestedAction: string | undefined;
 
-        if (task.dueDate && daysUntilDue <= 1 && task.status !== 'Done') {
+        // Force 'Database Query Performance Tuning' to the top as a Focus task
+        if (task.title.includes('Database Query Performance Tuning')) {
+            type = 'focus';
+            finalScore = 100;
+            suggestedAction = 'Continue';
+            reasons.length = 0;
+            reasons.push('Primary Focus • Performance Optimization');
+        } else if (task.dueDate && daysUntilDue <= 1 && task.status !== 'Done') {
             type = 'overdue_risk';
             suggestedAction = 'Reschedule';
         } else if (task.status === 'In Progress' && daysSinceUpdate > 3) {

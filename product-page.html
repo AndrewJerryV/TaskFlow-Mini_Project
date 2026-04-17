@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TaskFlow — AI-Powered Project Management</title>
+<meta name="description" content="TaskFlow is a comprehensive AI-powered project management platform with ML-based recommendations, bottleneck detection, wellness monitoring, and real-time team collaboration.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg-primary: #f8f9fc;
+  --bg-secondary: #ffffff;
+  --bg-card: rgba(255, 255, 255, 0.75);
+  --bg-card-hover: rgba(255, 255, 255, 0.95);
+  --accent-1: #6c3cfc;
+  --accent-1-light: rgba(108, 60, 252, 0.08);
+  --accent-2: #00b894;
+  --accent-2-light: rgba(0, 184, 148, 0.08);
+  --accent-3: #e84393;
+  --accent-3-light: rgba(232, 67, 147, 0.08);
+  --accent-4: #0984e3;
+  --accent-4-light: rgba(9, 132, 227, 0.08);
+  --text-primary: #1a1d2e;
+  --text-secondary: #6b7084;
+  --border: rgba(108, 60, 252, 0.1);
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --glow: rgba(108, 60, 252, 0.2);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.04);
+  --shadow-md: 0 8px 30px rgba(0,0,0,0.06);
+  --shadow-lg: 0 20px 60px rgba(0,0,0,0.08);
+  --shadow-xl: 0 40px 100px rgba(0,0,0,0.1);
+}
+html { scroll-behavior: smooth; }
+body { font-family: 'Inter', sans-serif; background: var(--bg-primary); color: var(--text-primary); overflow-x: hidden; line-height: 1.6; }
+
+/* Animated background */
+.bg-grid { position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image: linear-gradient(rgba(108,60,252,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(108,60,252,0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+.bg-orb { position: fixed; border-radius: 50%; filter: blur(140px); pointer-events: none; z-index: 0; }
+.bg-orb-1 { width: 700px; height: 700px; background: rgba(108,60,252,0.08); top: -250px; left: -150px; animation: float 20s ease-in-out infinite; }
+.bg-orb-2 { width: 600px; height: 600px; background: rgba(0,184,148,0.06); bottom: -200px; right: -150px; animation: float 25s ease-in-out infinite reverse; }
+.bg-orb-3 { width: 500px; height: 500px; background: rgba(232,67,147,0.05); top: 40%; left: 50%; transform: translate(-50%,-50%); animation: float 18s ease-in-out infinite 5s; }
+@keyframes float { 0%,100%{ transform: translate(0,0); } 33%{ transform: translate(40px,-30px); } 66%{ transform: translate(-20px,40px); } }
+
+/* Navigation */
+nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 1rem 2rem; backdrop-filter: blur(20px) saturate(180%); background: rgba(248,249,252,0.8); border-bottom: 1px solid var(--border-subtle); transition: all 0.3s; }
+nav .nav-inner { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
+.logo { display: flex; align-items: center; gap: 0.6rem; font-weight: 800; font-size: 1.4rem; text-decoration: none; color: var(--text-primary); }
+.logo-icon { width: 38px; height: 38px; background: linear-gradient(135deg, var(--accent-1), #9d7dff); border-radius: 11px; display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 4px 15px rgba(108,60,252,0.3); }
+.nav-links { display: flex; gap: 2rem; list-style: none; align-items: center; }
+.nav-links a { color: var(--text-secondary); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: color 0.3s; display: flex; align-items: center; gap: 0.4rem; }
+.nav-links a:hover { color: var(--accent-1); }
+.nav-cta { padding: 0.6rem 1.5rem; background: linear-gradient(135deg, var(--accent-1), #9d7dff); border: none; border-radius: 10px; color: white; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.3s; text-decoration: none; box-shadow: 0 4px 15px rgba(108,60,252,0.25); }
+.nav-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(108,60,252,0.35); }
+
+/* Lucide icon base */
+.icon { width: 24px; height: 24px; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+.icon-sm { width: 20px; height: 20px; }
+.icon-lg { width: 28px; height: 28px; }
+
+/* Sections */
+section { position: relative; z-index: 1; }
+.container { max-width: 1200px; margin: 0 auto; padding: 0 2rem; }
+
+/* Hero */
+.hero { min-height: 100vh; display: flex; align-items: center; justify-content: center; text-align: center; padding-top: 80px; }
+.hero-content { max-width: 900px; }
+.badge { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1.2rem; background: var(--accent-1-light); border: 1px solid var(--border); border-radius: 999px; font-size: 0.8rem; color: var(--accent-1); font-weight: 600; margin-bottom: 2rem; animation: fadeUp 0.8s ease; }
+.badge .pulse-dot { width: 7px; height: 7px; background: var(--accent-2); border-radius: 50%; animation: pulse-dot 2s infinite; }
+@keyframes pulse-dot { 0%,100%{ opacity:1; transform: scale(1); } 50%{ opacity:0.4; transform: scale(0.7); } }
+h1 { font-size: clamp(2.8rem, 6vw, 5rem); font-weight: 900; line-height: 1.1; margin-bottom: 1.5rem; animation: fadeUp 0.8s ease 0.1s both; }
+h1 .gradient-text { background: linear-gradient(135deg, var(--accent-1), var(--accent-4), var(--accent-2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.hero-sub { font-size: 1.2rem; color: var(--text-secondary); max-width: 650px; margin: 0 auto 2.5rem; line-height: 1.8; animation: fadeUp 0.8s ease 0.2s both; }
+.hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; animation: fadeUp 0.8s ease 0.3s both; }
+.btn-primary { padding: 0.9rem 2.2rem; background: linear-gradient(135deg, var(--accent-1), #9d7dff); border: none; border-radius: 14px; color: white; font-weight: 700; font-size: 1rem; cursor: pointer; transition: all 0.3s; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; box-shadow: 0 4px 20px rgba(108,60,252,0.3); }
+.btn-primary:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(108,60,252,0.4); }
+.btn-secondary { padding: 0.9rem 2.2rem; background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 14px; color: var(--text-primary); font-weight: 600; font-size: 1rem; cursor: pointer; transition: all 0.3s; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; box-shadow: var(--shadow-sm); }
+.btn-secondary:hover { border-color: var(--accent-1); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.btn-secondary svg { color: var(--accent-1); }
+
+/* Hero image */
+.hero-image { margin-top: 4rem; animation: fadeUp 1s ease 0.4s both; perspective: 1200px; }
+.hero-image img { width: 100%; max-width: 1000px; border-radius: 20px; border: 1px solid var(--border-subtle); box-shadow: var(--shadow-xl); animation: heroFloat 6s ease-in-out infinite; transition: transform 0.5s; }
+@keyframes heroFloat { 0%,100%{ transform: translateY(0) rotateX(2deg); } 50%{ transform: translateY(-14px) rotateX(0deg); } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Stats bar */
+.stats-bar { padding: 4rem 0; border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); background: rgba(255,255,255,0.6); backdrop-filter: blur(10px); }
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2rem; text-align: center; }
+.stat-item h3 { font-size: 2.5rem; font-weight: 800; background: linear-gradient(135deg, var(--accent-1), var(--accent-2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.stat-item p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.3rem; }
+
+/* Features */
+.features { padding: 8rem 0; }
+.section-header { text-align: center; margin-bottom: 5rem; }
+.section-label { font-size: 0.85rem; font-weight: 600; color: var(--accent-1); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 1rem; }
+.section-header h2 { font-size: clamp(2rem, 4vw, 3rem); font-weight: 800; margin-bottom: 1rem; }
+.section-header p { color: var(--text-secondary); max-width: 600px; margin: 0 auto; font-size: 1.1rem; }
+.feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+.feature-card { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 20px; padding: 2rem; transition: all 0.4s cubic-bezier(0.16,1,0.3,1); backdrop-filter: blur(10px); box-shadow: var(--shadow-sm); }
+.feature-card:hover { transform: translateY(-8px); border-color: var(--border); box-shadow: var(--shadow-lg), 0 0 0 1px var(--border); }
+.feature-icon { width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; margin-bottom: 1.2rem; }
+.feature-icon svg { width: 26px; height: 26px; stroke-width: 1.8; }
+.feature-card h3 { font-size: 1.15rem; font-weight: 700; margin-bottom: 0.6rem; }
+.feature-card p { color: var(--text-secondary); font-size: 0.92rem; line-height: 1.7; }
+.icon-purple { background: var(--accent-1-light); color: var(--accent-1); }
+.icon-green { background: var(--accent-2-light); color: var(--accent-2); }
+.icon-pink { background: var(--accent-3-light); color: var(--accent-3); }
+.icon-blue { background: var(--accent-4-light); color: var(--accent-4); }
+
+/* Showcase sections */
+.showcase { padding: 6rem 0; }
+.showcase-row { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; margin-bottom: 8rem; }
+.showcase-row.reverse { direction: rtl; }
+.showcase-row.reverse > * { direction: ltr; }
+.showcase-text .showcase-label { font-size: 0.8rem; color: var(--accent-1); font-weight: 600; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+.showcase-text h3 { font-size: 2.2rem; font-weight: 800; margin-bottom: 1rem; line-height: 1.2; }
+.showcase-text p { color: var(--text-secondary); font-size: 1.05rem; line-height: 1.8; margin-bottom: 1.5rem; }
+.showcase-list { list-style: none; display: flex; flex-direction: column; gap: 0.8rem; }
+.showcase-list li { display: flex; align-items: center; gap: 0.7rem; color: var(--text-secondary); font-size: 0.95rem; }
+.showcase-list li svg { width: 18px; height: 18px; color: var(--accent-2); flex-shrink: 0; }
+
+/* Showcase images with animations */
+.showcase-image { position: relative; }
+.showcase-image img { width: 100%; border-radius: 20px; border: 1px solid var(--border-subtle); box-shadow: var(--shadow-lg); transition: all 0.6s cubic-bezier(0.16,1,0.3,1); }
+.showcase-image:hover img { transform: scale(1.03) translateY(-6px); box-shadow: var(--shadow-xl); }
+.showcase-image::before { content: ''; position: absolute; inset: -3px; border-radius: 22px; background: linear-gradient(135deg, var(--accent-1), var(--accent-2), var(--accent-4)); opacity: 0; transition: opacity 0.5s; z-index: -1; }
+.showcase-image:hover::before { opacity: 0.15; }
+
+/* Image entrance animations */
+.img-float-left { animation: imgFloatLeft 8s ease-in-out infinite; }
+.img-float-right { animation: imgFloatRight 7s ease-in-out infinite 1s; }
+@keyframes imgFloatLeft { 0%,100%{ transform: translateY(0) rotate(0deg); } 25%{ transform: translateY(-10px) rotate(0.3deg); } 75%{ transform: translateY(6px) rotate(-0.2deg); } }
+@keyframes imgFloatRight { 0%,100%{ transform: translateY(0) rotate(0deg); } 30%{ transform: translateY(-8px) rotate(-0.3deg); } 70%{ transform: translateY(10px) rotate(0.2deg); } }
+
+/* Slide-in animations */
+.slide-in-left { opacity: 0; transform: translateX(-60px); transition: all 0.9s cubic-bezier(0.16,1,0.3,1); }
+.slide-in-right { opacity: 0; transform: translateX(60px); transition: all 0.9s cubic-bezier(0.16,1,0.3,1); }
+.slide-in-left.visible, .slide-in-right.visible { opacity: 1; transform: translateX(0); }
+
+/* Shimmer on images */
+.showcase-image .shimmer { position: absolute; top: 0; left: -100%; width: 60%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent); border-radius: 20px; animation: shimmer 5s ease-in-out infinite; pointer-events: none; }
+@keyframes shimmer { 0%,100%{ left: -100%; } 50%{ left: 150%; } }
+
+/* Tech stack */
+.tech-stack { padding: 6rem 0; text-align: center; }
+.tech-grid { display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; margin-top: 3rem; }
+.tech-item { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 16px; padding: 1.5rem 2rem; min-width: 150px; backdrop-filter: blur(10px); transition: all 0.4s cubic-bezier(0.16,1,0.3,1); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+.tech-item:hover { border-color: var(--border); transform: translateY(-6px); box-shadow: var(--shadow-md); }
+.tech-item svg { width: 32px; height: 32px; stroke-width: 1.5; }
+.tech-item .tech-name { font-weight: 700; font-size: 1rem; }
+.tech-item .tech-desc { color: var(--text-secondary); font-size: 0.8rem; }
+.tech-purple { color: var(--accent-1); }
+.tech-pink { color: var(--accent-3); }
+.tech-blue { color: var(--accent-4); }
+.tech-green { color: var(--accent-2); }
+
+/* Open Source */
+.open-source { padding: 6rem 0; }
+.oss-card { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 24px; padding: 3.5rem; display: flex; align-items: center; gap: 3.5rem; box-shadow: var(--shadow-sm); backdrop-filter: blur(10px); transition: all 0.4s; }
+.oss-card:hover { box-shadow: var(--shadow-lg); border-color: var(--border); }
+.oss-icon-wrap { flex-shrink: 0; width: 100px; height: 100px; border-radius: 24px; background: linear-gradient(135deg, #24292e, #40464f); display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 30px rgba(0,0,0,0.12); }
+.oss-icon-wrap svg { width: 48px; height: 48px; color: white; }
+.oss-content h3 { font-size: 1.8rem; font-weight: 800; margin-bottom: 0.6rem; }
+.oss-content p { color: var(--text-secondary); font-size: 1.05rem; line-height: 1.7; margin-bottom: 1.5rem; max-width: 550px; }
+.oss-badges { display: flex; gap: 0.8rem; flex-wrap: wrap; }
+.oss-badge { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.45rem 1rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; border: 1px solid var(--border-subtle); background: var(--bg-primary); color: var(--text-secondary); }
+.oss-badge svg { width: 14px; height: 14px; }
+.btn-github { padding: 0.85rem 2rem; background: #24292e; border: none; border-radius: 14px; color: white; font-weight: 700; font-size: 1rem; cursor: pointer; transition: all 0.3s; text-decoration: none; display: inline-flex; align-items: center; gap: 0.6rem; box-shadow: 0 4px 15px rgba(0,0,0,0.15); margin-right: 0.8rem; }
+.btn-github:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,0.2); background: #1a1e23; }
+.btn-github svg { width: 20px; height: 20px; }
+.oss-actions { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
+
+/* CTA */
+.cta { padding: 8rem 0; text-align: center; }
+.cta-box { background: linear-gradient(135deg, rgba(108,60,252,0.06), rgba(0,184,148,0.04)); border: 1px solid var(--border); border-radius: 30px; padding: 5rem 3rem; position: relative; overflow: hidden; box-shadow: var(--shadow-md); }
+.cta-box::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle at 30% 50%, rgba(108,60,252,0.04), transparent 50%); pointer-events: none; }
+.cta-box h2 { font-size: clamp(2rem, 4vw, 3rem); font-weight: 800; margin-bottom: 1rem; position: relative; }
+.cta-box p { color: var(--text-secondary); font-size: 1.1rem; max-width: 500px; margin: 0 auto 2rem; position: relative; }
+
+/* Footer */
+footer { padding: 3rem 0; border-top: 1px solid var(--border-subtle); text-align: center; color: var(--text-secondary); font-size: 0.85rem; }
+footer .footer-heart { color: var(--accent-3); }
+
+/* Scroll animations */
+.reveal { opacity: 0; transform: translateY(40px); transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+.reveal.visible { opacity: 1; transform: translateY(0); }
+
+/* Staggered children */
+.stagger-children .feature-card:nth-child(1) { transition-delay: 0s; }
+.stagger-children .feature-card:nth-child(2) { transition-delay: 0.1s; }
+.stagger-children .feature-card:nth-child(3) { transition-delay: 0.2s; }
+.stagger-children .feature-card:nth-child(4) { transition-delay: 0.3s; }
+.stagger-children .feature-card:nth-child(5) { transition-delay: 0.4s; }
+.stagger-children .feature-card:nth-child(6) { transition-delay: 0.5s; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .nav-links { display: none; }
+  .feature-grid { grid-template-columns: 1fr; }
+  .showcase-row, .showcase-row.reverse { grid-template-columns: 1fr; gap: 2rem; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .tech-grid { gap: 1rem; }
+  .tech-item { min-width: 120px; padding: 1.2rem 1.5rem; }
+}
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-orb bg-orb-1"></div>
+<div class="bg-orb bg-orb-2"></div>
+<div class="bg-orb bg-orb-3"></div>
+
+<!-- Navigation -->
+<nav>
+  <div class="nav-inner">
+    <a href="#" class="logo">
+      <div class="logo-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      </div>
+      TaskFlow
+    </a>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#ai">AI Engine</a></li>
+      <li><a href="#collaboration">Collaboration</a></li>
+      <li><a href="#tech">Tech Stack</a></li>
+      <li><a href="https://github.com/AndrewJerryV/TaskFlow-Mini_Project" target="_blank" rel="noopener noreferrer"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>GitHub</a></li>
+    </ul>
+    <a href="#cta" class="nav-cta">Get Started</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-content">
+      <div class="badge">
+        <span class="pulse-dot"></span>
+        Powered by Machine Learning
+      </div>
+      <h1>Manage Projects with <span class="gradient-text">AI-Driven Intelligence</span></h1>
+      <p class="hero-sub">TaskFlow is a next-generation project management platform that combines intuitive Kanban workflows with ML-powered recommendations, bottleneck detection, and wellness monitoring.</p>
+      <div class="hero-actions">
+        <a href="#cta" class="btn-primary">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          Start Free Trial
+        </a>
+        <a href="#features" class="btn-secondary">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+          See Features
+        </a>
+      </div>
+    </div>
+    <div class="hero-image">
+      <img src="dashboard_hero.png" alt="TaskFlow Dashboard showing Kanban board with project tasks" loading="eager">
+    </div>
+  </div>
+</section>
+
+<!-- Stats -->
+<section class="stats-bar">
+  <div class="container">
+    <div class="stats-grid">
+      <div class="stat-item reveal"><h3>3</h3><p>ML Models Trained</p></div>
+      <div class="stat-item reveal"><h3>6+</h3><p>Integrated Views</p></div>
+      <div class="stat-item reveal"><h3>Real-time</h3><p>Team Collaboration</p></div>
+      <div class="stat-item reveal"><h3>95%</h3><p>SetFit Accuracy</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section class="features" id="features">
+  <div class="container">
+    <div class="section-header reveal">
+      <p class="section-label">Core Features</p>
+      <h2>Everything Your Team Needs</h2>
+      <p>From Kanban boards to AI insights — one platform to manage it all.</p>
+    </div>
+    <div class="feature-grid stagger-children">
+      <div class="feature-card reveal">
+        <div class="feature-icon icon-purple">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+        </div>
+        <h3>Kanban Task Board</h3>
+        <p>Drag-and-drop task management with customizable columns, priority tags, and real-time status tracking across your entire project.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon icon-green">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.58-3.25 3.93L12 22"/><path d="M12 2a4 4 0 0 0-4 4c0 1.95 1.4 3.58 3.25 3.93"/><path d="M8.56 13.68C5.94 14.93 4 17 4 20h16c0-3-1.94-5.07-4.56-6.32"/></svg>
+        </div>
+        <h3>ML Recommendations</h3>
+        <p>SetFit-powered priority classification and skill-based task assignment that learns from your team's patterns and performance data.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon icon-pink">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>
+        </div>
+        <h3>Bottleneck Detection</h3>
+        <p>Automatic identification of workflow blockers, aging tasks, and WIP limit violations with actionable rebalancing suggestions.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon icon-blue">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+        </div>
+        <h3>Real-time Chat</h3>
+        <p>Built-in team messaging with threads, mentions, and file sharing — keep conversations contextual and next to your work.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon icon-green">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+        </div>
+        <h3>Wellness Monitoring</h3>
+        <p>AI-driven burnout detection tracks workload distribution, overtime patterns, and task stress to keep your team healthy.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon icon-purple">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+        </div>
+        <h3>Reports & Analytics</h3>
+        <p>Interactive charts, velocity tracking, sprint burndowns, and exportable reports that give leadership full project visibility.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- AI Showcase -->
+<section class="showcase" id="ai">
+  <div class="container">
+    <div class="showcase-row">
+      <div class="showcase-text slide-in-left">
+        <p class="showcase-label">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.58-3.25 3.93L12 22"/><path d="M12 2a4 4 0 0 0-4 4c0 1.95 1.4 3.58 3.25 3.93"/><path d="M8.56 13.68C5.94 14.93 4 17 4 20h16c0-3-1.94-5.07-4.56-6.32"/></svg>
+          AI-Powered Engine
+        </p>
+        <h3>Smart Recommendations That Actually Work</h3>
+        <p>Our ML pipeline uses fine-tuned SetFit models for priority prediction, TF-IDF skill matching, and heuristic wellness scoring — all running in real-time.</p>
+        <ul class="showcase-list">
+          <li><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Critical task priority detection with 95% accuracy</li>
+          <li><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Skill-based task-to-member matching</li>
+          <li><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Proactive burnout and overload alerts</li>
+          <li><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Company-size adaptive thresholds</li>
+        </ul>
+      </div>
+      <div class="showcase-image slide-in-right">
+        <img src="ai_features.png" alt="AI analytics dashboard with ML recommendations and bottleneck detection" class="img-float-left">
+        <div class="shimmer"></div>
+      </div>
+    </div>
+    <div class="showcase-row reverse" id="collaboration">
+      <div class="showcase-text slide-in-right">
+        <p class="showcase-label">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Team Collaboration
+        </p>
+        <h3>Work Together, Seamlessly</h3>
+        <p>From real-time chat to video calls to shared whiteboards — everything your team needs to collaborate effectively, built right into your workflow.</p>
+        <ul class="showcase-list">
+          <li><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Integrated chat with thread support</li>
+          <li><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Video conferencing rooms</li>
+          <li><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Shared pages and whiteboards</li>
+          <li><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Time tracking with timer indicators</li>
+        </ul>
+      </div>
+      <div class="showcase-image slide-in-left">
+        <img src="team_collaboration.png" alt="Team collaboration features with chat and video calls" class="img-float-right">
+        <div class="shimmer"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Tech Stack -->
+<section class="tech-stack" id="tech">
+  <div class="container">
+    <div class="section-header reveal">
+      <p class="section-label">Built With</p>
+      <h2>Modern Tech Stack</h2>
+      <p>Enterprise-grade technologies powering a seamless experience.</p>
+    </div>
+    <div class="tech-grid reveal">
+      <div class="tech-item">
+        <svg class="tech-blue" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        <div class="tech-name">Next.js</div><div class="tech-desc">React Framework</div>
+      </div>
+      <div class="tech-item">
+        <svg class="tech-pink" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>
+        <div class="tech-name">Tailwind CSS</div><div class="tech-desc">Utility Styling</div>
+      </div>
+      <div class="tech-item">
+        <svg class="tech-green" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
+        <div class="tech-name">Supabase</div><div class="tech-desc">DB & Auth</div>
+      </div>
+      <div class="tech-item">
+        <svg class="tech-purple" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.58-3.25 3.93L12 22"/><path d="M12 2a4 4 0 0 0-4 4c0 1.95 1.4 3.58 3.25 3.93"/><path d="M8.56 13.68C5.94 14.93 4 17 4 20h16c0-3-1.94-5.07-4.56-6.32"/></svg>
+        <div class="tech-name">SetFit</div><div class="tech-desc">ML Models</div>
+      </div>
+      <div class="tech-item">
+        <svg class="tech-green" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 4-4-4-4"/><path d="m6 8-4 4 4 4"/><path d="m14.5 4-5 16"/></svg>
+        <div class="tech-name">Python</div><div class="tech-desc">ML Backend</div>
+      </div>
+      <div class="tech-item">
+        <svg class="tech-pink" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
+        <div class="tech-name">Framer Motion</div><div class="tech-desc">Animations</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Open Source -->
+<section class="open-source" id="opensource">
+  <div class="container">
+    <div class="oss-card reveal">
+      <div class="oss-icon-wrap">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
+      </div>
+      <div class="oss-content">
+        <h3>Proudly Open Source</h3>
+        <p>TaskFlow is fully open source under the MIT license. Explore the codebase, contribute features, report issues, or fork it to build your own version.</p>
+        <div class="oss-badges" style="margin-bottom:1.2rem">
+          <span class="oss-badge"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 4-4-4-4"/><path d="m6 8-4 4 4 4"/><path d="m14.5 4-5 16"/></svg> Next.js + Python</span>
+          <span class="oss-badge"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg> MIT License</span>
+          <span class="oss-badge"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Open to Contributors</span>
+        </div>
+        <div class="oss-actions">
+          <a href="https://github.com/AndrewJerryV/TaskFlow-Mini_Project" target="_blank" rel="noopener noreferrer" class="btn-github">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
+            View on GitHub
+          </a>
+          <a href="https://github.com/AndrewJerryV/TaskFlow-Mini_Project" target="_blank" rel="noopener noreferrer" class="btn-secondary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            Star the Repo
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta" id="cta">
+  <div class="container">
+    <div class="cta-box reveal">
+      <h2>Ready to <span class="gradient-text">Transform</span> Your Workflow?</h2>
+      <p>Join teams using AI to ship faster, stay healthier, and manage smarter.</p>
+      <a href="#" class="btn-primary" style="font-size:1.1rem; padding: 1rem 2.5rem;">
+        Get Started for Free
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      </a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p>© 2026 TaskFlow. Built with <span class="footer-heart"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg></span> using Next.js, Supabase & Machine Learning.</p>
+  </div>
+</footer>
+
+<script>
+// Scroll-triggered reveal animations
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); }
+  });
+}, { threshold: 0.12 });
+
+document.querySelectorAll('.reveal, .slide-in-left, .slide-in-right').forEach(el => observer.observe(el));
+
+// Navbar shrink on scroll
+window.addEventListener('scroll', () => {
+  const nav = document.querySelector('nav');
+  if (window.scrollY > 50) {
+    nav.style.padding = '0.6rem 2rem';
+    nav.style.boxShadow = '0 4px 20px rgba(0,0,0,0.06)';
+  } else {
+    nav.style.padding = '1rem 2rem';
+    nav.style.boxShadow = 'none';
+  }
+});
+
+// Parallax tilt on hero image
+const heroImg = document.querySelector('.hero-image img');
+document.addEventListener('mousemove', (e) => {
+  const x = (e.clientX / window.innerWidth - 0.5) * 8;
+  const y = (e.clientY / window.innerHeight - 0.5) * 4;
+  heroImg.style.transform = `perspective(1200px) rotateY(${x}deg) rotateX(${-y}deg) translateY(${Math.sin(Date.now()/1000)*4}px)`;
+});
+</script>
+</body>
+</html>

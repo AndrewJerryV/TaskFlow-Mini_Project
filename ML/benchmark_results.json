@@ -1,0 +1,380 @@
+{
+  "generated_at_epoch": 1774985910,
+  "dataset": {
+    "file": "c:\\Users\\Andrew\\Desktop\\Mini Project\\task-flow\\ML\\data.txt",
+    "samples": 267,
+    "class_distribution": {
+      "High": 79,
+      "Medium": 94,
+      "Low": 70,
+      "Critical": 24
+    }
+  },
+  "models": {
+    "task_priority_setfit": {
+      "samples_total": 267,
+      "class_distribution": {
+        "High": 79,
+        "Medium": 94,
+        "Low": 70,
+        "Critical": 24
+      },
+      "evaluation": "Repeated stratified holdout (3 runs, 25% unseen test each run)",
+      "accuracy_mean": 0.8806,
+      "accuracy_std": 0.0122,
+      "f1_macro_mean": 0.8195,
+      "f1_macro_std": 0.004,
+      "train_seconds_mean": 541.719,
+      "inference_total_seconds_mean": 0.1293,
+      "inference_avg_ms_per_sample_mean": 1.929,
+      "holdout_runs": [
+        {
+          "accuracy": 0.8955,
+          "precision_macro": 0.9287,
+          "recall_macro": 0.7914,
+          "f1_macro": 0.8156,
+          "precision_weighted": 0.9083,
+          "recall_weighted": 0.8955,
+          "f1_weighted": 0.8836,
+          "confusion_matrix_labels": [
+            "Low",
+            "Medium",
+            "High",
+            "Critical"
+          ],
+          "confusion_matrix": [
+            [
+              15,
+              2,
+              0,
+              0
+            ],
+            [
+              0,
+              24,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              19,
+              0
+            ],
+            [
+              0,
+              0,
+              4,
+              2
+            ]
+          ],
+          "classification_report": {
+            "Low": {
+              "precision": 1.0,
+              "recall": 0.8823529411764706,
+              "f1-score": 0.9375,
+              "support": 17.0
+            },
+            "Medium": {
+              "precision": 0.8888888888888888,
+              "recall": 1.0,
+              "f1-score": 0.9411764705882353,
+              "support": 24.0
+            },
+            "High": {
+              "precision": 0.8260869565217391,
+              "recall": 0.95,
+              "f1-score": 0.8837209302325582,
+              "support": 20.0
+            },
+            "Critical": {
+              "precision": 1.0,
+              "recall": 0.3333333333333333,
+              "f1-score": 0.5,
+              "support": 6.0
+            },
+            "accuracy": 0.8955223880597015,
+            "macro avg": {
+              "precision": 0.928743961352657,
+              "recall": 0.7914215686274509,
+              "f1-score": 0.8155993502051984,
+              "support": 67.0
+            },
+            "weighted avg": {
+              "precision": 0.90828466363833,
+              "recall": 0.8955223880597015,
+              "f1-score": 0.8835843865487881,
+              "support": 67.0
+            }
+          },
+          "seed": 42,
+          "train_samples": 200,
+          "test_samples": 67,
+          "train_seconds": 537.0667,
+          "inference_total_seconds": 0.1293,
+          "inference_avg_ms_per_sample": 1.93
+        },
+        {
+          "accuracy": 0.8806,
+          "precision_macro": 0.8579,
+          "recall_macro": 0.808,
+          "f1_macro": 0.8249,
+          "precision_weighted": 0.8787,
+          "recall_weighted": 0.8806,
+          "f1_weighted": 0.8754,
+          "confusion_matrix_labels": [
+            "Low",
+            "Medium",
+            "High",
+            "Critical"
+          ],
+          "confusion_matrix": [
+            [
+              14,
+              3,
+              0,
+              0
+            ],
+            [
+              1,
+              23,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              19,
+              1
+            ],
+            [
+              0,
+              0,
+              3,
+              3
+            ]
+          ],
+          "classification_report": {
+            "Low": {
+              "precision": 0.9333333333333333,
+              "recall": 0.8235294117647058,
+              "f1-score": 0.875,
+              "support": 17.0
+            },
+            "Medium": {
+              "precision": 0.8846153846153846,
+              "recall": 0.9583333333333334,
+              "f1-score": 0.92,
+              "support": 24.0
+            },
+            "High": {
+              "precision": 0.8636363636363636,
+              "recall": 0.95,
+              "f1-score": 0.9047619047619048,
+              "support": 20.0
+            },
+            "Critical": {
+              "precision": 0.75,
+              "recall": 0.5,
+              "f1-score": 0.6,
+              "support": 6.0
+            },
+            "accuracy": 0.8805970149253731,
+            "macro avg": {
+              "precision": 0.8578962703962704,
+              "recall": 0.8079656862745097,
+              "f1-score": 0.8249404761904762,
+              "support": 67.0
+            },
+            "weighted avg": {
+              "precision": 0.8786591517934802,
+              "recall": 0.8805970149253731,
+              "f1-score": 0.8753766879886283,
+              "support": 67.0
+            }
+          },
+          "seed": 123,
+          "train_samples": 200,
+          "test_samples": 67,
+          "train_seconds": 545.6295,
+          "inference_total_seconds": 0.1366,
+          "inference_avg_ms_per_sample": 2.039
+        },
+        {
+          "accuracy": 0.8657,
+          "precision_macro": 0.9174,
+          "recall_macro": 0.7868,
+          "f1_macro": 0.8179,
+          "precision_weighted": 0.8894,
+          "recall_weighted": 0.8657,
+          "f1_weighted": 0.8552,
+          "confusion_matrix_labels": [
+            "Low",
+            "Medium",
+            "High",
+            "Critical"
+          ],
+          "confusion_matrix": [
+            [
+              11,
+              6,
+              0,
+              0
+            ],
+            [
+              0,
+              24,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              20,
+              0
+            ],
+            [
+              0,
+              0,
+              3,
+              3
+            ]
+          ],
+          "classification_report": {
+            "Low": {
+              "precision": 1.0,
+              "recall": 0.6470588235294118,
+              "f1-score": 0.7857142857142857,
+              "support": 17.0
+            },
+            "Medium": {
+              "precision": 0.8,
+              "recall": 1.0,
+              "f1-score": 0.8888888888888888,
+              "support": 24.0
+            },
+            "High": {
+              "precision": 0.8695652173913043,
+              "recall": 1.0,
+              "f1-score": 0.9302325581395349,
+              "support": 20.0
+            },
+            "Critical": {
+              "precision": 1.0,
+              "recall": 0.5,
+              "f1-score": 0.6666666666666666,
+              "support": 6.0
+            },
+            "accuracy": 0.8656716417910447,
+            "macro avg": {
+              "precision": 0.9173913043478261,
+              "recall": 0.7867647058823529,
+              "f1-score": 0.8178755998523439,
+              "support": 67.0
+            },
+            "weighted avg": {
+              "precision": 0.8894224529526282,
+              "recall": 0.8656716417910447,
+              "f1-score": 0.8551511545263715,
+              "support": 67.0
+            }
+          },
+          "seed": 999,
+          "train_samples": 200,
+          "test_samples": 67,
+          "train_seconds": 542.4608,
+          "inference_total_seconds": 0.1218,
+          "inference_avg_ms_per_sample": 1.818
+        }
+      ],
+      "confusion_matrix_labels": [
+        "Low",
+        "Medium",
+        "High",
+        "Critical"
+      ],
+      "aggregate_confusion_matrix": [
+        [
+          40,
+          11,
+          0,
+          0
+        ],
+        [
+          1,
+          71,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          58,
+          1
+        ],
+        [
+          0,
+          0,
+          10,
+          8
+        ]
+      ],
+      "note": "Out-of-sample benchmark using unseen test splits to avoid train/test leakage."
+    },
+    "skill_matcher_sentence_transformer": {
+      "train_samples": 200,
+      "test_samples": 67,
+      "model_load_seconds": 0.0681,
+      "encode_total_seconds": 0.537,
+      "encode_avg_ms_per_sample": 2.011,
+      "embedding_dim": 384,
+      "proxy_top1_neighbor_label_accuracy": 0.7015,
+      "proxy_top3_neighbor_label_hit_rate": 0.8657,
+      "proxy_silhouette_cosine": 0.0133,
+      "note": "Holdout proxy benchmark: nearest-neighbor retrieval from unseen test texts to train texts. No labeled skill-matching ground truth found."
+    },
+    "task_assigner_runtime": {
+      "candidates_per_run": 300,
+      "runs": 30,
+      "avg_latency_ms": 26.787,
+      "p95_latency_ms_estimate": null,
+      "top_candidate_example": "Member 77",
+      "required_skills_example": [
+        "Next.js",
+        "Supabase"
+      ],
+      "note": "Runtime benchmark only; no labeled assignee ground truth dataset found."
+    },
+    "urgency_rule_model": {
+      "grid_cases_tested": 3960,
+      "score_min": 0.0,
+      "score_mean": 45.775,
+      "score_max": 218.4,
+      "label_distribution": {
+        "Critical": 771,
+        "High": 677,
+        "Moderate": 639,
+        "Low": 883,
+        "Completed": 990
+      },
+      "throughput_preds_per_sec": 2239303.13,
+      "avg_us_per_prediction": 0.447,
+      "note": "Rule-based model; benchmark reports behavior coverage and runtime, not statistical accuracy."
+    },
+    "wellness_rule_model": {
+      "grid_cases_tested": 1056,
+      "score_min": 0.0,
+      "score_mean": 15.185,
+      "score_max": 100.0,
+      "status_distribution": {
+        "Healthy Balance": 23,
+        "Nearing Capacity": 59,
+        "Overworked": 119,
+        "Burnout Risk": 855
+      },
+      "throughput_preds_per_sec": 3373159.1,
+      "avg_us_per_prediction": 0.296,
+      "note": "Rule-based model; benchmark reports behavior coverage and runtime, not statistical accuracy."
+    }
+  }
+}

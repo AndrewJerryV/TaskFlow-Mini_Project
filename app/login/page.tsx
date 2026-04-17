@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { getSiteUrl } from '@/lib/site-url';
 import { getSupabase } from '../../lib/supabase';
 
 export default function LoginPage() {
@@ -32,6 +33,8 @@ export default function LoginPage() {
     }
   }, [authError]);
 
+  const loginRedirectUrl = getSiteUrl('/login');
+
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -47,7 +50,7 @@ export default function LoginPage() {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/login`
+            emailRedirectTo: loginRedirectUrl
           }
         });
 
@@ -88,7 +91,7 @@ export default function LoginPage() {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/login`
+        redirectTo: loginRedirectUrl
       }
     });
   };
@@ -101,7 +104,7 @@ export default function LoginPage() {
     await supabase.auth.signInWithOAuth({
       provider: 'github',
       options: {
-        redirectTo: `${window.location.origin}/login`
+        redirectTo: loginRedirectUrl
       }
     });
   };

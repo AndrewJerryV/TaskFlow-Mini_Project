@@ -123,13 +123,13 @@ export function BottleneckAlert({ tasks = [], users = [], currentUser = null, pr
 
     const severityColor = {
         high: 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300',
-        medium: 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-300',
+        medium: 'bg-orange-50 border-orange-200 text-orange-800 dark:bg-orange-900/20 dark:border-orange-800 dark:text-orange-300',
         low: 'bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-900/20 dark:border-yellow-800 dark:text-yellow-300'
     };
 
     const severityDot = {
         high: 'bg-red-500',
-        medium: 'bg-amber-500',
+        medium: 'bg-orange-500',
         low: 'bg-yellow-500'
     };
 
