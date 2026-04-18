@@ -1,250 +1,423 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import Navbar from '@/components/Navbar';
+import { 
+  ArrowRight, Activity, Users, Zap, Shield, Sparkles, 
+  Layout, MousePointer2, Github, CheckCircle2, 
+  Search, BarChart3, MessageSquare, Heart
+} from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Project, Task } from '@/types';
-import { CreateProjectDialog } from '@/components/forms/CreateProjectDialog';
-import { useAuth } from '@/contexts/AuthContext';
-import { getUserName, getActionDisplay } from '@/lib/utils';
-import { Sparkles, ArrowRight, Trash2, MessageSquare, Edit, ChevronDown, ChevronUp, Brain } from 'lucide-react';
-import { WellnessAlerts } from '@/components/WellnessAlerts';
-import { TaskOfTheDay } from '@/components/TaskOfTheDay';
 
-// Icon component to render Lucide icons by name
-const ActionIcon = ({ iconName, size = 14 }: { iconName: string; size?: number }) => {
-  switch (iconName) {
-    case 'Sparkles': return <Sparkles size={size} />;
-    case 'ArrowRight': return <ArrowRight size={size} />;
-    case 'Trash2': return <Trash2 size={size} />;
-    case 'MessageSquare': return <MessageSquare size={size} />;
-    case 'Edit': return <Edit size={size} />;
-    default: return <Edit size={size} />;
-  }
+// Animation Variants
+const fadeUp = {
+  initial: { opacity: 0, y: 30 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true },
+  transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] }
 };
 
-type ProjectWithStats = Project & {
-  stats: {
-    totalTasks: number;
-    doneTasks: number;
-    progress: number;
-  }
+const staggerContainer = {
+  initial: {},
+  whileInView: { transition: { staggerChildren: 0.1 } },
+  viewport: { once: true }
 };
 
-export default function Home() {
-  const { currentUser, users } = useAuth();
-  const router = useRouter();
-  const [projects, setProjects] = useState<ProjectWithStats[]>([]);
-  const [allTasks, setAllTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-
-
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!currentUser?.id) return;
-      try {
-        setLoading(true);
-        const [projRes, taskRes] = await Promise.all([
-          fetch(`/api/projects?userId=${currentUser.id}`),
-          fetch(`/api/tasks?userId=${currentUser.id}`)
-        ]);
-        
-        const projData = await projRes.json();
-        if (Array.isArray(projData)) {
-          setProjects(projData);
-        }
-
-        const taskData = await taskRes.json();
-        if (Array.isArray(taskData)) {
-          setAllTasks(taskData);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [currentUser?.id]);
-
-  const getOwnerName = (ownerId: string) => getUserName(users, ownerId);
-
-  // Filter users for wellness insights based on role
-  const getFilteredUsersForWellness = () => {
-    if (currentUser?.role === 'Admin') return users;
-    
-    if (currentUser?.role === 'Manager') {
-      const managedProjectIds = new Set(projects.map(p => p.id));
-      const membersInManagedProjects = new Set(
-        allTasks
-          .filter(t => managedProjectIds.has(t.projectId) && t.assigneeId)
-          .map(t => t.assigneeId)
-      );
-      return users.filter(u => membersInManagedProjects.has(u.id) || u.id === currentUser.id);
-    }
-    
-    return [];
-  };
-
-  const wellnessUsers = getFilteredUsersForWellness();
+export default function LandingPage() {
+  const { scrollY } = useScroll();
+  
+  // Parallax effects
+  const orb1Y = useTransform(scrollY, [0, 1000], [0, 200]);
+  const orb2Y = useTransform(scrollY, [0, 1000], [0, -150]);
+  const heroScale = useTransform(scrollY, [0, 500], [1, 0.95]);
 
   return (
-    <div className="p-8 mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">Your Work</h1>
-        {currentUser && (
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            Welcome back, <span className="font-medium text-gray-700 dark:text-gray-300">{currentUser.name}</span>
-          </div>
-        )}
+    <div className="relative min-h-screen bg-[#f8f9fc] dark:bg-[#030303] overflow-x-hidden font-poppins selection:bg-accent-purple/30 selection:text-accent-purple">
+      <Navbar />
+
+      {/* Animated Background Elements */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div className="absolute inset-0 bg-grid-pattern bg-[size:60px_60px] opacity-[0.4] dark:opacity-[0.1]"></div>
+        <motion.div style={{ y: orb1Y }} className="absolute -top-[250px] -left-[150px] w-[700px] h-[700px] bg-accent-purpleLight dark:bg-accent-purple/5 blur-[140px] rounded-full" />
+        <motion.div style={{ y: orb2Y }} className="absolute -bottom-[200px] -right-[150px] w-[600px] h-[600px] bg-accent-greenLight dark:bg-accent-green/5 blur-[140px] rounded-full" />
+        <div className="absolute top-[40%] left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-accent-pinkLight dark:bg-accent-pink/5 blur-[140px] rounded-full" />
       </div>
 
-      {/* Create Project Dialog */}
-      <CreateProjectDialog isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
+      {/* Hero Section */}
+      <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 px-6 z-10 flex flex-col items-center text-center">
+        <div className="container max-w-7xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-accent-purpleLight dark:bg-accent-purple/10 border border-accent-purple/10 text-accent-purple text-xs font-bold uppercase tracking-widest mb-10 shadow-sm"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-green opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-accent-green"></span>
+            </span>
+            <span>Powered by Machine Learning</span>
+          </motion.div>
 
-      {/* Task of the Day - show for Members always, Admin/Manager only if they have assigned tasks */}
-      {currentUser && (
-        (currentUser.role === 'Member' || allTasks.some(t => t.assigneeId === currentUser.id && t.status !== 'Done'))
-          ? (
-            <section className="mb-8">
-              <TaskOfTheDay
-                userId={currentUser.id}
-                onTaskClick={(task) => router.push(`/projects/${task.projectId}?task=${task.id}`)}
-              />
-            </section>
-          )
-          : null
-      )}
+          <motion.h1 
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="text-5xl md:text-7xl lg:text-8xl font-black text-gray-900 dark:text-white leading-[1.1] tracking-tighter mb-8"
+          >
+            Manage Projects with <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-purple via-accent-blue to-accent-green">
+              AI-Driven Intelligence
+            </span>
+          </motion.h1>
 
-      {/* Recent Projects Section */}
-      <section className="mb-10">
-        <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase mb-4">Active Projects</h2>
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="text-lg md:text-xl text-gray-500 dark:text-gray-400 mb-12 max-w-3xl mx-auto leading-relaxed font-medium"
+          >
+            TaskFlow is a next-generation project management platform that combines intuitive Kanban workflows with ML-powered recommendations, bottleneck detection, and wellness monitoring.
+          </motion.p>
 
-        {loading ? (
-          <div className="text-sm text-gray-400 dark:text-gray-500">Loading projects...</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* ... project cards ... */}
-            {projects.map(project => (
-              <Link key={project.id} href={`/projects/${project.id}`} className="block group">
-                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-all cursor-pointer h-36 flex flex-col justify-between relative overflow-hidden">
-                  <div className="flex items-start space-x-3 z-10">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-green-600 rounded flex items-center justify-center text-white text-sm font-bold shadow-sm">
-                      {project.key}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">{project.name}</h3>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{project.description}</p>
-                    </div>
-                    {currentUser?.role === 'Admin' && (
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          if (confirm('Are you sure you want to delete this project?')) {
-                            fetch(`/api/projects?id=${project.id}&userId=${currentUser?.id}`, { method: 'DELETE' })
-                              .then((res) => {
-                                if (res.ok) {
-                                  setProjects(prev => prev.filter(p => p.id !== project.id));
-                                } else {
-                                  alert('Failed to delete project');
-                                }
-                              })
-                              .catch(console.error);
-                          }
-                        }}
-                        className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                        title="Delete Project"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
-                      </button>
-                    )}
-                  </div>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            className="flex flex-col sm:flex-row items-center justify-center gap-5 mb-20"
+          >
+            <Link 
+              href="/login"
+              className="group relative w-full sm:w-auto px-10 py-5 bg-gradient-to-r from-accent-purple to-[#9d7dff] text-white rounded-2xl font-bold text-lg overflow-hidden transition-all hover:scale-105 active:scale-95 shadow-2xl shadow-accent-purple/20"
+            >
+              <span className="relative z-10 flex items-center gap-3">
+                Start Free Trial
+                <ArrowRight size={20} />
+              </span>
+            </Link>
+            <a 
+              href="#features"
+              className="w-full sm:w-auto px-10 py-5 bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-2xl font-bold text-lg hover:bg-gray-50 dark:hover:bg-white/10 transition-all flex items-center justify-center gap-3"
+            >
+              See Features
+            </a>
+          </motion.div>
 
-                  <div className="z-10">
-                    <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
-                      <span>Owner: {getOwnerName(project.ownerId)}</span>
-                      <span>{project.stats.progress}%</span>
-                    </div>
-                    <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5">
-                      <div className="bg-green-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${project.stats.progress}%` }}></div>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            ))}
+          <motion.div 
+            style={{ scale: heroScale }}
+            className="relative mt-20 perspective-1000"
+          >
+            <div className="absolute -inset-1 bg-gradient-to-r from-accent-purple via-accent-blue to-accent-green rounded-[2.5rem] blur-2xl opacity-20 dark:opacity-40 animate-pulse"></div>
+            <img 
+              src="/hero-dashboard.png" 
+              alt="TaskFlow Dashboard" 
+              className="relative w-full max-w-[1000px] mx-auto rounded-3xl border border-white/20 shadow-2xl shadow-black/10 transform rotate-x-2"
+            />
+          </motion.div>
+        </div>
+      </section>
 
-            {/* Create New Project Card */}
-            {currentUser?.role === 'Admin' && (
-              <button
-                onClick={() => setIsCreateOpen(true)}
-                className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 h-36 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-blue-400 hover:text-blue-500 transition-all hover:bg-blue-50/10 dark:hover:bg-blue-900/10"
+      {/* Stats Bar */}
+      <section className="relative py-20 border-y border-gray-100 dark:border-white/5 bg-white/40 dark:bg-black/40 backdrop-blur-md z-10">
+        <div className="container max-w-7xl mx-auto px-6">
+          <motion.div 
+            variants={staggerContainer}
+            initial="initial"
+            whileInView="whileInView"
+            viewport={{ once: true }}
+            className="grid grid-cols-2 md:grid-cols-4 gap-12 text-center"
+          >
+            <motion.div variants={fadeUp} className="space-y-2">
+              <h3 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-accent-purple to-accent-blue">3</h3>
+              <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">ML Models Trained</p>
+            </motion.div>
+            <motion.div variants={fadeUp} className="space-y-2">
+              <h3 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-accent-blue to-accent-green">6+</h3>
+              <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Integrated Views</p>
+            </motion.div>
+            <motion.div variants={fadeUp} className="space-y-2">
+              <h3 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-accent-green to-accent-pink">Real-time</h3>
+              <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Team Collaboration</p>
+            </motion.div>
+            <motion.div variants={fadeUp} className="space-y-2">
+              <h3 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-accent-pink to-accent-purple">95%</h3>
+              <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">SetFit Accuracy</p>
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Features Grid */}
+      <section id="features" className="py-32 relative z-10 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-20 space-y-4">
+            <span className="text-accent-purple font-bold tracking-[0.2em] uppercase text-xs">Core Features</span>
+            <h2 className="text-4xl md:text-6xl font-black text-gray-900 dark:text-white tracking-tighter">Everything Your Team Needs</h2>
+            <p className="text-gray-500 dark:text-gray-400 font-medium max-w-xl mx-auto">From Kanban boards to AI insights — one platform to manage it all.</p>
+          </div>
+          
+          <motion.div 
+            variants={staggerContainer}
+            initial="initial"
+            whileInView="whileInView"
+            viewport={{ once: true, amount: 0.1 }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-8"
+          >
+            {features.map((feature, i) => (
+              <motion.div 
+                key={i}
+                variants={fadeUp}
+                className="group p-10 bg-white/80 dark:bg-white/5 backdrop-blur-xl border border-gray-100 dark:border-white/10 rounded-[2.5rem] hover:translate-y-[-10px] hover:shadow-2xl hover:shadow-accent-purple/5 transition-all duration-500"
               >
-                <span className="text-2xl mb-1">+</span>
-                <span className="text-sm font-medium">Create Project</span>
-              </button>
-            )}
-          </div>
-        )}
-      </section>
-
-      {/* Wellness Alerts - Move under projects */}
-      {(currentUser?.role === 'Admin' || currentUser?.role === 'Manager') && allTasks.length > 0 && (
-        <div className="mb-10">
-          <WellnessAlerts tasks={allTasks} users={wellnessUsers} />
-        </div>
-      )}
-
-      {/* Recent Activity Section */}
-      <section>
-        <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase mb-4">Activity Feed</h2>
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
-          <div className="divide-y divide-gray-100 dark:divide-gray-700">
-            <ActivityFeedList users={users} />
-          </div>
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-8 bg-gradient-to-br ${feature.color} text-white shadow-lg`}>
+                  {feature.icon}
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 tracking-tight">{feature.title}</h3>
+                <p className="text-gray-500 dark:text-gray-400 leading-relaxed font-medium">{feature.description}</p>
+              </motion.div>
+            ))}
+          </motion.div>
         </div>
       </section>
+
+      {/* AI Showcase */}
+      <section id="ai" className="py-32 px-6 relative z-10">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+            <motion.div 
+              initial={{ opacity: 0, x: -50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="space-y-8"
+            >
+              <div className="flex items-center gap-3 text-accent-purple">
+                <Sparkles size={20} />
+                <span className="font-bold uppercase tracking-widest text-sm">AI-Powered Engine</span>
+              </div>
+              <h3 className="text-4xl md:text-5xl font-black text-gray-900 dark:text-white tracking-tighter leading-tight">
+                Smart Recommendations <br /> That Actually Work
+              </h3>
+              <p className="text-lg text-gray-500 dark:text-gray-400 font-medium leading-relaxed">
+                Our ML pipeline uses fine-tuned SetFit models for priority prediction, TF-IDF skill matching, and heuristic wellness scoring — all running in real-time.
+              </p>
+              <ul className="space-y-4">
+                {[
+                  "Critical task priority detection with 95% accuracy",
+                  "Skill-based task-to-member matching",
+                  "Proactive burnout and overload alerts",
+                  "Company-size adaptive thresholds"
+                ].map((item, i) => (
+                  <li key={i} className="flex items-center gap-4 text-gray-600 dark:text-gray-300 font-medium">
+                    <CheckCircle2 className="text-accent-green" size={20} />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              className="relative group"
+            >
+              <div className="absolute inset-0 bg-accent-purple/20 blur-[100px] rounded-full opacity-50 group-hover:opacity-100 transition-opacity"></div>
+              <img 
+                src="/ai-showcase.png" 
+                alt="AI Feature Showcase" 
+                className="relative rounded-[2.5rem] border border-white/20 shadow-2xl z-20"
+              />
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Collaboration Showcase */}
+      <section id="collaboration" className="py-32 px-6 relative z-10">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              className="order-2 lg:order-1 relative group"
+            >
+              <div className="absolute inset-0 bg-accent-green/20 blur-[100px] rounded-full opacity-50 group-hover:opacity-100 transition-opacity"></div>
+              <div className="relative w-full aspect-video rounded-[2.5rem] border border-white/20 shadow-2xl z-20 overflow-hidden">
+                <img 
+                  src="/team-collaboration.png" 
+                  alt="Team Collaboration Mockup" 
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+              </div>
+            </motion.div>
+            <motion.div 
+              initial={{ opacity: 0, x: 50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="order-1 lg:order-2 space-y-8"
+            >
+              <div className="flex items-center gap-3 text-accent-green">
+                <Users size={20} />
+                <span className="font-bold uppercase tracking-widest text-sm">Team Collaboration</span>
+              </div>
+              <h3 className="text-4xl md:text-5xl font-black text-gray-900 dark:text-white tracking-tighter leading-tight">
+                Work Together, Seamlessly
+              </h3>
+              <p className="text-lg text-gray-500 dark:text-gray-400 font-medium leading-relaxed">
+                From real-time chat to shared whiteboards — everything your team needs to collaborate effectively, built right into your workflow.
+              </p>
+              <ul className="space-y-4">
+                {[
+                  "Integrated chat with thread support",
+                  "Intelligent skill-based assignment",
+                  "Shared pages and context-rich tasks",
+                  "Time tracking with live indicators"
+                ].map((item, i) => (
+                  <li key={i} className="flex items-center gap-4 text-gray-600 dark:text-gray-300 font-medium">
+                    <CheckCircle2 className="text-accent-green" size={20} />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Tech Stack */}
+      <section className="py-32 px-6 relative z-10">
+        <div className="max-w-7xl mx-auto text-center">
+          <div className="space-y-4 mb-20">
+            <span className="text-accent-purple font-bold tracking-[0.2em] uppercase text-xs">Built With</span>
+            <h2 className="text-4xl md:text-6xl font-black text-gray-900 dark:text-white tracking-tighter">Modern Tech Stack</h2>
+            <p className="text-gray-500 dark:text-gray-400 font-medium max-w-xl mx-auto">Enterprise-grade technologies powering a seamless experience.</p>
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+            {techStack.map((tech, i) => (
+              <motion.div 
+                key={i}
+                whileHover={{ y: -5 }}
+                className="p-8 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-3xl shadow-sm hover:shadow-xl transition-all flex flex-col items-center gap-3"
+              >
+                <div className={`${tech.color} w-10 h-10`}>{tech.icon}</div>
+                <span className="font-bold text-gray-900 dark:text-white">{tech.name}</span>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{tech.desc}</span>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Open Source */}
+      <section className="py-32 px-6 relative z-10">
+        <div className="max-w-5xl mx-auto">
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            className="p-12 md:p-20 bg-white/80 dark:bg-[#0a0a0a] backdrop-blur-2xl border border-gray-100 dark:border-white/10 rounded-[4rem] shadow-2xl flex flex-col md:flex-row items-center gap-12"
+          >
+            <div className="w-24 h-24 md:w-32 md:h-32 bg-gray-900 rounded-[2rem] flex items-center justify-center text-white shadow-2xl">
+              <Github size={50} />
+            </div>
+            <div className="flex-1 space-y-6 text-center md:text-left">
+              <h3 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white tracking-tighter text-balance">Proudly Open Source</h3>
+              <p className="text-gray-500 dark:text-gray-400 font-medium leading-relaxed">
+                TaskFlow is fully open source under the MIT license. Explore the codebase, contribute features, reported issues, or fork it to build your own version.
+              </p>
+              <div className="flex flex-wrap items-center gap-4 justify-center md:justify-start">
+                <a href="https://github.com/AndrewJerryV/TaskFlow-Mini_Project" target="_blank" className="px-8 py-3.5 bg-gray-900 dark:bg-white text-white dark:text-black rounded-2xl font-bold flex items-center gap-3 hover:translate-y-[-2px] transition-all">
+                  <Github size={20} />
+                  View on GitHub
+                </a>
+                <div className="flex gap-2">
+                  <span className="px-4 py-1.5 bg-gray-100 dark:bg-white/5 rounded-full text-xs font-bold text-gray-500">MIT License</span>
+                  <span className="px-4 py-1.5 bg-gray-100 dark:bg-white/5 rounded-full text-xs font-bold text-gray-500">Next.js + Python</span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* CTA Box */}
+      <section className="py-32 px-6 relative z-10">
+        <div className="max-w-5xl mx-auto">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            className="p-20 bg-gradient-to-br from-accent-purple/10 to-accent-green/5 border border-accent-purple/20 rounded-[4rem] text-center space-y-8 relative overflow-hidden"
+          >
+            <div className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] bg-radial-gradient from-accent-purple/5 to-transparent pointer-events-none"></div>
+            <h2 className="text-4xl md:text-6xl font-black text-gray-900 dark:text-white tracking-tighter">Ready to <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-purple to-accent-green">Transform</span> Your Workflow?</h2>
+            <p className="text-xl text-gray-500 dark:text-gray-400 font-medium max-w-xl mx-auto">Join teams using AI to ship faster, stay healthier, and manage smarter.</p>
+            <Link 
+              href="/login"
+              className="inline-flex items-center gap-4 px-12 py-6 bg-gradient-to-r from-accent-purple to-[#9d7dff] text-white rounded-3xl font-bold text-xl hover:translate-y-[-3px] hover:shadow-2xl hover:shadow-accent-purple/30 transition-all"
+            >
+              Get Started for Free
+              <ArrowRight size={24} />
+            </Link>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-20 border-t border-gray-100 dark:border-white/5 text-center">
+        <div className="container max-w-7xl mx-auto px-6">
+          <p className="text-gray-400 font-bold flex items-center justify-center gap-2">
+            © 2026 TaskFlow. Built with <Heart size={16} className="text-accent-pink fill-accent-pink" /> using Next.js, Supabase & Machine Learning.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
 
-function ActivityFeedList({ users }: { users: any[] }) {
-  const [logs, setLogs] = useState<any[]>([]);
-  const { currentUser } = useAuth();
-
-  useEffect(() => {
-    if (!currentUser?.id) return;
-    fetch(`/api/activity?userId=${currentUser.id}`)
-      .then(res => res.json())
-      .then(data => setLogs(Array.isArray(data) ? data : []))
-      .catch(err => console.error(err));
-  }, [currentUser?.id]);
-
-  const getLocalUserName = (userId: string) => getUserName(users, userId);
-
-  if (logs.length === 0) {
-    return <div className="p-8 text-center text-gray-400 dark:text-gray-500 italic">No recent activity</div>;
+const features = [
+  {
+    icon: <Layout size={28} />,
+    title: "Kanban Task Board",
+    description: "Drag-and-drop task management with customizable columns, priority tags, and real-time status tracking.",
+    color: "from-accent-purple to-[#9d7dff]"
+  },
+  {
+    icon: <Sparkles size={28} />,
+    title: "ML Recommendations",
+    description: "SetFit-powered priority classification and skill-based task assignment that learns from team patterns.",
+    color: "from-accent-green to-accent-teal"
+  },
+  {
+    icon: <Activity size={28} />,
+    title: "Bottleneck Detection",
+    description: "Automatic identification of workflow blockers and aging tasks with actionable rebalancing suggestions.",
+    color: "from-accent-pink to-[#ff7eb3]"
+  },
+  {
+    icon: <MessageSquare size={28} />,
+    title: "Real-time Chat",
+    description: "Built-in team messaging with threads and mentions — keep conversations contextual and next to your work.",
+    color: "from-accent-blue to-[#1e90ff]"
+  },
+  {
+    icon: <Heart size={28} />,
+    title: "Wellness Monitoring",
+    description: "AI-driven burnout detection tracks workload distribution and overtime patterns to keep teams healthy.",
+    color: "from-accent-green to-[#a8ff78]"
+  },
+  {
+    icon: <BarChart3 size={28} />,
+    title: "Reports & Analytics",
+    description: "Interactive charts, velocity tracking, and sprint burndowns that give leadership full project visibility.",
+    color: "from-accent-purple to-accent-pink"
   }
+];
 
-  return (
-    <>
-      {logs.slice(0, 5).map((log: any) => {
-        const actionInfo = getActionDisplay(log.action);
-        return (
-          <div key={log.id} className="p-4 flex items-center hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-default">
-            <div className={`w-8 h-8 mr-4 flex items-center justify-center rounded-sm ${actionInfo.bgColor}`}>
-              <ActionIcon iconName={actionInfo.iconName} size={16} />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-gray-900 dark:text-white">{log.details}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                {getLocalUserName(log.userId)} • {new Date(log.timestamp).toLocaleString()}
-              </p>
-            </div>
-          </div>
-        );
-      })}
-    </>
-  );
-}
+const techStack = [
+  { icon: <Zap />, name: "Next.js", desc: "React Framework", color: "text-accent-blue" },
+  { icon: <Layout />, name: "Tailwind", desc: "Utility Styling", color: "text-accent-pink" },
+  { icon: <Activity />, name: "Supabase", desc: "DB & Auth", color: "text-accent-green" },
+  { icon: <Sparkles />, name: "SetFit", desc: "ML Models", color: "text-accent-purple" },
+  { icon: <MousePointer2 />, name: "Python", desc: "ML Backend", color: "text-accent-green" },
+  { icon: <ArrowRight />, name: "Framer", desc: "Animations", color: "text-accent-pink" },
+];

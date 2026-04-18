@@ -20,7 +20,7 @@ export default function LoginPage() {
   // Redirect only AFTER auth is resolved
   useEffect(() => {
     if (!isLoading && currentUser) {
-      router.replace('/');
+      router.replace('/dashboard');
     } else if (!isLoading && !currentUser) {
       setError('No active session found. Please log in.');
     }
