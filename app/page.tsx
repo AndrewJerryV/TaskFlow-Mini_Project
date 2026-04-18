@@ -91,16 +91,10 @@ export default function LandingPage() {
               className="group relative w-full sm:w-auto px-10 py-5 bg-gradient-to-r from-accent-green to-[#9d7dff] text-white rounded-2xl font-bold text-lg overflow-hidden transition-all hover:scale-105 active:scale-95 shadow-2xl shadow-accent-green/20"
             >
               <span className="relative z-10 flex items-center gap-3">
-                Start Free Trial
+                Get Started
                 <ArrowRight size={20} />
               </span>
             </Link>
-            <a 
-              href="#features"
-              className="w-full sm:w-auto px-10 py-5 bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-2xl font-bold text-lg hover:bg-gray-50 dark:hover:bg-white/10 transition-all flex items-center justify-center gap-3"
-            >
-              See Features
-            </a>
           </motion.div>
 
           <motion.div 
@@ -330,6 +324,10 @@ export default function LandingPage() {
                   <Github size={20} />
                   View on GitHub
                 </a>
+                <Link href="/setup" className="px-8 py-3.5 bg-accent-green/10 border border-accent-green/30 hover:bg-accent-green/20 text-accent-green rounded-2xl font-bold flex items-center gap-3 hover:translate-y-[-2px] transition-all">
+                  <Search size={20} />
+                  Self-Host Setup
+                </Link>
                 <div className="flex gap-2">
                   <span className="px-4 py-1.5 bg-gray-100 dark:bg-white/5 rounded-full text-xs font-bold text-gray-500">MIT License</span>
                   <span className="px-4 py-1.5 bg-gray-100 dark:bg-white/5 rounded-full text-xs font-bold text-gray-500">Next.js + Python</span>

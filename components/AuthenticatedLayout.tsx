@@ -36,7 +36,7 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
     const searchRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        const publicPaths = ['/login', '/'];
+        const publicPaths = ['/login', '/', '/setup'];
         if (!isLoading && !currentUser && !publicPaths.includes(pathname)) {
             router.push('/login');
         }
@@ -165,8 +165,8 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
         );
     }
 
-    // Don't show authenticated UI for login page or landing page
-    if (pathname === '/login' || pathname === '/') {
+    // Don't show authenticated UI for login page, landing page, or setup page
+    if (pathname === '/login' || pathname === '/' || pathname === '/setup') {
         return <>{children}</>;
     }
 
