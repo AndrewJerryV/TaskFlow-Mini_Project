@@ -91,16 +91,10 @@ export default function LandingPage() {
               className="group relative w-full sm:w-auto px-10 py-5 bg-gradient-to-r from-accent-green to-[#9d7dff] text-white rounded-2xl font-bold text-lg overflow-hidden transition-all hover:scale-105 active:scale-95 shadow-2xl shadow-accent-green/20"
             >
               <span className="relative z-10 flex items-center gap-3">
-                Start Free Trial
+                Get Started
                 <ArrowRight size={20} />
               </span>
             </Link>
-            <a 
-              href="#features"
-              className="w-full sm:w-auto px-10 py-5 bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-2xl font-bold text-lg hover:bg-gray-50 dark:hover:bg-white/10 transition-all flex items-center justify-center gap-3"
-            >
-              See Features
-            </a>
           </motion.div>
 
           <motion.div 
