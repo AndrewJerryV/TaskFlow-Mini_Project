@@ -324,6 +324,10 @@ export default function LandingPage() {
                   <Github size={20} />
                   View on GitHub
                 </a>
+                <Link href="/setup" className="px-8 py-3.5 bg-accent-green/10 border border-accent-green/30 hover:bg-accent-green/20 text-accent-green rounded-2xl font-bold flex items-center gap-3 hover:translate-y-[-2px] transition-all">
+                  <Search size={20} />
+                  Self-Host Setup
+                </Link>
                 <div className="flex gap-2">
                   <span className="px-4 py-1.5 bg-gray-100 dark:bg-white/5 rounded-full text-xs font-bold text-gray-500">MIT License</span>
                   <span className="px-4 py-1.5 bg-gray-100 dark:bg-white/5 rounded-full text-xs font-bold text-gray-500">Next.js + Python</span>
