@@ -36,7 +36,8 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
     const searchRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (!isLoading && !currentUser && pathname !== '/login') {
+        const publicPaths = ['/login', '/'];
+        if (!isLoading && !currentUser && !publicPaths.includes(pathname)) {
             router.push('/login');
         }
     }, [currentUser, isLoading, router, pathname]);
@@ -164,8 +165,8 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
         );
     }
 
-    // Don't show layout for login page
-    if (pathname === '/login') {
+    // Don't show authenticated UI for login page or landing page
+    if (pathname === '/login' || pathname === '/') {
         return <>{children}</>;
     }
 
@@ -175,6 +176,7 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
 
     const handleLogout = async () => {
         await logout();
+        router.push('/');
     };
 
     return (
