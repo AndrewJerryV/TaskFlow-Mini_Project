@@ -19,14 +19,14 @@ module.exports = {
           dark: '#0f172a',
         },
         accent: {
-          purple: '#6c3cfc',
-          green: '#00b894',
-          pink: '#e84393',
-          blue: '#0984e3',
-          purpleLight: 'rgba(108, 60, 252, 0.08)',
-          greenLight: 'rgba(0, 184, 148, 0.08)',
-          pinkLight: 'rgba(232, 67, 147, 0.08)',
-          blueLight: 'rgba(9, 132, 227, 0.08)',
+          green: '#81c773',
+          blue: '#1775d4',
+          leaf: '#86c969',
+          teal: '#32887a',
+          greenLight: 'rgba(129, 199, 115, 0.08)',
+          blueLight: 'rgba(23, 117, 212, 0.08)',
+          leafLight: 'rgba(134, 201, 105, 0.08)',
+          tealLight: 'rgba(50, 136, 122, 0.08)',
         }
       },
       backgroundImage: {
