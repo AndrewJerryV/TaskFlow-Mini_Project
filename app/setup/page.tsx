@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Database, Key, Shield, ExternalLink, CheckCircle2,
@@ -76,14 +76,6 @@ export default function SetupPage() {
   const [expandedHint, setExpandedHint] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
-  // Attempt to pre-fill from runtime env if already set (for local dev)
-  useEffect(() => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (url || anon) {
-      setValues(v => ({ ...v, url: url || '', anonKey: anon || '' }));
-    }
-  }, []);
 
   const handleChange = (key: string, val: string) => {
     setValues(prev => ({ ...prev, [key]: val }));
@@ -303,8 +295,8 @@ SUPABASE_SERVICE_ROLE_KEY=${values.serviceKey}`;
                   value={values[field.key as keyof typeof values]}
                   onChange={(e) => handleChange(field.key, e.target.value)}
                   placeholder={field.placeholder}
-                  autoComplete="off"
-                  spellCheck="false"
+                  autoComplete="new-password"
+                  data-form-type="other"
                   className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 text-gray-900 placeholder-gray-400 font-mono text-sm focus:outline-none focus:border-[#3ecf8e] focus:ring-2 focus:ring-[#3ecf8e]/10 transition-all pr-12"
                 />
                 {field.type === 'key' && (
