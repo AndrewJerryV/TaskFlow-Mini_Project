@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import { 
   ArrowRight, Activity, Users, Zap, Shield, Sparkles, 
@@ -10,7 +9,6 @@ import {
   Search, BarChart3, MessageSquare, Heart
 } from 'lucide-react';
 import Link from 'next/link';
-import { useAuth } from '@/contexts/AuthContext';
 
 // Animation Variants
 const fadeUp = {
@@ -27,19 +25,7 @@ const staggerContainer = {
 };
 
 export default function LandingPage() {
-  const router = useRouter();
-  const { currentUser, isLoading } = useAuth();
   const { scrollY } = useScroll();
-
-  React.useEffect(() => {
-    if (!isLoading && currentUser) {
-      router.replace('/dashboard');
-    }
-  }, [currentUser, isLoading, router]);
-
-  if (!isLoading && currentUser) {
-    return null;
-  }
   
   // Parallax effects
   const orb1Y = useTransform(scrollY, [0, 1000], [0, 200]);

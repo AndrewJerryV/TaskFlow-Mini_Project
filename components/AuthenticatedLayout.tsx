@@ -42,6 +42,12 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
         }
     }, [currentUser, isLoading, router, pathname]);
 
+    useEffect(() => {
+        if (!isLoading && currentUser && pathname === '/') {
+            router.replace('/dashboard');
+        }
+    }, [currentUser, isLoading, pathname, router]);
+
     // Close search results when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -159,6 +165,10 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
 
     // Public pages must remain reachable while auth initialization is resolving.
     if (publicPaths.includes(pathname)) {
+        if (pathname === '/' && currentUser) {
+            return null;
+        }
+
         return <>{children}</>;
     }
 
