@@ -152,26 +152,32 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     };
 
     const stopTimer = async () => {
-        if (!dbTimerId || !currentUser) {
-            // Cleanup local state if we get stuck
+        if (!currentUser) {
             setActiveTimer(null);
             setDbTimerId(null);
+            setElapsedMinutes(0);
             return;
         }
 
         try {
+            const payload: Record<string, string> = {
+                note: 'Logged via TaskFlow Timer',
+                userId: currentUser.id,
+            };
+
+            if (dbTimerId) {
+                payload.id = dbTimerId;
+            }
+
             const res = await fetch('/api/time-entries', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    id: dbTimerId,
-                    note: 'Logged via TaskFlow Timer'
-                })
+                body: JSON.stringify(payload)
             });
 
             if (!res.ok) throw new Error('Failed to stop timer in DB');
 
-            // 4. Clear local state
+            // Clear local state after server confirms stop.
             setActiveTimer(null);
             setDbTimerId(null);
             setElapsedMinutes(0);

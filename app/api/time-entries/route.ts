@@ -48,10 +48,28 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
     try {
         const body = await request.json();
-        const { id, note } = body;
+        const { id, note, userId, taskId } = body;
 
-        if (!id) {
-            return NextResponse.json({ error: 'id is required' }, { status: 400 });
+        if (!id && !userId) {
+            return NextResponse.json({ error: 'id or userId is required' }, { status: 400 });
+        }
+
+        if (userId) {
+            const stopNote = note || 'Logged via TaskFlow Timer';
+            const stoppedEntries = await db.stopActiveTimersForUser(userId, taskId, stopNote);
+
+            // Fallback for stale/mismatched filters: if a direct id was provided, attempt it too.
+            if (stoppedEntries.length === 0 && id) {
+                const updatedEntry = await db.stopTimeEntry(id, stopNote);
+                if (updatedEntry) {
+                    return NextResponse.json(updatedEntry);
+                }
+            }
+
+            return NextResponse.json({
+                stoppedCount: stoppedEntries.length,
+                entries: stoppedEntries,
+            });
         }
 
         const updatedEntry = await db.stopTimeEntry(id, note);

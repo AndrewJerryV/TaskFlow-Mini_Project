@@ -27,6 +27,7 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
     const { currentUser, isLoading, logout, authError, setAuthError, isLoggingOut } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
+    const publicPaths = ['/login', '/', '/setup'];
 
     // Search state
     const [searchQuery, setSearchQuery] = useState('');
@@ -36,7 +37,6 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
     const searchRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        const publicPaths = ['/login', '/', '/setup'];
         if (!isLoading && !currentUser && !publicPaths.includes(pathname)) {
             router.push('/login');
         }
@@ -157,17 +157,17 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
         setShowResults(false);
     };
 
+    // Public pages must remain reachable while auth initialization is resolving.
+    if (publicPaths.includes(pathname)) {
+        return <>{children}</>;
+    }
+
     if (isLoading) {
         return (
             <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
                 <div className="text-gray-500 dark:text-gray-400">Loading...</div>
             </div>
         );
-    }
-
-    // Don't show authenticated UI for login page, landing page, or setup page
-    if (pathname === '/login' || pathname === '/' || pathname === '/setup') {
-        return <>{children}</>;
     }
 
     if (!currentUser) {

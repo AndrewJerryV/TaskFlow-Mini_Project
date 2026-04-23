@@ -67,6 +67,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const loadSession = async () => {
       try {
         const supabase = getSupabase();
+
+        const handleAuthChange = async (
+          event: string,
+          session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session']
+        ) => {
+          try {
+            if (event === 'SIGNED_OUT' || !session?.user) {
+              setCurrentUser(null);
+              setIsLoading(false);
+              return;
+            }
+
+            if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+              if (!currentUserRef.current) {
+                setIsLoading(true);
+              }
+
+              console.log('[SignIn] Auth state changed, loading profile for:', session.user.id);
+              await loadProfile(
+                session.user.id,
+                session.user.email ?? null,
+                session.user.app_metadata.provider
+              );
+            }
+          } catch (err) {
+            console.error('Auth state change error:', err);
+            setCurrentUser(null);
+          } finally {
+            setIsLoading(false);
+          }
+        };
+
+        const { data: listenerData } = supabase.auth.onAuthStateChange((event, session) => {
+          console.log(`[Auth Event] ${event}`, session?.user?.id);
+
+          if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
+            return;
+          }
+
+          setTimeout(() => {
+            void handleAuthChange(event, session);
+          }, 0);
+        });
+        listener = listenerData;
+
         console.log('[SignIn] Getting session...');
         const { data } = await supabase.auth.getSession();
         console.log('[SignIn] Session data:', data);
@@ -99,44 +144,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch (e) {
           console.error('Failed to fetch users in context', e);
         }
-
-        // Set up auth state listener after successful init
-        const { data: listenerData } = supabase.auth.onAuthStateChange(
-          async (event, session) => {
-            console.log(`[Auth Event] ${event}`, session?.user?.id);
-
-            if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
-              return;
-            }
-
-            try {
-              if (event === 'SIGNED_OUT' || !session?.user) {
-                setCurrentUser(null);
-                setIsLoading(false);
-                return;
-              }
-
-              // Only show loading screen and reload profile for actual sign ins or user updates
-              if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-                if (!currentUserRef.current) {
-                  setIsLoading(true);
-                }
-                console.log('[SignIn] Auth state changed, loading profile for:', session.user.id);
-                await loadProfile(
-                  session.user.id,
-                  session.user.email ?? null,
-                  session.user.app_metadata.provider
-                );
-              }
-            } catch (err) {
-              console.error('Auth state change error:', err);
-              setCurrentUser(null);
-            } finally {
-              setIsLoading(false);
-            }
-          }
-        );
-        listener = listenerData;
 
       } catch (err) {
         console.error('Auth init error:', err);

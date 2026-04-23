@@ -180,7 +180,7 @@ export function BottleneckAlert({ tasks = [], users = [], currentUser = null, pr
     );
 
     return (
-        <div className="space-y-3">
+        <div className="space-y-3" style={{ minWidth: 0 }}>
             <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-800">
                 <h3 className="text-base font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
                     <Activity size={16} className="text-indigo-600 dark:text-indigo-400" />

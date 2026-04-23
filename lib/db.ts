@@ -793,27 +793,59 @@ class Database {
         return (data || []).map(toTimeEntry);
     }
 
-    async getActiveTimer(userId: string): Promise<TimeEntry | null> {
+    async getActiveTimers(userId: string): Promise<TimeEntry[]> {
         const { data, error } = await getSupabase()
             .from('time_entries')
             .select('*')
             .eq('user_id', userId)
             .is('end_time', null)
-            .maybeSingle();
+            .order('start_time', { ascending: false });
 
         if (error) {
-            console.error('Error fetching active timer:', error);
-            return null;
+            console.error('Error fetching active timers:', error);
+            return [];
         }
-        return data ? toTimeEntry(data) : null;
+        return (data || []).map(toTimeEntry);
+    }
+
+    async getActiveTimer(userId: string): Promise<TimeEntry | null> {
+        const activeTimers = await this.getActiveTimers(userId);
+        return activeTimers.length > 0 ? activeTimers[0] : null;
+    }
+
+    async stopActiveTimersForUser(userId: string, taskId?: string, note?: string): Promise<TimeEntry[]> {
+        let query = getSupabase()
+            .from('time_entries')
+            .select('*')
+            .eq('user_id', userId)
+            .is('end_time', null)
+            .order('start_time', { ascending: false });
+
+        if (taskId) {
+            query = query.eq('task_id', taskId);
+        }
+
+        const { data, error } = await query;
+        if (error) {
+            console.error('Error fetching active timers to stop:', error);
+            return [];
+        }
+
+        const activeEntries = (data || []).map(toTimeEntry);
+        if (activeEntries.length === 0) {
+            return [];
+        }
+
+        const stoppedEntries = await Promise.all(
+            activeEntries.map(entry => this.stopTimeEntry(entry.id, note))
+        );
+
+        return stoppedEntries.filter((entry): entry is TimeEntry => !!entry);
     }
 
     async startTimeEntry(taskId: string, userId: string, projectId?: string): Promise<TimeEntry | null> {
-        // Ensure no other timer is active for this user
-        const active = await this.getActiveTimer(userId);
-        if (active) {
-            await this.stopTimeEntry(active.id);
-        }
+        // Ensure no other timer is active for this user, including duplicate stale rows.
+        await this.stopActiveTimersForUser(userId, undefined, 'Auto-stopped when starting a new timer');
 
         const { data, error } = await getSupabase()
             .from('time_entries')

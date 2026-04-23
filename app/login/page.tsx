@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSiteUrl } from '@/lib/site-url';
 import { getSupabase } from '../../lib/supabase';
+import 'altcha';
 
 export default function LoginPage() {
-
   const { currentUser, isLoading, authError, setAuthError } = useAuth();
   const router = useRouter();
 
@@ -17,13 +17,61 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [altchaPayload, setAltchaPayload] = useState<string | null>(null);
+  const [altchaVerified, setAltchaVerified] = useState(false);
+  const altchaRef = useRef<HTMLElement | null>(null);
+  const altchaWidgetStyle: React.CSSProperties & Record<`--${string}`, string> = {
+    '--altcha-max-width': '100%',
+    '--altcha-padding': '0.48rem',
+    '--altcha-border-radius': '14px',
+    '--altcha-border-color': '#c7d2fe',
+    '--altcha-checkbox-size': '18px',
+    '--altcha-color-base': '#f8fbff',
+    '--altcha-color-base-content': '#111827',
+    '--altcha-color-neutral': '#dbeafe',
+    '--altcha-color-neutral-content': '#4b5563',
+    '--altcha-color-primary': '#2563eb',
+    '--altcha-color-success': '#16a34a',
+    display: 'block',
+    width: '100%',
+  };
 
-  // Redirect only AFTER auth is resolved
+  useEffect(() => {
+    const widget = altchaRef.current;
+    if (!widget) return;
+
+    const onStateChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ state?: string; payload?: string | null }>).detail;
+      if (!detail) return;
+
+      if (detail.state === 'verified' && detail.payload) {
+        setAltchaPayload(detail.payload);
+        setAltchaVerified(true);
+        return;
+      }
+
+      if (detail.state !== 'verifying') {
+        setAltchaVerified(false);
+      }
+    };
+
+    const onExpired = () => {
+      setAltchaPayload(null);
+      setAltchaVerified(false);
+    };
+
+    widget.addEventListener('statechange', onStateChange);
+    widget.addEventListener('expired', onExpired);
+
+    return () => {
+      widget.removeEventListener('statechange', onStateChange);
+      widget.removeEventListener('expired', onExpired);
+    };
+  }, []);
+
   useEffect(() => {
     if (!isLoading && currentUser) {
       router.replace('/dashboard');
-    } else if (!isLoading && !currentUser) {
-      setError('No active session found. Please log in.');
     }
   }, [currentUser, isLoading, router]);
 
@@ -35,14 +83,52 @@ export default function LoginPage() {
 
   const loginRedirectUrl = getSiteUrl('/login');
 
+  const resetAltcha = () => {
+    setAltchaPayload(null);
+    setAltchaVerified(false);
+    (altchaRef.current as any)?.reset?.();
+  };
+
+  const showAltchaRequiredMessage = () => {
+    setSuccess('');
+    setError('Please complete CAPTCHA verification before signing in.');
+  };
+
+  const verifyAltcha = async () => {
+    if (!altchaPayload) {
+      showAltchaRequiredMessage();
+      return false;
+    }
+
+    const verifyRes = await fetch('/api/altcha/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ payload: altchaPayload })
+    });
+
+    const verifyData = await verifyRes.json().catch(() => ({ success: false }));
+
+    if (!verifyRes.ok || !verifyData.success) {
+      setError(verifyData.error || 'ALTCHA verification failed. Please try again.');
+      resetAltcha();
+      return false;
+    }
+
+    return true;
+  };
+
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
     setAuthError('');
     setSubmitting(true);
+    let shouldResetAltcha = true;
 
     try {
+      const altchaValid = await verifyAltcha();
+      if (!altchaValid) return;
+
       const supabase = getSupabase();
 
       if (mode === 'signup') {
@@ -73,12 +159,18 @@ export default function LoginPage() {
           } else {
             setError(signInError.message);
           }
+        } else {
+          shouldResetAltcha = false;
+          setSuccess('Signing you in...');
         }
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
       console.error('Auth error:', err);
     } finally {
+      if (shouldResetAltcha) {
+        resetAltcha();
+      }
       setSubmitting(false);
     }
   };
@@ -87,26 +179,38 @@ export default function LoginPage() {
     setError('');
     setSuccess('');
     setAuthError('');
+    const altchaValid = await verifyAltcha();
+    if (!altchaValid) return;
     const supabase = getSupabase();
-    await supabase.auth.signInWithOAuth({
+    const { error: signInError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: loginRedirectUrl
       }
     });
+    if (signInError) {
+      setError(signInError.message);
+      resetAltcha();
+    }
   };
 
   const signInWithGithub = async () => {
     setError('');
     setSuccess('');
     setAuthError('');
+    const altchaValid = await verifyAltcha();
+    if (!altchaValid) return;
     const supabase = getSupabase();
-    await supabase.auth.signInWithOAuth({
+    const { error: signInError } = await supabase.auth.signInWithOAuth({
       provider: 'github',
       options: {
         redirectTo: loginRedirectUrl
       }
     });
+    if (signInError) {
+      setError(signInError.message);
+      resetAltcha();
+    }
   };
 
   if (isLoading) {
@@ -122,20 +226,19 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
-        <div className="text-center mb-6">
-          <div className="w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-4 overflow-hidden">
+    <div className="h-screen overflow-hidden flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-3 sm:p-4">
+      <div className="bg-white rounded-2xl shadow-xl p-5 sm:p-6 w-full max-w-md">
+        <div className="text-center mb-4">
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3 overflow-hidden">
             <img src="/icon.svg" alt="TaskFlow" className="h-full w-auto" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Welcome to TaskFlow</h1>
-          <p className="text-gray-500 mt-2">
+          <h1 className="text-xl font-bold text-gray-900">Welcome to TaskFlow</h1>
+          <p className="text-sm text-gray-500 mt-1">
             {mode === 'signin' ? 'Sign in to continue' : 'Create your account'}
           </p>
         </div>
 
-        {/* Email/Password Form */}
-        <form onSubmit={handleEmailAuth} className="space-y-4 mb-6">
+        <form onSubmit={handleEmailAuth} className="space-y-3 mb-4">
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
               Email
@@ -147,7 +250,7 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               required
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+              className="w-full px-4 py-2 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
             />
           </div>
           <div>
@@ -159,21 +262,33 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder={mode === 'signup' ? 'Min 6 characters' : '••••••••'}
+              placeholder={mode === 'signup' ? 'Min 6 characters' : '********'}
               required
               minLength={6}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+              className="w-full px-4 py-2 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+            />
+          </div>
+
+          <div>
+            <altcha-widget
+              ref={altchaRef}
+              challenge="/api/altcha/challenge"
+              type="checkbox"
+              auto="off"
+              configuration='{"hideFooter":true}'
+              className="w-full overflow-hidden rounded-[15px] shadow-sm ring-1 ring-blue-100"
+              style={altchaWidgetStyle}
             />
           </div>
 
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+            <div className="p-2.5 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
               {error}
             </div>
           )}
 
           {success && (
-            <div className="p-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-700">
+            <div className="p-2.5 bg-green-50 border border-green-200 rounded-xl text-sm text-green-700">
               {success}
             </div>
           )}
@@ -181,45 +296,16 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-xl transition-colors"
+            onClick={() => {
+              if (!altchaVerified) showAltchaRequiredMessage();
+            }}
+            className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-xl transition-colors"
           >
-            {submitting
-              ? 'Please wait...'
-              : mode === 'signin'
-                ? 'Sign In'
-                : 'Sign Up'}
+            {submitting ? 'Please wait...' : mode === 'signin' ? 'Sign In' : 'Sign Up'}
           </button>
         </form>
 
-        {/* Toggle Mode */}
-        {/* <p className="text-center text-sm text-gray-500 mb-6">
-          {mode === 'signin' ? (
-            <>
-              Don&apos;t have an account?{' '}
-              <button
-                type="button"
-                onClick={() => { setMode('signup'); setError(''); setSuccess(''); setAuthError(''); }}
-                className="text-blue-600 hover:text-blue-700 font-medium"
-              >
-                Sign Up
-              </button>
-            </>
-          ) : (
-            <>
-              Already have an account?{' '}
-              <button
-                type="button"
-                onClick={() => { setMode('signin'); setError(''); setSuccess(''); setAuthError(''); }}
-                className="text-blue-600 hover:text-blue-700 font-medium"
-              >
-                Sign In
-              </button>
-            </>
-          )}
-        </p> */}
-
-        {/* Divider */}
-        <div className="relative mb-6">
+        <div className="relative mb-4">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-gray-200" />
           </div>
@@ -228,11 +314,10 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* OAuth Buttons */}
-        <div className="space-y-3">
+        <div className="space-y-2">
           <button
             onClick={signInWithGoogle}
-            className="w-full py-3 px-4 border border-gray-300 hover:bg-gray-50 text-gray-800 font-medium rounded-xl transition-colors flex items-center justify-center gap-3"
+            className="w-full py-2.5 px-4 border border-gray-300 hover:bg-gray-50 text-gray-800 font-medium rounded-xl transition-colors flex items-center justify-center gap-3"
           >
             <img
               src="https://www.svgrepo.com/show/475656/google-color.svg"
@@ -244,7 +329,7 @@ export default function LoginPage() {
 
           <button
             onClick={signInWithGithub}
-            className="w-full py-3 px-4 border border-gray-300 hover:bg-gray-50 text-gray-800 font-medium rounded-xl transition-colors flex items-center justify-center gap-3"
+            className="w-full py-2.5 px-4 border border-gray-300 hover:bg-gray-50 text-gray-800 font-medium rounded-xl transition-colors flex items-center justify-center gap-3"
           >
             <img
               src="https://www.svgrepo.com/show/512317/github-142.svg"

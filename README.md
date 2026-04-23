@@ -98,6 +98,8 @@ Create a `.env.local` file in the project root:
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+ALTCHA_HMAC_SECRET=your_altcha_hmac_secret
+ALTCHA_HMAC_KEY_SECRET=optional_second_secret_for_key_signatures
 ```
 
 ### 3. Database Setup

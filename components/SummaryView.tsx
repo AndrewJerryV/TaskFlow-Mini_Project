@@ -216,7 +216,7 @@ const ProjectHealthChart = ({ tasks }: { tasks: Task[] }) => {
   ];
 
   return (
-    <div className="h-64 mt-4 w-full">
+    <div className="h-64 mt-4 w-full" style={{ minHeight: 256, minWidth: 0 }}>
       <ResponsiveContainer width="100%" height="100%">
         <RadarChart cx="50%" cy="50%" outerRadius="75%" data={data}>
           <defs>
@@ -299,7 +299,7 @@ const TeamWorkloadChart = ({ tasks, users }: { tasks: Task[], users: User[] }) =
   const data = Object.values(workloadMap).filter(w => w.Todo > 0 || w.InProgress > 0 || w.Review > 0 || w.Done > 0);
 
   return (
-    <div className="h-64 mt-4 w-full">
+    <div className="h-64 mt-4 w-full" style={{ minHeight: 256, minWidth: 0 }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 20, right: 20, left: -20, bottom: 5 }} barSize={36}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-gray-200 dark:stroke-gray-700" />

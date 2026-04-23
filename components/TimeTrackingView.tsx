@@ -404,7 +404,7 @@ export default function TimeTrackingView({ projectId, tasks: propTasks }: TimeTr
                         {displayActiveTimers.map(timer => {
                             const elapsed = Math.round((Date.now() - new Date(timer.startedAt).getTime()) / 60000);
                             return (
-                                <div key={timer.taskId} className="flex items-center gap-2 bg-white/80 dark:bg-gray-800/80 rounded-lg px-3 py-2 text-sm">
+                                <div key={`${timer.taskId}-${timer.userId}-${timer.startedAt}`} className="flex items-center gap-2 bg-white/80 dark:bg-gray-800/80 rounded-lg px-3 py-2 text-sm">
                                     <Timer size={14} className="text-green-600 dark:text-green-400 animate-pulse" />
                                     <span className="font-medium text-gray-900 dark:text-white truncate max-w-[200px]">{timer.taskTitle}</span>
                                     <span className="text-gray-500 dark:text-gray-400">·</span>
