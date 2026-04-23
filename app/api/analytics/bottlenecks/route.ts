@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { Task } from '@/types';
-import { checkMLServerAvailability } from '@/lib/utils';
+import { analyzeWellness, assignTaskWithEngine, getTaskLoadStats } from '@/lib/ml-engine';
 
 
 
@@ -211,25 +211,14 @@ async function getRebalancingSuggestions(tasks: Task[], users: { id: string; nam
     }
 
     // Get wellness scores for all users
-    let wellnessScores = new Map<string, number>();
-    try {
-        for (const [userId, data] of userWorkload) {
-            const res = await fetch('http://127.0.0.1:8000/analyze_wellness', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    active_tasks: data.activeCount,
-                    high_priority_count: data.highPriorityCount,
-                    critical_urgency_count: data.criticalCount,
-                })
-            });
-            if (res.ok) {
-                const result = await res.json();
-                wellnessScores.set(userId, result.score);
-            }
-        }
-    } catch {
-        return []; // ML unavailable
+    const wellnessScores = new Map<string, number>();
+    for (const [userId, data] of userWorkload) {
+        const result = analyzeWellness({
+            activeTasks: data.activeCount,
+            highPriorityCount: data.highPriorityCount,
+            criticalUrgencyCount: data.criticalCount,
+        });
+        wellnessScores.set(userId, result.score);
     }
 
     // Find overloaded members (wellness < 60)
@@ -264,23 +253,53 @@ async function getRebalancingSuggestions(tasks: Task[], users: { id: string; nam
 
     if (overloaded.length === 0 || available.length === 0) return [];
 
-    try {
-        const res = await fetch('http://127.0.0.1:8000/suggest_rebalancing', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                overloaded_members: overloaded,
-                available_members: available,
-            })
-        });
+    const suggestions: RebalanceSuggestion[] = [];
 
-        if (!res.ok) return [];
+    for (const entry of overloaded) {
+        for (const task of entry.tasks) {
+            const ranked = assignTaskWithEngine({
+                title: task.title,
+                description: task.description,
+                status: 'To Do',
+                daysUntilDue: task.priority === 'Critical' ? 1 : task.priority === 'High' ? 3 : 7,
+                candidates: available.map(member => ({
+                    id: member.id,
+                    name: member.name,
+                    role: member.role as 'Admin' | 'Manager' | 'Member',
+                    skills: member.skills,
+                    wellness_data: {
+                        active_tasks: member.active_task_count,
+                        high_priority_count: 0,
+                        critical_urgency_count: 0,
+                    }
+                })),
+            });
 
-        const data = await res.json();
-        return data.suggestions || [];
-    } catch {
-        return [];
+            const best = ranked.suggested_assignees[0];
+            if (!best || best.combined_ranking_score <= 10) {
+                continue;
+            }
+
+            suggestions.push({
+                taskId: task.id,
+                taskTitle: task.title,
+                taskPriority: task.priority,
+                fromUser: { id: entry.member.id, name: entry.member.name, wellness: Math.round(entry.member.wellness_score) },
+                toUser: {
+                    id: best.id || '',
+                    name: best.name,
+                    skillMatch: Math.round(best.match_percentage),
+                    wellness: Math.round(best.wellness_score),
+                    wellnessStatus: best.wellness_status,
+                    matchingSkills: best.matching_skills,
+                },
+                requiredSkills: ranked.analysis.detected_skills || [],
+            });
+        }
     }
+
+    suggestions.sort((a, b) => b.toUser.skillMatch - a.toUser.skillMatch);
+    return suggestions.slice(0, 5);
 }
 
 // API Route Handler
@@ -320,17 +339,14 @@ export async function GET(request: Request) {
         const result = detectBottlenecks(tasks, users, thresholds);
 
         // 2. AI rebalancing (optional)
-        const isMLAvailable = await checkMLServerAvailability();
         let rebalanceSuggestions: RebalanceSuggestion[] = [];
-        let mlPowered = false;
+        let mlPowered = true;
 
-        if (isMLAvailable) {
-            try {
-                rebalanceSuggestions = await getRebalancingSuggestions(tasks, users);
-                mlPowered = true;
-            } catch (error) {
-                console.error('AI rebalancing failed:', error);
-            }
+        try {
+            rebalanceSuggestions = await getRebalancingSuggestions(tasks, users);
+        } catch (error) {
+            console.error('AI rebalancing failed:', error);
+            mlPowered = false;
         }
 
         // 3. Group by project if requester is logged in

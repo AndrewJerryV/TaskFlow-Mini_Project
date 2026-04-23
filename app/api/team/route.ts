@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { checkMLServerAvailability } from '@/lib/utils';
+import { analyzeWellness } from '@/lib/ml-engine';
 
 export async function GET(request: Request) {
     try {
@@ -47,27 +47,15 @@ export async function GET(request: Request) {
                 return false;
             }).length;
 
-            // Fetch wellness score from ML service if available
             let wellnessScore = user.wellnessScore || 100;
             try {
-                // Check if ML server is available (caching result for the request would be better, but simple check for now)
-                const isAvailable = await checkMLServerAvailability();
-                if (isAvailable) {
-                    const mlRes = await fetch('http://127.0.0.1:8000/analyze_wellness', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            active_tasks: activeTasks,
-                            high_priority_count: highPriorityCount,
-                            critical_urgency_count: criticalUrgencyCount
-                        })
-                    });
-
-                    if (mlRes.ok) {
-                        const mlData = await mlRes.json();
-                        wellnessScore = mlData.score;
-                    }
-                }
+                const mlData = analyzeWellness({
+                    activeTasks,
+                    highPriorityCount,
+                    criticalUrgencyCount,
+                    sensitivity: user.burnoutSensitivity,
+                });
+                wellnessScore = mlData.score;
             } catch (error) {
                 console.error('Wellness ML request failed:', error);
             }

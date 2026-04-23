@@ -132,20 +132,7 @@ export function getActionDisplay(action: string): { iconName: string; bgColor: s
     return ACTION_DISPLAY[action] || ACTION_DISPLAY.Updated;
 }
 
-/** Check if the local ML server (Python) is reachable. */
-export async function checkMLServerAvailability(url: string = 'http://127.0.0.1:8000/'): Promise<boolean> {
-    try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 1000);
-
-        const response = await fetch(url, {
-            method: 'GET',
-            signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-        return response.ok;
-    } catch (error) {
-        return false;
-    }
+/** TaskFlow now runs ML inference through the local TypeScript engine. */
+export async function checkMLServerAvailability(): Promise<boolean> {
+    return true;
 }

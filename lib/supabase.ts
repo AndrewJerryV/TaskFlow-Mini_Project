@@ -126,11 +126,15 @@ export interface DbActivityLog {
 
 export interface DbMessage {
   id: string;
-  project_id: string;
+  project_id?: string | null;
   user_id: string;
   content: string;
   timestamp: string;
   attachment?: string;
+  conversation_type?: 'project' | 'dm';
+  recipient_id?: string | null;
+  thread_root_id?: string | null;
+  reactions?: string | null;
 }
 
 export interface DbComment {

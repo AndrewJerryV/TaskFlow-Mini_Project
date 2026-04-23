@@ -44,11 +44,20 @@ export interface Attachment {
 
 export interface Message {
   id: string;
-  projectId: string;
+  projectId?: string;
   userId: string;
   content: string;
   timestamp: string;
   attachment?: Attachment;
+  conversationType?: 'project' | 'dm';
+  recipientId?: string;
+  threadRootId?: string | null;
+  reactions?: MessageReaction[];
+}
+
+export interface MessageReaction {
+  emoji: string;
+  userIds: string[];
 }
 
 export interface Comment {

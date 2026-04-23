@@ -3,9 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently -n \"next,python\" -c \"blue.bold,green.bold\" \"npm run dev:next\" \"npm run dev:python\"",
+    "dev": "npm run dev:next",
     "dev:next": "next dev",
-    "dev:python": "python ML/main.py",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"

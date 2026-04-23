@@ -1,11 +1,53 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { Message, Attachment } from '@/types';
+import { Attachment, Message, MessageReaction } from '@/types';
+
+function toggleReaction(reactions: MessageReaction[] = [], emoji: string, userId: string): MessageReaction[] {
+    const next = [...reactions];
+    const index = next.findIndex(reaction => reaction.emoji === emoji);
+
+    if (index === -1) {
+        next.push({ emoji, userIds: [userId] });
+        return next;
+    }
+
+    const current = next[index];
+    const alreadyReacted = current.userIds.includes(userId);
+    const userIds = alreadyReacted
+        ? current.userIds.filter(id => id !== userId)
+        : [...current.userIds, userId];
+
+    if (userIds.length === 0) {
+        next.splice(index, 1);
+        return next;
+    }
+
+    next[index] = { ...current, userIds };
+    return next;
+}
 
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const projectId = searchParams.get('projectId');
+        const currentUserId = searchParams.get('currentUserId');
+        const recipientId = searchParams.get('recipientId');
+        const threadRootId = searchParams.get('threadRootId');
+        const conversationType = searchParams.get('conversationType') || 'project';
+
+        if (threadRootId) {
+            const threadMessages = await db.getThreadMessages(threadRootId);
+            return NextResponse.json(threadMessages);
+        }
+
+        if (conversationType === 'dm') {
+            if (!currentUserId || !recipientId) {
+                return NextResponse.json({ error: 'currentUserId and recipientId are required for DMs' }, { status: 400 });
+            }
+
+            const messages = await db.getDirectMessages(currentUserId, recipientId);
+            return NextResponse.json(messages);
+        }
 
         if (!projectId) {
             return NextResponse.json({ error: 'ProjectId required' }, { status: 400 });
@@ -23,49 +65,101 @@ export async function POST(request: Request) {
     try {
         const body = await request.json();
 
-        // Parse attachment if provided
         let attachment: Attachment | undefined;
         if (body.attachment) {
             attachment = body.attachment as Attachment;
         }
 
-        // Validation: need projectId, userId and either content or attachment
-        if (!body.projectId || !body.userId || (!body.content && !attachment)) {
-            return NextResponse.json({ error: 'Missing fields: need projectId, userId and either content or attachment' }, { status: 400 });
+        const conversationType: Message['conversationType'] = body.conversationType === 'dm' ? 'dm' : 'project';
+
+        if (!body.userId || (!body.content && !attachment)) {
+            return NextResponse.json({ error: 'Missing fields: need userId and either content or attachment' }, { status: 400 });
+        }
+
+        if (conversationType === 'project' && !body.projectId) {
+            return NextResponse.json({ error: 'projectId is required for project chat' }, { status: 400 });
+        }
+
+        if (conversationType === 'dm' && !body.recipientId) {
+            return NextResponse.json({ error: 'recipientId is required for direct messages' }, { status: 400 });
         }
 
         const newMessage: Message = {
             id: crypto.randomUUID(),
-            projectId: body.projectId,
+            projectId: conversationType === 'project' ? body.projectId || undefined : undefined,
             userId: body.userId,
             content: body.content || '',
             timestamp: new Date().toISOString(),
             attachment,
+            conversationType,
+            recipientId: body.recipientId || undefined,
+            threadRootId: body.threadRootId || null,
+            reactions: [],
         };
 
         await db.addMessage(newMessage);
 
-        // Notify other project members
-        const projectMembers = await db.getProjectMembers(newMessage.projectId);
-        const membersToNotify = projectMembers.filter(memberId => memberId !== newMessage.userId);
-        const project = await db.getProject(newMessage.projectId);
         const sender = await db.getUser(newMessage.userId);
 
-        for (const memberId of membersToNotify) {
+        if (newMessage.conversationType === 'dm' && newMessage.recipientId) {
             await db.addNotification({
-                userId: memberId,
+                userId: newMessage.recipientId,
                 type: 'new_message',
-                title: 'New Chat Message',
-                message: `${sender?.name || 'Someone'} sent a message in ${project?.name || 'a project'}`,
-                link: `/projects/${newMessage.projectId}?tab=chat`,
+                title: 'New Direct Message',
+                message: `${sender?.name || 'Someone'} sent you a direct message`,
+                link: body.projectId ? `/projects/${body.projectId}?tab=Chat` : '/dashboard',
                 entityId: newMessage.id,
-                projectId: newMessage.projectId,
+                projectId: body.projectId || undefined,
             });
+        } else if (newMessage.projectId) {
+            const projectMembers = await db.getProjectMembers(newMessage.projectId);
+            const membersToNotify = projectMembers.filter(memberId => memberId !== newMessage.userId);
+            const project = await db.getProject(newMessage.projectId);
+
+            for (const memberId of membersToNotify) {
+                await db.addNotification({
+                    userId: memberId,
+                    type: 'new_message',
+                    title: newMessage.threadRootId ? 'New Thread Reply' : 'New Chat Message',
+                    message: `${sender?.name || 'Someone'} sent a message in ${project?.name || 'a project'}`,
+                    link: `/projects/${newMessage.projectId}?tab=Chat`,
+                    entityId: newMessage.id,
+                    projectId: newMessage.projectId,
+                });
+            }
         }
 
         return NextResponse.json(newMessage);
     } catch (error) {
         console.error('Error creating message:', error);
         return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed to create message' }, { status: 500 });
+    }
+}
+
+export async function PATCH(request: Request) {
+    try {
+        const body = await request.json();
+        const { messageId, userId, emoji } = body;
+
+        if (!messageId || !userId || !emoji) {
+            return NextResponse.json({ error: 'messageId, userId, and emoji are required' }, { status: 400 });
+        }
+
+        const message = await db.getMessageById(messageId);
+        if (!message) {
+            return NextResponse.json({ error: 'Message not found' }, { status: 404 });
+        }
+
+        const updatedReactions = toggleReaction(message.reactions || [], emoji, userId);
+        const updatedMessage = await db.updateMessageReactions(messageId, updatedReactions);
+
+        if (!updatedMessage) {
+            return NextResponse.json({ error: 'Failed to update reactions' }, { status: 500 });
+        }
+
+        return NextResponse.json(updatedMessage);
+    } catch (error) {
+        console.error('Error updating message reactions:', error);
+        return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed to update message' }, { status: 500 });
     }
 }

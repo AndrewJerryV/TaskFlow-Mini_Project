@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { User, Task } from '@/types';
-import { checkMLServerAvailability } from '@/lib/utils';
+import { assignTaskWithEngine } from '@/lib/ml-engine';
 
 interface AssignmentCandidate {
     id: string;
@@ -15,16 +15,23 @@ interface AssignmentCandidate {
 
 interface AssignmentResponse {
     suggested_assignees: AssignmentCandidate[];
+    analysis?: {
+        predicted_priority?: string;
+        confidence_score?: string;
+        urgency_score?: number;
+        urgency_label?: string;
+        detected_skills?: string[];
+    };
 }
 
-// Smart assignment calling Python ML server
-async function pythonSmartAssignment(users: User[], allTasks: Task[], title: string, description: string, status: string, daysUntilDue: number) {
+async function smartAssignment(users: User[], allTasks: Task[], title: string, description: string, status: string, daysUntilDue: number) {
     try {
-        const payload = {
-            description: title + " " + (description || ""),
+        const data = assignTaskWithEngine({
+            title,
+            description,
             status: status,
-            days_until_due: daysUntilDue,
-            days_since_update: 0,
+            daysUntilDue,
+            daysSinceUpdate: 0,
             candidates: users.map(u => {
                 // Calculate real wellness stats for this user
                 const userTasks = allTasks.filter(t => t.assigneeId === u.id && t.status !== 'Done');
@@ -37,30 +44,19 @@ async function pythonSmartAssignment(users: User[], allTasks: Task[], title: str
                     name: u.name,
                     role: u.role,
                     skills: u.skills || [],
+                    burnoutSensitivity: u.burnoutSensitivity,
                     wellness_data: {
                         active_tasks: userTasks.length,
                         high_priority_count: highPriorityCount,
                         critical_urgency_count: criticalUrgencyCount
                     }
-                };
+                }
             })
-        };
-
-        const response = await fetch('http://127.0.0.1:8000/analyze_task', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
         });
-
-        if (!response.ok) {
-            throw new Error(`Python ML server responded with ${response.status}`);
-        }
-
-        const data = (await response.json()) as AssignmentResponse;
         const bestMatch = data.suggested_assignees[0];
 
         if (!bestMatch) {
-            throw new Error("No suggestions returned from Python ML server");
+            throw new Error("No suggestions returned from the assignment engine");
         }
 
         // Find the user object for the suggested assignee
@@ -88,7 +84,7 @@ async function pythonSmartAssignment(users: User[], allTasks: Task[], title: str
             mlPowered: true
         };
     } catch (error) {
-        console.error("Python AI Assignment failed:", error);
+        console.error("TaskFlow AI Assignment failed:", error);
         throw error;
     }
 }
@@ -109,17 +105,9 @@ export async function POST(request: Request) {
         const users = await db.getUsers();
         const allTasks = await db.getTasks();
 
-        // Try Python ML-powered assignment
         try {
-            // Check ML server availability first
-            const isAvailable = await checkMLServerAvailability();
-            if (!isAvailable) {
-                throw new Error("ML backend is unreachable");
-            }
-
-            // Calculate days until due for the Python model
-            const daysUntilDue = 7; // Default or calculate from task if available
-            const result = await pythonSmartAssignment(users, allTasks, title, description, 'To Do', daysUntilDue);
+            const daysUntilDue = 7;
+            const result = await smartAssignment(users, allTasks, title, description, 'To Do', daysUntilDue);
             return NextResponse.json(result);
         } catch (_error) {
             return NextResponse.json(

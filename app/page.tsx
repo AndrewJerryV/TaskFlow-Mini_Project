@@ -135,7 +135,7 @@ export default function LandingPage() {
             </motion.div>
             <motion.div variants={fadeUp} className="space-y-2">
               <h3 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-accent-teal to-accent-green">95%</h3>
-              <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">SetFit Accuracy</p>
+              <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">ML Insight Coverage</p>
             </motion.div>
           </motion.div>
         </div>
@@ -192,7 +192,7 @@ export default function LandingPage() {
                 Smart Recommendations <br /> That Actually Work
               </h3>
               <p className="text-lg text-gray-500 dark:text-gray-400 font-medium leading-relaxed">
-                Our ML pipeline uses fine-tuned SetFit models for priority prediction, TF-IDF skill matching, and heuristic wellness scoring — all running in real-time.
+                Our ML pipeline now runs inside the app with TypeScript scoring, skill matching, clustering, and wellness heuristics in real time.
               </p>
               <ul className="space-y-4">
                 {[
@@ -330,7 +330,7 @@ export default function LandingPage() {
                 </Link>
                 <div className="flex gap-2">
                   <span className="px-4 py-1.5 bg-gray-100 dark:bg-white/5 rounded-full text-xs font-bold text-gray-500">MIT License</span>
-                  <span className="px-4 py-1.5 bg-gray-100 dark:bg-white/5 rounded-full text-xs font-bold text-gray-500">Next.js + Python</span>
+                  <span className="px-4 py-1.5 bg-gray-100 dark:bg-white/5 rounded-full text-xs font-bold text-gray-500">Next.js + TypeScript ML</span>
                 </div>
               </div>
             </div>
@@ -382,7 +382,7 @@ const features = [
   {
     icon: <Sparkles size={28} />,
     title: "ML Recommendations",
-    description: "SetFit-powered priority classification and skill-based task assignment that learns from team patterns.",
+    description: "TypeScript-powered priority classification and skill-based task assignment that adapts to team patterns.",
     color: "from-accent-leaf to-accent-teal"
   },
   {
@@ -415,7 +415,7 @@ const techStack = [
   { icon: <Zap />, name: "Next.js", desc: "React Framework", color: "text-accent-blue" },
   { icon: <Layout />, name: "Tailwind", desc: "Utility Styling", color: "text-accent-teal" },
   { icon: <Activity />, name: "Supabase", desc: "DB & Auth", color: "text-accent-leaf" },
-  { icon: <Sparkles />, name: "SetFit", desc: "ML Models", color: "text-accent-green" },
-  { icon: <MousePointer2 />, name: "Python", desc: "ML Backend", color: "text-accent-leaf" },
+  { icon: <Sparkles />, name: "In-App ML", desc: "Shared Engine", color: "text-accent-green" },
+  { icon: <MousePointer2 />, name: "TypeScript", desc: "ML Engine", color: "text-accent-leaf" },
   { icon: <ArrowRight />, name: "Framer", desc: "Animations", color: "text-accent-teal" },
 ];

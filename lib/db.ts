@@ -75,14 +75,67 @@ function toActivityLog(dbLog: DbActivityLog): ActivityLog {
 }
 
 function toMessage(dbMessage: DbMessage): Message {
+    const parsed = parseLegacyMessageContent(dbMessage.content);
     return {
         id: dbMessage.id,
-        projectId: dbMessage.project_id,
+        projectId: dbMessage.project_id || undefined,
         userId: dbMessage.user_id,
-        content: dbMessage.content,
+        content: parsed.content,
         timestamp: dbMessage.timestamp,
         attachment: dbMessage.attachment ? JSON.parse(dbMessage.attachment) : undefined,
+        conversationType: dbMessage.conversation_type || parsed.metadata.conversationType || 'project',
+        recipientId: dbMessage.recipient_id || parsed.metadata.recipientId || undefined,
+        threadRootId: dbMessage.thread_root_id || parsed.metadata.threadRootId || null,
+        reactions: dbMessage.reactions ? JSON.parse(dbMessage.reactions) : (parsed.metadata.reactions || []),
     };
+}
+
+function isMissingMessageColumnError(error: { code?: string; message?: string } | null | undefined): boolean {
+    if (!error) return false;
+    return error.code === 'PGRST204' || error.code === '42703' || /column/i.test(error.message || '');
+}
+
+type LegacyMessageMetadata = {
+    conversationType?: 'project' | 'dm';
+    recipientId?: string;
+    threadRootId?: string | null;
+    reactions?: Message['reactions'];
+};
+
+const LEGACY_MESSAGE_PREFIX = '[[TFMETA:';
+
+function parseLegacyMessageContent(rawContent: string): { content: string; metadata: LegacyMessageMetadata } {
+    if (!rawContent.startsWith(LEGACY_MESSAGE_PREFIX)) {
+        return { content: rawContent, metadata: {} };
+    }
+
+    const closingIndex = rawContent.indexOf(']]');
+    if (closingIndex === -1) {
+        return { content: rawContent, metadata: {} };
+    }
+
+    try {
+        const json = rawContent.slice(LEGACY_MESSAGE_PREFIX.length, closingIndex);
+        const metadata = JSON.parse(json) as LegacyMessageMetadata;
+        const content = rawContent.slice(closingIndex + 2);
+        return { content, metadata };
+    } catch {
+        return { content: rawContent, metadata: {} };
+    }
+}
+
+function serializeLegacyMessageContent(content: string, metadata: LegacyMessageMetadata): string {
+    const normalized: LegacyMessageMetadata = {};
+    if (metadata.conversationType && metadata.conversationType !== 'project') normalized.conversationType = metadata.conversationType;
+    if (metadata.recipientId) normalized.recipientId = metadata.recipientId;
+    if (metadata.threadRootId) normalized.threadRootId = metadata.threadRootId;
+    if (metadata.reactions && metadata.reactions.length > 0) normalized.reactions = metadata.reactions;
+
+    if (Object.keys(normalized).length === 0) {
+        return content;
+    }
+
+    return `${LEGACY_MESSAGE_PREFIX}${JSON.stringify(normalized)}]]${content}`;
 }
 
 function toComment(dbComment: DbComment): Comment {
@@ -760,22 +813,180 @@ class Database {
         return (data || []).map(toMessage);
     }
 
+    async getDirectMessages(userId: string, recipientId: string): Promise<Message[]> {
+        const { data, error } = await getSupabase()
+            .from('messages')
+            .select('*')
+            .eq('conversation_type', 'dm')
+            .or(`and(user_id.eq.${userId},recipient_id.eq.${recipientId}),and(user_id.eq.${recipientId},recipient_id.eq.${userId})`)
+            .order('timestamp', { ascending: true });
+
+        if (error) {
+            if (isMissingMessageColumnError(error)) {
+                const { data: fallbackData, error: fallbackError } = await getSupabase()
+                    .from('messages')
+                    .select('*')
+                    .order('timestamp', { ascending: true });
+
+                if (fallbackError) {
+                    console.error('Error fetching fallback direct messages:', fallbackError);
+                    return [];
+                }
+
+                return (fallbackData || [])
+                    .map(toMessage)
+                    .filter(message =>
+                        message.conversationType === 'dm' &&
+                        ((message.userId === userId && message.recipientId === recipientId) ||
+                            (message.userId === recipientId && message.recipientId === userId))
+                    );
+            }
+            console.error('Error fetching direct messages:', error);
+            return [];
+        }
+
+        return (data || []).map(toMessage);
+    }
+
+    async getThreadMessages(rootMessageId: string): Promise<Message[]> {
+        const { data, error } = await getSupabase()
+            .from('messages')
+            .select('*')
+            .eq('thread_root_id', rootMessageId)
+            .order('timestamp', { ascending: true });
+
+        if (error) {
+            if (isMissingMessageColumnError(error)) {
+                const { data: fallbackData, error: fallbackError } = await getSupabase()
+                    .from('messages')
+                    .select('*')
+                    .order('timestamp', { ascending: true });
+
+                if (fallbackError) {
+                    console.error('Error fetching fallback thread messages:', fallbackError);
+                    return [];
+                }
+
+                return (fallbackData || [])
+                    .map(toMessage)
+                    .filter(message => message.threadRootId === rootMessageId);
+            }
+            console.error('Error fetching thread messages:', error);
+            return [];
+        }
+
+        return (data || []).map(toMessage);
+    }
+
     async addMessage(message: Message): Promise<void> {
-        const { error } = await getSupabase()
+        const supabase = getSupabase();
+        const fullInsert = await supabase
             .from('messages')
             .insert({
                 id: message.id,
-                project_id: message.projectId,
+                project_id: message.projectId || null,
                 user_id: message.userId,
                 content: message.content,
                 timestamp: message.timestamp,
                 attachment: message.attachment ? JSON.stringify(message.attachment) : null,
+                conversation_type: message.conversationType || 'project',
+                recipient_id: message.recipientId || null,
+                thread_root_id: message.threadRootId || null,
+                reactions: JSON.stringify(message.reactions || []),
             });
 
-        if (error) {
-            console.error('Error adding message:', error);
-            throw new Error(`Failed to add message: ${error.message}`);
+        if (!fullInsert.error) {
+            return;
         }
+
+        if (isMissingMessageColumnError(fullInsert.error)) {
+            const fallback = await supabase
+                .from('messages')
+                .insert({
+                    id: message.id,
+                    project_id: message.projectId || null,
+                    user_id: message.userId,
+                    content: serializeLegacyMessageContent(message.content, {
+                        conversationType: message.conversationType,
+                        recipientId: message.recipientId,
+                        threadRootId: message.threadRootId,
+                        reactions: message.reactions,
+                    }),
+                    timestamp: message.timestamp,
+                    attachment: message.attachment ? JSON.stringify(message.attachment) : null,
+                });
+
+            if (!fallback.error) {
+                return;
+            }
+
+            console.error('Error adding message with legacy fallback:', fallback.error);
+            throw new Error(`Failed to add message: ${fallback.error.message}`);
+        }
+
+        console.error('Error adding message:', fullInsert.error);
+        throw new Error(`Failed to add message: ${fullInsert.error.message}`);
+    }
+
+    async getMessageById(id: string): Promise<Message | null> {
+        const { data, error } = await getSupabase()
+            .from('messages')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error || !data) {
+            console.error('Error fetching message:', error);
+            return null;
+        }
+
+        return toMessage(data);
+    }
+
+    async updateMessageReactions(id: string, reactions: Message['reactions']): Promise<Message | null> {
+        const supabase = getSupabase();
+        const { data, error } = await supabase
+            .from('messages')
+            .update({
+                reactions: JSON.stringify(reactions || []),
+            })
+            .eq('id', id)
+            .select('*')
+            .single();
+
+        if (error || !data) {
+            if (isMissingMessageColumnError(error)) {
+                const existing = await this.getMessageById(id);
+                if (!existing) {
+                    return null;
+                }
+
+                const fallback = await supabase
+                    .from('messages')
+                    .update({
+                        content: serializeLegacyMessageContent(existing.content, {
+                            conversationType: existing.conversationType,
+                            recipientId: existing.recipientId,
+                            threadRootId: existing.threadRootId,
+                            reactions,
+                        }),
+                    })
+                    .eq('id', id)
+                    .select('*')
+                    .single();
+
+                if (fallback.error || !fallback.data) {
+                    console.error('Error updating fallback message reactions:', fallback.error);
+                    return null;
+                }
+
+                return toMessage(fallback.data);
+            }
+            console.error('Error updating message reactions:', error);
+            return null;
+        }
+
+        return toMessage(data);
     }
 
     // Time Entries

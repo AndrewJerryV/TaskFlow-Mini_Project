@@ -106,7 +106,7 @@ export default function ProjectPage() {
     const fetchData = useCallback(async (silent = false) => {
         if (!id || !currentUser) return;
         try {
-            if (!silent) setLoading(true);
+            if (!silent && !project) setLoading(true);
             // Fetch Tasks
             const tasksRes = await fetch(`/api/tasks?projectId=${id}&userId=${currentUser?.id}`);
             if (!tasksRes.ok) {
@@ -163,7 +163,7 @@ export default function ProjectPage() {
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [id, currentUser, isInviteOpen, lastSyncTime, router]);
+    }, [id, currentUser, isInviteOpen, lastSyncTime, project, router]);
 
     useEffect(() => {
         if (id && currentUser?.id) {
@@ -400,7 +400,7 @@ export default function ProjectPage() {
         }
     };
 
-    if (loading) return <div className="p-10 text-center text-gray-500 dark:text-gray-400">Loading Workspace...</div>;
+    if (loading && !project) return <div className="p-10 text-center text-gray-500 dark:text-gray-400">Loading Workspace...</div>;
     if (!project) return (
         <div className="flex flex-col items-center justify-center h-[calc(100vh-64px)] p-10 bg-gray-50 dark:bg-gray-900">
             <div className="text-red-500 mb-4 bg-red-50 dark:bg-red-900/20 p-4 rounded-full">
@@ -532,7 +532,9 @@ export default function ProjectPage() {
 
                 {activeTab === 'Board' && <TaskBoard tasks={tasks} onTaskMove={handleTaskMove} />}
                 {activeTab === 'Timeline' && <TimelineView tasks={tasks} projectMemberIds={projectMembers} />}
-                {activeTab === 'Chat' && <ChatView projectId={id} />}
+                <div className={activeTab === 'Chat' ? 'flex h-full min-h-0 flex-col' : 'hidden h-full min-h-0'}>
+                    <ChatView projectId={id} projectMemberIds={projectMembers} />
+                </div>
 
                 {activeTab === 'Code' && (
                     <div className="h-[calc(100vh-220px)]">

@@ -1,27 +1,90 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
-import { Message, Attachment } from '@/types';
-import { Send, MessageCircle, Paperclip, Image, FileText, X, Download, Calendar, PlayCircle } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Attachment, Message, User } from '@/types';
+import {
+    Calendar,
+    Download,
+    FileText,
+    Hash,
+    Image,
+    MessageCircle,
+    Paperclip,
+    PlayCircle,
+    Reply,
+    Send,
+    Users,
+    X,
+} from 'lucide-react';
 import { MiniCalendar } from '@/components/ui/MiniCalendar';
 import { useAuth } from '@/contexts/AuthContext';
-import { getUserName, formatFileSize } from '@/lib/utils';
+import { formatFileSize } from '@/lib/utils';
 import { getSupabase } from '@/lib/supabase';
-import { RealtimePostgresInsertPayload } from '@supabase/supabase-js';
 
 interface ChatViewProps {
     projectId: string;
+    projectMemberIds: string[];
 }
 
-// Message type alias for local use
-type ChatMessage = Message;
+type Conversation =
+    | { type: 'project'; id: 'project-room'; title: string }
+    | { type: 'dm'; id: string; title: string; user: User };
 
-export default function ChatView({ projectId }: ChatViewProps) {
+const QUICK_REACTIONS = ['\u{1F44D}', '\u2764\uFE0F', '\u{1F602}', '\u{1F62E}', '\u{1F622}', '\u{1F64F}'];
+
+export default function ChatView({ projectId, projectMemberIds }: ChatViewProps) {
     const { currentUser, users } = useAuth();
-    const [projectUsers, setProjectUsers] = useState<any[]>([]);
     const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [activeConversationId, setActiveConversationId] = useState<string>('project-room');
+    const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+    const [newMessage, setNewMessage] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [showAttachMenu, setShowAttachMenu] = useState(false);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [jumpToDate, setJumpToDate] = useState('');
+    const [viewingImage, setViewingImage] = useState<Attachment | null>(null);
+    const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Supabase Realtime Presence
+    const projectUsers = useMemo(
+        () =>
+            projectMemberIds
+                .map(memberId => users.find(user => user.id === memberId))
+                .filter((user): user is User => Boolean(user)),
+        [projectMemberIds, users]
+    );
+
+    const conversations = useMemo<Conversation[]>(() => {
+        const projectConversation: Conversation = {
+            type: 'project',
+            id: 'project-room',
+            title: 'Project Room',
+        };
+
+        const dmConversations = projectUsers
+            .filter(user => currentUser && user.id !== currentUser.id)
+            .map(user => ({
+                type: 'dm' as const,
+                id: user.id,
+                title: user.name,
+                user,
+            }));
+
+        return [projectConversation, ...dmConversations];
+    }, [projectUsers, currentUser]);
+
+    const activeConversation = conversations.find(conversation => conversation.id === activeConversationId) || conversations[0];
+
+    const messageMap = useMemo(() => {
+        const map = new Map<string, Message>();
+        messages.forEach(message => map.set(message.id, message));
+        return map;
+    }, [messages]);
+
     useEffect(() => {
         if (!currentUser) return;
 
@@ -35,7 +98,7 @@ export default function ChatView({ projectId }: ChatViewProps) {
                 const state = channel.presenceState();
                 setOnlineUserIds(Object.keys(state));
             })
-            .subscribe(async (status) => {
+            .subscribe(async status => {
                 if (status === 'SUBSCRIBED') {
                     await channel.track({ user_id: currentUser.id, online_at: new Date().toISOString() });
                 }
@@ -46,109 +109,7 @@ export default function ChatView({ projectId }: ChatViewProps) {
         };
     }, [currentUser]);
 
-    // Fetch project users
-    useEffect(() => {
-        if (!projectId) return;
-        fetch(`/api/project-members?projectId=${projectId}`)
-            .then(res => res.json())
-            .then(setProjectUsers);
-    }, [projectId]);
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
-    const [newMessage, setNewMessage] = useState('');
-    const [loading, setLoading] = useState(true);
-    const [showAttachMenu, setShowAttachMenu] = useState(false);
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-    const scrollRef = useRef<HTMLDivElement>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const [showDatePicker, setShowDatePicker] = useState(false);
-    const [jumpToDate, setJumpToDate] = useState('');
-    const [viewingImage, setViewingImage] = useState<Attachment | null>(null);
-
-    // Poll for messages
-    const isFirstLoad = useRef(true);
-    const fetchRef = useRef<(() => Promise<void>) | undefined>(undefined);
-
-    // Check if user is near bottom of chat
-    const isNearBottom = () => {
-        if (!scrollRef.current) return true;
-        const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-        return scrollHeight - scrollTop - clientHeight < 100;
-    };
-
-    const fetchMessages = async () => {
-        try {
-            const res = await fetch(`/api/messages?projectId=${projectId}`);
-            if (res.ok) {
-                const data = await res.json();
-                const wasNearBottom = isNearBottom();
-                setMessages(prev => {
-                    // Only auto-scroll if:
-                    // 1. It's the first load, or
-                    // 2. User was already near the bottom
-                    if (isFirstLoad.current || wasNearBottom) {
-                        scrollToBottom();
-                    }
-                    isFirstLoad.current = false;
-                    return data;
-                });
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Keep fetchRef always pointing to the latest fetchMessages
-    fetchRef.current = fetchMessages;
-
-    useEffect(() => {
-        if (!projectId) return;
-
-        fetchMessages();
-
-        const supabase = getSupabase();
-        const channel = supabase
-            .channel(`public:messages:project_id=eq.${projectId}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'messages',
-                    filter: `project_id=eq.${projectId}`
-                },
-                (payload: RealtimePostgresInsertPayload<any>) => {
-
-                    setMessages(prev => {
-                        if (prev.some(m => m.id === payload.new.id)) return prev;
-
-                        const newMsg: ChatMessage = {
-                            id: payload.new.id,
-                            projectId: payload.new.project_id,
-                            userId: payload.new.user_id,
-                            content: payload.new.content,
-                            timestamp: payload.new.timestamp,
-                            attachment: payload.new.attachment ? JSON.parse(payload.new.attachment) : undefined
-                        };
-
-                        const wasNearBottom = isNearBottom();
-                        if (wasNearBottom) {
-                            scrollToBottom();
-                        }
-                        return [...prev, newMsg];
-                    });
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [projectId]);
-
-    const scrollToBottom = () => {
+    const queueScrollToBottom = () => {
         setTimeout(() => {
             if (scrollRef.current) {
                 scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -156,117 +117,59 @@ export default function ChatView({ projectId }: ChatViewProps) {
         }, 100);
     };
 
-    const handleFileSelect = (type: 'image' | 'video' | 'document') => {
-        if (fileInputRef.current) {
-            let accept = '';
-            switch (type) {
-                case 'image': accept = 'image/*'; break;
-                case 'video': accept = 'video/*'; break;
-                case 'document': accept = '.pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx'; break;
-            }
-            fileInputRef.current.accept = accept;
-            fileInputRef.current.click();
-        }
-        setShowAttachMenu(false);
-    };
+    const fetchConversationMessages = async () => {
+        if (!currentUser) return;
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            setSelectedFile(file);
-            if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
-                setPreviewUrl(URL.createObjectURL(file));
-            } else {
-                setPreviewUrl(null);
-            }
-        }
-    };
-
-    const clearSelectedFile = () => {
-        setSelectedFile(null);
-        setPreviewUrl(null);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-    };
-
-    // formatFileSize is now imported from lib/utils
-
-    // Convert file to base64 data URL
-    const fileToBase64 = (file: File): Promise<string> => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = error => reject(error);
-        });
-    };
-
-    const handleSend = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if ((!newMessage.trim() && !selectedFile) || !currentUser) return;
-
-        // Create attachment info if file selected
-        let attachment: Attachment | undefined;
-        let attachmentUrl: string | undefined;
-
-        if (selectedFile) {
-            // Convert file to base64 for storage
-            try {
-                attachmentUrl = await fileToBase64(selectedFile);
-            } catch (err) {
-                console.error('Error converting file to base64:', err);
-                return;
-            }
-
-            const type = selectedFile.type.startsWith('image/') ? 'image'
-                : selectedFile.type.startsWith('video/') ? 'video' : 'document';
-            attachment = {
-                name: selectedFile.name,
-                type,
-                url: attachmentUrl,
-                size: formatFileSize(selectedFile.size)
-            };
-        }
-
-        // Determine message content
-        const messageContent = newMessage || (attachment ? `Shared ${attachment.type}: ${attachment.name}` : '');
-
-        // Optimistic update
-        const tempMessage: ChatMessage = {
-            id: `temp-${Date.now()}`,
-            projectId,
-            content: messageContent,
-            userId: currentUser.id,
-            timestamp: new Date().toISOString(),
-            attachment
-        };
-        setMessages(prev => [...prev, tempMessage]);
-        setNewMessage('');
-        clearSelectedFile();
-        scrollToBottom();
+        setLoading(true);
 
         try {
-            await fetch('/api/messages', {
-                method: 'POST',
-                body: JSON.stringify({
-                    projectId,
-                    content: messageContent,
-                    userId: currentUser.id,
-                    attachment
-                }),
-                headers: { 'Content-Type': 'application/json' }
-            });
-            fetchMessages();
-        } catch (e) {
-            console.error(e);
+            const params = new URLSearchParams();
+
+            if (activeConversation?.type === 'dm') {
+                params.set('conversationType', 'dm');
+                params.set('currentUserId', currentUser.id);
+                params.set('recipientId', activeConversation.id);
+            } else {
+                params.set('conversationType', 'project');
+                params.set('projectId', projectId);
+            }
+
+            const response = await fetch(`/api/messages?${params.toString()}`);
+            if (!response.ok) throw new Error('Failed to fetch messages');
+
+            const data = await response.json();
+            setMessages(Array.isArray(data) ? data : []);
+            queueScrollToBottom();
+        } catch (error) {
+            console.error(error);
+            setMessages([]);
+        } finally {
+            setLoading(false);
         }
     };
 
-    const formatTime = (dateStr: string) => {
-        const date = new Date(dateStr);
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    };
+    useEffect(() => {
+        setReplyingTo(null);
+        void fetchConversationMessages();
+    }, [activeConversationId, projectId, currentUser?.id]);
 
-    // Format date for chat with special Today/Yesterday handling
+    useEffect(() => {
+        const supabase = getSupabase();
+        const channel = supabase
+            .channel(`messages-${projectId}-${currentUser?.id || 'guest'}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
+                void fetchConversationMessages();
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [projectId, currentUser?.id, activeConversationId]);
+
+    const formatTime = (dateStr: string) =>
+        new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
     const formatChatDate = (dateStr: string) => {
         const date = new Date(dateStr);
         const today = new Date();
@@ -278,22 +181,141 @@ export default function ChatView({ projectId }: ChatViewProps) {
         return date.toLocaleDateString();
     };
 
-    // Group messages by date
-    const groupedMessages: { date: string; messages: ChatMessage[] }[] = [];
-    let currentDate = '';
-    messages.forEach(msg => {
-        const msgDate = formatChatDate(msg.timestamp);
-        if (msgDate !== currentDate) {
-            currentDate = msgDate;
-            groupedMessages.push({ date: msgDate, messages: [msg] });
-        } else {
-            groupedMessages[groupedMessages.length - 1].messages.push(msg);
+    const groupedMessages = useMemo(() => {
+        const groups: { date: string; messages: Message[] }[] = [];
+        let currentDate = '';
+
+        messages.forEach(message => {
+            const date = formatChatDate(message.timestamp);
+            if (date !== currentDate) {
+                currentDate = date;
+                groups.push({ date, messages: [message] });
+            } else {
+                groups[groups.length - 1].messages.push(message);
+            }
+        });
+
+        return groups;
+    }, [messages]);
+
+    const fileToBase64 = (file: File): Promise<string> =>
+        new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+        });
+
+    const handleFileSelect = (type: 'image' | 'video' | 'document') => {
+        if (fileInputRef.current) {
+            fileInputRef.current.accept =
+                type === 'image'
+                    ? 'image/*'
+                    : type === 'video'
+                        ? 'video/*'
+                        : '.pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx';
+            fileInputRef.current.click();
         }
-    });
+        setShowAttachMenu(false);
+    };
 
-    const isCurrentUser = (userId: string) => currentUser?.id === userId;
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
 
-    // Download attachment function
+        setSelectedFile(file);
+        if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+            setPreviewUrl(URL.createObjectURL(file));
+        } else {
+            setPreviewUrl(null);
+        }
+    };
+
+    const clearSelectedFile = () => {
+        setSelectedFile(null);
+        setPreviewUrl(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    const buildAttachment = async () => {
+        if (!selectedFile) return undefined;
+
+        const url = await fileToBase64(selectedFile);
+        return {
+            name: selectedFile.name,
+            type: selectedFile.type.startsWith('image/')
+                ? 'image'
+                : selectedFile.type.startsWith('video/')
+                    ? 'video'
+                    : 'document',
+            url,
+            size: formatFileSize(selectedFile.size),
+        } as Attachment;
+    };
+
+    const sendMessage = async () => {
+        if (!currentUser || (!newMessage.trim() && !selectedFile)) return;
+
+        const attachment = await buildAttachment();
+        const payload: Record<string, unknown> = {
+            userId: currentUser.id,
+            content: newMessage.trim() || (attachment ? `Shared ${attachment.type}: ${attachment.name}` : ''),
+            attachment,
+            threadRootId: replyingTo?.id || null,
+            conversationType: activeConversation?.type === 'dm' ? 'dm' : 'project',
+        };
+
+        if (activeConversation?.type === 'dm') {
+            payload.recipientId = activeConversation.id;
+            payload.projectId = projectId;
+        } else {
+            payload.projectId = projectId;
+        }
+
+        const response = await fetch('/api/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to send message');
+        }
+
+        clearSelectedFile();
+        setNewMessage('');
+        setReplyingTo(null);
+        await fetchConversationMessages();
+    };
+
+    const handleSend = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            await sendMessage();
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    const handleReaction = async (messageId: string, emoji: string) => {
+        if (!currentUser) return;
+
+        try {
+            await fetch('/api/messages', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    messageId,
+                    userId: currentUser.id,
+                    emoji,
+                }),
+            });
+            await fetchConversationMessages();
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
     const downloadAttachment = (attachment: Attachment) => {
         const link = document.createElement('a');
         link.href = attachment.url;
@@ -303,305 +325,364 @@ export default function ChatView({ projectId }: ChatViewProps) {
         document.body.removeChild(link);
     };
 
-    // Open image in lightbox modal
-    const openImage = (attachment: Attachment) => {
-        setViewingImage(attachment);
-    };
-
     const renderAttachment = (attachment: Attachment) => {
         if (attachment.type === 'image') {
             return (
-                <div className="mt-2 rounded-lg overflow-hidden max-w-[240px] cursor-pointer group relative" onClick={() => openImage(attachment)}>
-                    <img src={attachment.url} alt={attachment.name} className="w-full h-auto" />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                        <span className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity">Click to view</span>
-                    </div>
+                <div className="mt-2 cursor-pointer overflow-hidden rounded-2xl" onClick={() => setViewingImage(attachment)}>
+                    <img src={attachment.url} alt={attachment.name} className="max-w-[280px] rounded-2xl" />
                 </div>
             );
         }
+
         if (attachment.type === 'video') {
             return (
-                <div className="mt-2 rounded-lg overflow-hidden max-w-[280px]">
-                    <video src={attachment.url} controls className="w-full h-auto" />
+                <div className="mt-2 max-w-[320px] overflow-hidden rounded-2xl">
+                    <video src={attachment.url} controls className="w-full rounded-2xl" />
                 </div>
             );
         }
+
         return (
-            <div className="mt-2 flex items-center gap-2 bg-gray-100 dark:bg-gray-700 rounded-lg p-2">
-                <FileText size={20} className="text-blue-600 dark:text-blue-400" />
-                <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{attachment.name}</p>
+            <div className="mt-2 flex items-center gap-2 rounded-2xl bg-slate-100 p-2 dark:bg-slate-700">
+                <FileText size={18} className="text-blue-500" />
+                <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{attachment.name}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">{attachment.size}</p>
                 </div>
-                <button
-                    onClick={() => downloadAttachment(attachment)}
-                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
-                    title="Download file"
-                >
-                    <Download size={16} className="text-gray-600 dark:text-gray-400" />
+                <button onClick={() => downloadAttachment(attachment)} className="rounded p-1 hover:bg-slate-200 dark:hover:bg-slate-600">
+                    <Download size={14} />
                 </button>
             </div>
         );
     };
 
-    return (
-        <div className="h-full flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-900">
-            {/* Image Lightbox Modal */}
-            {viewingImage && (
-                <div
-                    className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
-                    onClick={() => setViewingImage(null)}
-                >
-                    <button
-                        className="absolute top-4 right-4 text-white hover:text-gray-300 p-2"
-                        onClick={() => setViewingImage(null)}
+    const renderQuotedReply = (message: Message, isSender: boolean) => {
+        if (!message.threadRootId) return null;
+
+        const originalMessage = messageMap.get(message.threadRootId);
+        if (!originalMessage) return null;
+
+        const originalSender =
+            projectUsers.find(user => user.id === originalMessage.userId) ||
+            users.find(user => user.id === originalMessage.userId);
+
+        return (
+            <button
+                type="button"
+                onClick={() => {
+                    const target = document.getElementById(`message-${originalMessage.id}`);
+                    target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }}
+                className={`mb-2 w-full rounded-2xl border px-3 py-2 text-left ${
+                    isSender
+                        ? 'border-blue-300/40 bg-blue-500/20 text-blue-50'
+                        : 'border-slate-200 bg-slate-100/90 text-slate-700 dark:border-slate-700 dark:bg-slate-700/60 dark:text-slate-200'
+                }`}
+            >
+                <div className="truncate text-[11px] font-semibold">
+                    {originalSender?.name || 'Unknown'}
+                </div>
+                <div className="truncate text-xs opacity-90">
+                    {originalMessage.content || (originalMessage.attachment ? `Attachment: ${originalMessage.attachment.name}` : 'Message')}
+                </div>
+            </button>
+        );
+    };
+
+    const renderMessageBubble = (message: Message) => {
+        const isSender = message.userId === currentUser?.id;
+        const sender =
+            projectUsers.find(user => user.id === message.userId) ||
+            users.find(user => user.id === message.userId);
+
+        return (
+            <div
+                key={message.id}
+                id={`message-${message.id}`}
+                className={`group mb-3 flex ${isSender ? 'justify-end' : 'justify-start'}`}
+                onMouseEnter={() => setHoveredMessageId(message.id)}
+                onMouseLeave={() => setHoveredMessageId(null)}
+            >
+                <div className={`max-w-[78%] ${isSender ? 'items-end' : 'items-start'} flex flex-col`}>
+                    {!isSender && (
+                        <div className="mb-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                            {sender?.name || 'Unknown'}
+                        </div>
+                    )}
+                    <div
+                        className={`rounded-[22px] px-4 py-3 shadow-sm ${
+                            isSender
+                                ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-blue-500/20'
+                                : 'border border-white/70 bg-white/90 text-gray-900 backdrop-blur dark:border-slate-700 dark:bg-slate-800/95 dark:text-gray-100'
+                        }`}
                     >
-                        <X size={32} />
+                        {renderQuotedReply(message, isSender)}
+                        {message.content && <p className="whitespace-pre-wrap text-sm">{message.content}</p>}
+                        {message.attachment && renderAttachment(message.attachment)}
+                        <div className={`mt-2 text-[10px] ${isSender ? 'text-blue-100' : 'text-slate-400 dark:text-slate-500'}`}>
+                            {formatTime(message.timestamp)}
+                        </div>
+                    </div>
+
+                    {message.reactions && message.reactions.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                            {message.reactions.map(reaction => (
+                                <button
+                                    key={`${message.id}-${reaction.emoji}`}
+                                    onClick={() => handleReaction(message.id, reaction.emoji)}
+                                    className={`rounded-full border px-2 py-0.5 text-xs ${
+                                        reaction.userIds.includes(currentUser?.id || '')
+                                            ? 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                                            : 'border-slate-200 bg-white/90 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'
+                                    }`}
+                                >
+                                    {reaction.emoji} {reaction.userIds.length}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    <div className={`mt-1 flex flex-wrap gap-2 text-xs ${hoveredMessageId === message.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
+                        {QUICK_REACTIONS.map(emoji => (
+                            <button
+                                key={`${message.id}-${emoji}`}
+                                onClick={() => handleReaction(message.id, emoji)}
+                                className="rounded-full border border-white/70 bg-white/90 px-2 py-1 shadow-sm backdrop-blur hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700"
+                            >
+                                {emoji}
+                            </button>
+                        ))}
+                        <button
+                            onClick={() => setReplyingTo(message)}
+                            className="flex items-center gap-1 rounded-full border border-slate-200 bg-white/90 px-2 py-1 text-slate-600 shadow-sm backdrop-blur hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                        >
+                            <Reply size={12} />
+                            Reply
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const onlineCount = projectUsers.filter(user => onlineUserIds.includes(user.id)).length;
+
+    return (
+        <div className="flex h-full overflow-hidden rounded-2xl border border-slate-200/80 bg-white/75 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/90">
+            {viewingImage && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90" onClick={() => setViewingImage(null)}>
+                    <button className="absolute right-4 top-4 p-2 text-white" onClick={() => setViewingImage(null)}>
+                        <X size={28} />
                     </button>
-                    <img
-                        src={viewingImage.url}
-                        alt={viewingImage.name}
-                        className="max-w-[90vw] max-h-[90vh] object-contain"
-                        onClick={(e) => e.stopPropagation()}
-                    />
-                    <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white text-sm bg-black/50 px-3 py-1 rounded">
-                        {viewingImage.name}
-                    </p>
+                    <img src={viewingImage.url} alt={viewingImage.name} className="max-h-[90vh] max-w-[90vw] object-contain" />
                 </div>
             )}
 
-            {/* Thin Header Banner */}
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-1 flex items-center justify-between flex-shrink-0">
-                <div className="flex items-center gap-3">
-                    <span className="text-white text-sm font-medium">Team Chat</span>
-                    <span className="text-blue-200 text-xs">• {projectUsers.length} members</span>
-                </div>
-                <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                        <span className="text-blue-200 text-xs">{
-                            (() => {
-                                const onlineCount = projectUsers.filter(u => onlineUserIds.includes(u.id)).length;
-                                // If current user is a project member, always show at least 1 online
-                                if (currentUser && projectUsers.some(u => u.id === currentUser.id)) {
-                                    return Math.max(onlineCount, 1);
-                                }
-                                return onlineCount;
-                            })()
-                        } online</span>
+            <aside className="flex w-72 min-h-0 flex-col border-r border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(241,245,255,0.9)_100%)] p-4 backdrop-blur-xl dark:border-slate-800 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.96)_0%,rgba(17,24,39,0.92)_100%)]">
+                <div className="mb-4">
+                    <div className="text-xs font-bold uppercase tracking-[0.2em] text-gray-400">Conversations</div>
+                    <div className="mt-2 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                        <Users size={14} />
+                        {Math.max(onlineCount, currentUser ? 1 : 0)} online
                     </div>
-                    {/* Date Jump */}
+                </div>
+
+                <div className="flex min-h-0 flex-1 flex-col gap-5">
+                    <div>
+                        <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Channels</div>
+                        <button
+                            onClick={() => setActiveConversationId('project-room')}
+                            className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium ${
+                                activeConversationId === 'project-room'
+                                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20'
+                                    : 'text-gray-700 hover:bg-white/80 dark:text-gray-200 dark:hover:bg-slate-800/70'
+                            }`}
+                        >
+                            <Hash size={16} />
+                            Project Room
+                        </button>
+                    </div>
+
+                    <div className="flex min-h-0 flex-1 flex-col">
+                        <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Direct Messages</div>
+                        <div className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
+                            {conversations
+                                .filter(conversation => conversation.type === 'dm')
+                                .map(conversation => {
+                                    const isOnline = conversation.type === 'dm' && onlineUserIds.includes(conversation.user.id);
+                                    return (
+                                        <button
+                                            key={conversation.id}
+                                            onClick={() => setActiveConversationId(conversation.id)}
+                                            className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm ${
+                                                activeConversationId === conversation.id
+                                                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20'
+                                                    : 'text-gray-700 hover:bg-white/80 dark:text-gray-200 dark:hover:bg-slate-800/70'
+                                            }`}
+                                        >
+                                            <div className="relative">
+                                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                                                    {conversation.user.name.charAt(0)}
+                                                </div>
+                                                <span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-gray-50 dark:border-gray-950 ${isOnline ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="truncate font-medium">{conversation.title}</div>
+                                                <div className={`truncate text-xs ${activeConversationId === conversation.id ? 'text-blue-100' : 'text-gray-400'}`}>
+                                                    {isOnline ? 'Online' : 'Offline'}
+                                                </div>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <section className="relative flex min-w-0 flex-1 flex-col">
+                <div className="flex items-center justify-between border-b border-slate-200/80 bg-white/70 px-5 py-3 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/70">
+                    <div>
+                        <div className="text-sm font-bold text-gray-900 dark:text-white">
+                            {activeConversation?.type === 'dm' ? activeConversation.title : '# Project Room'}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                            {activeConversation?.type === 'dm'
+                                ? 'Private conversation'
+                                : `${projectUsers.length} members - shared workspace chat`}
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => setShowDatePicker(!showDatePicker)}
+                        className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+                    >
+                        <Calendar size={16} />
+                    </button>
+                </div>
+
+                {showDatePicker && (
+                    <div className="absolute right-5 top-16 z-20">
+                        <MiniCalendar
+                            currentDate={jumpToDate}
+                            onSelect={dateStr => {
+                                setJumpToDate(dateStr);
+                                const target = scrollRef.current?.querySelector(`[data-date="${dateStr}"]`);
+                                if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                setShowDatePicker(false);
+                            }}
+                        />
+                    </div>
+                )}
+
+                <div
+                    ref={scrollRef}
+                    className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.09),transparent_28%),radial-gradient(circle_at_top_right,rgba(99,102,241,0.08),transparent_24%),linear-gradient(180deg,#f8fbff_0%,#eef4ff_52%,#f8fafc_100%)] px-5 py-4 dark:bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_22%),radial-gradient(circle_at_top_right,rgba(99,102,241,0.14),transparent_20%),linear-gradient(180deg,#0f172a_0%,#111827_100%)]"
+                >
+                    {loading ? (
+                        <div className="mt-20 text-center text-gray-500">Loading messages...</div>
+                    ) : messages.length === 0 ? (
+                        <div className="mt-20 text-center">
+                            <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
+                                <MessageCircle size={30} className="text-blue-500" />
+                            </div>
+                            <p className="font-medium text-gray-700 dark:text-gray-200">No messages yet</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                {activeConversation?.type === 'dm' ? 'Start a direct conversation.' : 'Start the project discussion.'}
+                            </p>
+                        </div>
+                    ) : (
+                        groupedMessages.map(group => (
+                            <div key={group.date}>
+                                <div className="my-4 flex justify-center" data-date={messages.find(message => formatChatDate(message.timestamp) === group.date)?.timestamp.split('T')[0]}>
+                                    <span className="rounded-full border border-white/60 bg-white/85 px-3 py-1 text-xs font-medium text-slate-600 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-300">
+                                        {group.date}
+                                    </span>
+                                </div>
+                                {group.messages.map(message => renderMessageBubble(message))}
+                            </div>
+                        ))
+                    )}
+                </div>
+
+                {replyingTo && (
+                    <div className="border-t border-slate-200/80 bg-white/70 px-4 py-2 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
+                        <div className="flex items-start justify-between gap-3 rounded-2xl border-l-4 border-blue-500 bg-white/90 px-3 py-2 shadow-sm dark:bg-slate-900/90">
+                            <div className="min-w-0">
+                                <div className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                                    Replying to {projectUsers.find(user => user.id === replyingTo.userId)?.name || users.find(user => user.id === replyingTo.userId)?.name || 'Unknown'}
+                                </div>
+                                <div className="truncate text-sm text-gray-600 dark:text-gray-300">
+                                    {replyingTo.content || (replyingTo.attachment ? `Attachment: ${replyingTo.attachment.name}` : 'Message')}
+                                </div>
+                            </div>
+                            <button onClick={() => setReplyingTo(null)} className="rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-800">
+                                <X size={14} />
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {selectedFile && (
+                    <div className="border-t border-slate-200/80 bg-white/70 px-4 py-2 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
+                        <div className="flex items-center gap-3">
+                            {previewUrl && selectedFile.type.startsWith('image/') ? (
+                                <img src={previewUrl} alt="Preview" className="h-12 w-12 rounded-lg object-cover" />
+                            ) : (
+                                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                                    <FileText size={18} className="text-blue-500" />
+                                </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-medium text-gray-800 dark:text-gray-100">{selectedFile.name}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">{formatFileSize(selectedFile.size)}</p>
+                            </div>
+                            <button onClick={clearSelectedFile} className="rounded-lg p-1 hover:bg-gray-200 dark:hover:bg-gray-800">
+                                <X size={16} />
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                <form onSubmit={handleSend} className="flex items-center gap-2 border-t border-slate-200/80 bg-white/80 px-3 py-3 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/85">
                     <div className="relative">
                         <button
-                            onClick={() => setShowDatePicker(!showDatePicker)}
-                            className="p-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded transition-colors"
-                            title="Jump to date"
+                            type="button"
+                            onClick={() => setShowAttachMenu(!showAttachMenu)}
+                            className="rounded-full p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
                         >
-                            <Calendar size={16} />
+                            <Paperclip size={18} />
                         </button>
-                        {showDatePicker && (
-                            <div className="absolute right-0 top-full mt-1 z-20">
-                                <MiniCalendar
-                                    onSelect={(dateStr) => {
-                                        setJumpToDate(dateStr);
-                                        // Find the date separator for this date and scroll to it
-                                        if (scrollRef.current) {
-                                            const targetDate = dateStr;
-                                            const dateSeparator = scrollRef.current.querySelector(`[data-date="${targetDate}"]`);
-                                            if (dateSeparator) {
-                                                dateSeparator.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                            } else {
-                                                // If exact date not found, find closest date after
-                                                const allDates = scrollRef.current.querySelectorAll('[data-date]');
-                                                for (const el of allDates) {
-                                                    const elDate = el.getAttribute('data-date');
-                                                    if (elDate && elDate >= targetDate) {
-                                                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                                        break;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        setShowDatePicker(false);
-                                    }}
-                                    currentDate={jumpToDate}
-                                />
+                        {showAttachMenu && (
+                            <div className="absolute bottom-12 left-0 z-10 min-w-[160px] rounded-xl border border-slate-200 bg-white/95 py-2 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-800/95">
+                                <button type="button" className="flex w-full items-center gap-3 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700" onClick={() => handleFileSelect('image')}>
+                                    <Image size={16} /> Photos
+                                </button>
+                                <button type="button" className="flex w-full items-center gap-3 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700" onClick={() => handleFileSelect('video')}>
+                                    <PlayCircle size={16} /> Videos
+                                </button>
+                                <button type="button" className="flex w-full items-center gap-3 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700" onClick={() => handleFileSelect('document')}>
+                                    <FileText size={16} /> Documents
+                                </button>
                             </div>
                         )}
                     </div>
-                </div>
-            </div>
-
-            {/* Messages Area */}
-            <div
-                className="flex-1 p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900"
-                ref={scrollRef}
-            >
-                {loading ? (
-                    <div className="text-center text-gray-500 dark:text-gray-400 mt-20">Loading messages...</div>
-                ) : messages.length === 0 ? (
-                    <div className="text-center mt-20">
-                        <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full mx-auto mb-3 flex items-center justify-center">
-                            <MessageCircle size={32} className="text-blue-500 dark:text-blue-400" />
-                        </div>
-                        <p className="text-gray-600 dark:text-gray-300 font-medium">No messages yet</p>
-                        <p className="text-gray-500 dark:text-gray-400 text-sm">Start the conversation!</p>
-                    </div>
-                ) : (
-                    groupedMessages.map((group, gi) => (
-                        <div key={gi} data-date-group={group.date}>
-                            {/* Date Separator */}
-                            <div
-                                className="flex justify-center my-4"
-                                data-date={messages.find(m => formatChatDate(m.timestamp) === group.date)?.timestamp.split('T')[0]}
-                            >
-                                <span className="bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded-full text-xs font-medium text-gray-600 dark:text-gray-400">
-                                    {group.date}
-                                </span>
-                            </div>
-
-                            {/* Messages */}
-                            {group.messages.map((msg, mi) => {
-                                const isSender = isCurrentUser(msg.userId);
-                                // Try to find name in projectUsers first, then in the full users list from AuthContext
-                                const senderName = projectUsers.find(u => u.id === msg.userId)?.name ||
-                                    users.find(u => u.id === msg.userId)?.name ||
-                                    'Unknown';
-                                const showName = !isSender && (mi === 0 || group.messages[mi - 1].userId !== msg.userId);
-                                const showAvatar = !isSender && (mi === group.messages.length - 1 || group.messages[mi + 1].userId !== msg.userId);
-
-                                return (
-                                    <div
-                                        key={msg.id}
-                                        className={`flex mb-2 ${isSender ? 'justify-end' : 'justify-start'}`}
-                                    >
-                                        {/* Avatar for received messages */}
-                                        {!isSender && (
-                                            <div className="w-8 mr-2 flex flex-col justify-end">
-                                                {showAvatar && (
-                                                    <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white text-xs font-medium">
-                                                        {senderName.charAt(0).toUpperCase()}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-
-                                        <div
-                                            className={`max-w-[70%] px-3 py-2 rounded-lg shadow-sm ${isSender
-                                                ? 'bg-blue-600 text-white rounded-br-none'
-                                                : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-bl-none'
-                                                }`}
-                                        >
-                                            {/* Sender Name */}
-                                            {showName && (
-                                                <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mb-1">
-                                                    {senderName}
-                                                </p>
-                                            )}
-
-                                            {/* Message Content */}
-                                            {msg.content && (
-                                                <p className={`text-sm break-words ${isSender ? 'text-white' : 'text-gray-800 dark:text-gray-200'}`}>
-                                                    {msg.content}
-                                                </p>
-                                            )}
-
-                                            {/* Attachment */}
-                                            {msg.attachment && renderAttachment(msg.attachment)}
-
-                                            {/* Time */}
-                                            <p className={`text-[10px] mt-1 text-right ${isSender ? 'text-blue-200' : 'text-gray-400 dark:text-gray-500'}`}>
-                                                {formatTime(msg.timestamp)}
-                                            </p>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    ))
-                )}
-            </div>
-
-            {/* File Preview */}
-            {selectedFile && (
-                <div className="px-4 py-2 bg-gray-100 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600 flex items-center gap-3">
-                    {previewUrl && selectedFile.type.startsWith('image/') ? (
-                        <img src={previewUrl} alt="Preview" className="w-12 h-12 object-cover rounded" />
-                    ) : (
-                        <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded flex items-center justify-center">
-                            <FileText size={20} className="text-blue-600 dark:text-blue-400" />
-                        </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{selectedFile.name}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{formatFileSize(selectedFile.size)}</p>
-                    </div>
-                    <button onClick={clearSelectedFile} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded">
-                        <X size={18} className="text-gray-500 dark:text-gray-400" />
-                    </button>
-                </div>
-            )}
-
-            {/* Input Area - Flush to bottom */}
-            <form onSubmit={handleSend} className="px-3 py-2 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center gap-2 flex-shrink-0">
-                {/* Attachment Button */}
-                <div className="relative">
+                    <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
+                    <input
+                        type="text"
+                        className="flex-1 rounded-full border border-slate-300 bg-white/90 px-4 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800/95 dark:text-white"
+                        placeholder={activeConversation?.type === 'dm' ? `Message ${activeConversation.title}` : 'Message project room'}
+                        value={newMessage}
+                        onChange={event => setNewMessage(event.target.value)}
+                    />
                     <button
-                        type="button"
-                        onClick={() => setShowAttachMenu(!showAttachMenu)}
-                        className="p-2 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                        type="submit"
+                        disabled={!newMessage.trim() && !selectedFile}
+                        className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 disabled:bg-gray-300 dark:disabled:bg-gray-700"
                     >
-                        <Paperclip size={20} />
+                        <Send size={16} />
                     </button>
-
-                    {/* Attachment Menu */}
-                    {showAttachMenu && (
-                        <div className="absolute bottom-12 left-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2 min-w-[160px] z-10">
-                            <button
-                                type="button"
-                                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                                onClick={() => handleFileSelect('image')}
-                            >
-                                <Image size={18} className="text-gray-500 dark:text-gray-400" />
-                                Photos
-                            </button>
-                            <button
-                                type="button"
-                                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                                onClick={() => handleFileSelect('video')}
-                            >
-                                <PlayCircle size={18} className="text-gray-500 dark:text-gray-400" />
-                                Videos
-                            </button>
-                            <button
-                                type="button"
-                                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                                onClick={() => handleFileSelect('document')}
-                            >
-                                <FileText size={18} className="text-gray-500 dark:text-gray-400" />
-                                Documents
-                            </button>
-                        </div>
-                    )}
-                </div>
-
-                <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
-
-                <input
-                    type="text"
-                    className="flex-1 border border-gray-300 dark:border-gray-600 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    placeholder="Type a message..."
-                    value={newMessage}
-                    onChange={e => setNewMessage(e.target.value)}
-                />
-                <button
-                    type="submit"
-                    disabled={!newMessage.trim() && !selectedFile}
-                    className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-                >
-                    <Send size={18} />
-                </button>
-            </form>
+                </form>
+            </section>
         </div>
     );
 }
