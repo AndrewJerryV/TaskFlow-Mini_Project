@@ -176,7 +176,7 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
 
     const handleLogout = async () => {
         await logout();
-        router.push('/');
+        router.replace('/login');
     };
 
     return (

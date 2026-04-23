@@ -19,6 +19,7 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [altchaPayload, setAltchaPayload] = useState<string | null>(null);
   const [altchaVerified, setAltchaVerified] = useState(false);
+  const formRef = useRef<HTMLFormElement | null>(null);
   const altchaRef = useRef<HTMLElement | null>(null);
   const altchaWidgetStyle: React.CSSProperties & Record<`--${string}`, string> = {
     '--altcha-max-width': '100%',
@@ -40,17 +41,21 @@ export default function LoginPage() {
     const widget = altchaRef.current;
     if (!widget) return;
 
+    const onVerified = (event: Event) => {
+      const detail = (event as CustomEvent<{ payload?: string | null }>).detail;
+      if (!detail?.payload) return;
+
+      setAltchaPayload(detail.payload);
+      setAltchaVerified(true);
+      setError('');
+    };
+
     const onStateChange = (event: Event) => {
-      const detail = (event as CustomEvent<{ state?: string; payload?: string | null }>).detail;
-      if (!detail) return;
+      const detail = (event as CustomEvent<{ state?: string }>).detail;
+      if (!detail?.state) return;
 
-      if (detail.state === 'verified' && detail.payload) {
-        setAltchaPayload(detail.payload);
-        setAltchaVerified(true);
-        return;
-      }
-
-      if (detail.state !== 'verifying') {
+      if (detail.state === 'unverified' || detail.state === 'error' || detail.state === 'expired') {
+        setAltchaPayload(null);
         setAltchaVerified(false);
       }
     };
@@ -60,10 +65,12 @@ export default function LoginPage() {
       setAltchaVerified(false);
     };
 
+    widget.addEventListener('verified', onVerified);
     widget.addEventListener('statechange', onStateChange);
     widget.addEventListener('expired', onExpired);
 
     return () => {
+      widget.removeEventListener('verified', onVerified);
       widget.removeEventListener('statechange', onStateChange);
       widget.removeEventListener('expired', onExpired);
     };
@@ -94,8 +101,28 @@ export default function LoginPage() {
     setError('Please complete CAPTCHA verification before signing in.');
   };
 
+  const getAltchaPayload = () => {
+    if (altchaPayload) {
+      return altchaPayload;
+    }
+
+    const formPayload = formRef.current
+      ?.querySelector<HTMLInputElement>('input[name="altcha"]')
+      ?.value;
+
+    if (formPayload) {
+      setAltchaPayload(formPayload);
+      setAltchaVerified(true);
+      return formPayload;
+    }
+
+    return null;
+  };
+
   const verifyAltcha = async () => {
-    if (!altchaPayload) {
+    const payload = getAltchaPayload();
+
+    if (!payload) {
       showAltchaRequiredMessage();
       return false;
     }
@@ -103,7 +130,7 @@ export default function LoginPage() {
     const verifyRes = await fetch('/api/altcha/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ payload: altchaPayload })
+      body: JSON.stringify({ payload })
     });
 
     const verifyData = await verifyRes.json().catch(() => ({ success: false }));
@@ -238,7 +265,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <form onSubmit={handleEmailAuth} className="space-y-3 mb-4">
+        <form ref={formRef} onSubmit={handleEmailAuth} className="space-y-3 mb-4">
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
               Email
@@ -296,9 +323,6 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={submitting}
-            onClick={() => {
-              if (!altchaVerified) showAltchaRequiredMessage();
-            }}
             className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-xl transition-colors"
           >
             {submitting ? 'Please wait...' : mode === 'signin' ? 'Sign In' : 'Sign Up'}

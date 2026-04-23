@@ -30,7 +30,7 @@ export function Sidebar() {
                     <h2 className="text-xs font-semibold uppercase text-gray-400 dark:text-gray-500 mb-3 px-2">Workspace</h2>
                     <ul className="space-y-1">
                         <li>
-                            <Link href="/" className={`flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${pathname === '/' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+                            <Link href="/dashboard" className={`flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${pathname === '/dashboard' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
                                 <LayoutGrid size={18} className="mr-3 text-gray-400 dark:text-gray-500" />
                                 Dashboards
                             </Link>

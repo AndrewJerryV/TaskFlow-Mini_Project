@@ -412,7 +412,7 @@ export default function ProjectPage() {
                 You will be redirected to the dashboard in a few seconds...
             </p>
             <button
-                onClick={() => router.push('/')}
+                onClick={() => router.push('/dashboard')}
                 className="mt-6 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors"
             >
                 Back to Dashboard
