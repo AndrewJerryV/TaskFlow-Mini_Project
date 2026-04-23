@@ -189,6 +189,7 @@ export default function LoginPage() {
         } else {
           shouldResetAltcha = false;
           setSuccess('Signing you in...');
+          router.replace('/dashboard');
         }
       }
     } catch (err) {
@@ -322,8 +323,8 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={submitting}
-            className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-xl transition-colors"
+            disabled={submitting || !altchaVerified}
+            className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors"
           >
             {submitting ? 'Please wait...' : mode === 'signin' ? 'Sign In' : 'Sign Up'}
           </button>
@@ -341,24 +342,26 @@ export default function LoginPage() {
         <div className="space-y-2">
           <button
             onClick={signInWithGoogle}
-            className="w-full py-2.5 px-4 border border-gray-300 hover:bg-gray-50 text-gray-800 font-medium rounded-xl transition-colors flex items-center justify-center gap-3"
+            disabled={!altchaVerified}
+            className="w-full py-2.5 px-4 border border-gray-300 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed text-gray-800 font-medium rounded-xl transition-colors flex items-center justify-center gap-3"
           >
             <img
               src="https://www.svgrepo.com/show/475656/google-color.svg"
               alt="Google"
-              className="w-5 h-5"
+              className={`w-5 h-5 ${!altchaVerified ? 'opacity-40 grayscale' : ''}`}
             />
             Continue with Google
           </button>
 
           <button
             onClick={signInWithGithub}
-            className="w-full py-2.5 px-4 border border-gray-300 hover:bg-gray-50 text-gray-800 font-medium rounded-xl transition-colors flex items-center justify-center gap-3"
+            disabled={!altchaVerified}
+            className="w-full py-2.5 px-4 border border-gray-300 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed text-gray-800 font-medium rounded-xl transition-colors flex items-center justify-center gap-3"
           >
             <img
               src="https://www.svgrepo.com/show/512317/github-142.svg"
               alt="GitHub"
-              className="w-5 h-5"
+              className={`w-5 h-5 ${!altchaVerified ? 'opacity-40 grayscale' : ''}`}
             />
             Continue with GitHub
           </button>
