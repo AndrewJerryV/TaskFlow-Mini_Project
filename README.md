@@ -1,163 +1,183 @@
-# TaskFlow - AI-Powered Project Management
+# TaskFlow
 
-TaskFlow is a full-stack project management platform built with **Next.js**, **React**, **Supabase**, and an in-app **TypeScript ML engine**. It combines Kanban workflows, project analytics, real-time collaboration, and ML-assisted planning in a single app runtime.
+TaskFlow is a Next.js project management workspace with Supabase-backed auth/data, guarded login via ALTCHA, and in-app ML features for prioritization, assignment, wellness, and bottleneck analysis.
 
----
+## Current App Surface
 
-## Key Features
+- Public landing page at `/`
+- Guided Supabase credential setup at `/setup`
+- ALTCHA-gated auth at `/login`
+- Authenticated home at `/dashboard`
+- Team management at `/team`
+- Workspace settings and local Env Vault at `/settings`
+- Per-project workspace at `/projects/[id]`
 
-### Project Management
-- Kanban board with drag-and-drop task movement
-- Backlog management with prioritization and filtering
-- Calendar and timeline views for scheduling
-- Rich task editing with assignees, due dates, status, and comments
+Inside a project, the current UI includes:
 
-### AI / ML Engine
-- Priority prediction for tasks
-- Smart task assignment using skills, workload, and wellness signals
-- Bottleneck detection for overdue and stuck work
-- Wellness monitoring for team load awareness
-- Urgency scoring based on priority, due date, and task staleness
-- Task clustering for related work detection
-- Workload rebalancing suggestions
-- Batch priority checks across tasks
-
-### Collaboration
-- Project room chat
-- Direct messages between project members
-- Message replies, reactions, and attachments
-- Shared pages and documents
-- Notifications and activity tracking
-- Built-in video rooms
-
-### Analytics & Reporting
-- Summary dashboard with project health metrics
-- Reports and charts
-- User history and workload insights
-
-### Administration
-- Team dashboard for admins and managers
-- Role-based access control
-- Project creation and member assignment
-- User settings and profile management
-
-### Developer Tools
-- Code view
-- Deployments view
-- Forms builder
+- Kanban board
+- Backlog
+- Calendar
+- Timeline
+- Summary and reports
+- Team chat and direct messages
 - Time tracking
-- Keyboard shortcuts
-
----
+- Forms builder and responses
+- Pages/documents
+- Shortcuts
+- Code/repository links
+- Deployments
+- Video room
+- ML recommendations and bottleneck alerts
 
 ## Tech Stack
 
 | Layer | Technology |
-|-------|-----------|
-| Frontend | Next.js 16, React 19, TypeScript |
-| Styling | Tailwind CSS, clsx, tailwind-merge |
-| UI | Lucide React, Framer Motion |
+| --- | --- |
+| Framework | Next.js 16 App Router |
+| UI | React 19, TypeScript, Tailwind CSS |
+| State/Contexts | Custom React contexts for auth, theme, and timers |
+| Data/Auth | Supabase |
+| CAPTCHA | ALTCHA |
+| ML | In-app TypeScript engine plus `@xenova/transformers` |
 | Charts | Recharts |
-| Drag and Drop | dnd-kit |
-| Database and Auth | Supabase |
-| ML Runtime | Shared TypeScript inference inside the Next.js app |
-| ML Techniques | Priority scoring, skill matching, urgency analysis, wellness scoring, token similarity clustering |
+| Motion | Framer Motion |
+| Drag and Drop | `@dnd-kit/*` |
+| Icons | Lucide React |
 
----
+## Main Features
 
-## Getting Started
+### Authentication and Access
 
-### Prerequisites
+- Email/password sign-up and sign-in
+- Google and GitHub OAuth
+- ALTCHA verification required before auth actions
+- Shared authenticated layout that routes signed-in users into the workspace
+- Role-aware user and project management flows
 
-- Node.js 18+
-- A Supabase project
+### Project Operations
 
-### 1. Clone and install
+- Project creation and membership management
+- Task CRUD with comments, priorities, assignees, tags, due dates, and status updates
+- Kanban, backlog, calendar, and timeline views
+- Notifications, activity feed, and per-user history
+- Direct messages, project room chat, replies, reactions, and attachments
+- Time entry and time-tracking summaries
 
-```bash
-git clone https://github.com/AndrewJerryV/TaskFlow-Mini_Project.git
-cd task-flow
-npm install
+### AI and ML
+
+- Browser-side draft assistance through [`lib/ml-browser.ts`](./lib/ml-browser.ts)
+- Server-side scoring and analytics through [`lib/ml-engine.ts`](./lib/ml-engine.ts)
+- Transformer-based assignment analysis through [`lib/ml-transformers.ts`](./lib/ml-transformers.ts)
+- Priority prediction
+- Assignment recommendations
+- Bottleneck detection
+- Workload and wellness analysis
+- Task clustering and recommendation endpoints
+
+### Settings and Developer Workflow
+
+- Workspace settings for profile, theme, AI preferences, notifications, and security
+- Frontend-only local Env Vault in settings, encrypted with Web Crypto and stored in device local storage
+- Guided `/setup` page for validating Supabase credentials before login
+- API routes for projects, tasks, comments, forms, documents, notifications, meetings, GitHub data, ML, and admin checks
+
+## Project Structure
+
+```text
+task-flow/
+|- app/                    # App Router pages and route handlers
+|  |- api/                 # Backend endpoints used by the app UI
+|  |- dashboard/           # Authenticated dashboard
+|  |- login/               # ALTCHA-gated authentication
+|  |- projects/[id]/       # Per-project workspace
+|  |- settings/            # Workspace settings and local Env Vault
+|  |- setup/               # Supabase onboarding flow
+|  `- team/                # Team management
+|- components/             # UI views, layout, modals, forms, charts
+|- contexts/               # Auth, theme, and timer providers
+|- lib/                    # Supabase client, DB access, ML logic, utilities
+|- public/                 # Static assets
+|- types/                  # Shared TypeScript declarations
+`- ML/                     # Legacy Python experiments and archived model assets
 ```
 
-### 2. Configure environment variables
+## Environment Variables
 
-Create `.env.local` in the project root:
+Create a `.env.local` file in the project root:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 ALTCHA_HMAC_SECRET=your_altcha_hmac_secret
-ALTCHA_HMAC_KEY_SECRET=optional_second_secret_for_key_signatures
+ALTCHA_HMAC_KEY_SECRET=optional_altcha_key_secret
 ```
 
-### 3. Run database migrations
+Optional variables may still be useful depending on the flows you use:
 
-Apply the SQL files in `supabase/migrations/` using the Supabase SQL Editor.
+- `NEXT_PUBLIC_SITE_URL` for explicit site URL resolution in auth redirects
+- `NEXT_PUBLIC_VERCEL_URL` when running on Vercel
+- SMTP-related variables if you wire up email delivery for OTP/member notifications
 
-Important migration notes:
-- Run the core schema migrations for `users`, `tasks`, `projects`, and related tables
-- If migrating from `profiles`, run the merge and verification migrations
-- If using the newer chat model, apply the latest `messages` table migration as well
+## Getting Started
 
-### 4. Start the app
+### Prerequisites
+
+- Node.js 18+
+- npm
+- A Supabase project with the tables/RPCs this app expects
+
+### Install
+
+```bash
+npm install
+```
+
+### Run the app
 
 ```bash
 npm run dev
 ```
 
-This starts only the Next.js application on `http://localhost:3000`.
+Open `http://localhost:3000`.
 
----
+Recommended first-run flow:
+
+1. Add the required variables to `.env.local`.
+2. Start the dev server.
+3. Open `/setup` to validate the Supabase URL and anon key.
+4. Apply the SQL you need in your Supabase project.
+5. Continue to `/login` and sign in.
+
+## Database and Supabase Notes
+
+- Runtime Supabase access lives in [`lib/supabase.ts`](./lib/supabase.ts).
+- The repository still contains a top-level `supabase/` folder for migration/history material when present locally, but the app runtime depends on the client/config in `lib/`, not on that folder itself.
+- The checked-in `.gitignore` currently ignores `/supabase`, so migration files may exist locally without being committed.
+- Auth redirect URL resolution is handled through [`lib/site-url.ts`](./lib/site-url.ts).
 
 ## ML Runtime Notes
 
-TaskFlow no longer requires a separate Python server for ML features at runtime.
+- The live app does not require a separate Python ML server.
+- Current runtime ML paths are TypeScript-based and live under `lib/`.
+- The `ML/` directory is legacy research/training material, not part of the current Next.js runtime.
+- `next.config.ts` explicitly allows external server packages needed by the transformer/ONNX path.
 
-- `npm run dev` starts only Next.js
-- Server-side ML-backed features run through `lib/ml-engine.ts`
-- Lightweight browser-side assistance runs through `lib/ml-browser.ts`
-- Existing API routes call the in-app TypeScript engine instead of a separate localhost ML service
-- The `ML/` folder remains only as legacy experiments and benchmark history
+## Scripts
 
----
-
-## Roles and Permissions
-
-| Feature | Admin | Manager | Member |
-|---------|:-----:|:-------:|:------:|
-| Create Projects | Yes | No | No |
-| Manage Team | Yes | Yes | No |
-| Add Users | Yes | No | No |
-| View Projects | Yes | Yes | Yes |
-| Edit Tasks | Yes | Yes | Yes |
-| View Analytics | Yes | Yes | Yes |
-| Settings | Yes | Yes | Yes |
-
----
-
-## Project Structure
-
-```text
-task-flow/
-|- app/                    # Next.js App Router pages and API routes
-|  |- api/                # AI, ML, tasks, team, chat, and other endpoints
-|  |- login/              # Authentication
-|  |- projects/           # Project workspace views
-|  |- settings/           # User settings
-|  `- team/               # Team management
-|- components/            # React UI components
-|- contexts/              # React contexts
-|- lib/                   # Supabase helpers, ML engine, browser ML, utilities
-|- supabase/              # SQL migrations
-|- types/                 # Shared TypeScript types
-|- ML/                    # Legacy Python experiments and archived benchmarks
-`- product-page.html      # Product landing page
+```bash
+npm run dev
+npm run build
+npm run start
+npm run lint
 ```
 
----
+## Known Repo Notes
+
+- `npm run lint` may be noisy if local repo state references paths that are no longer present.
+- The settings Env Vault is frontend-only and stores encrypted values in local browser storage on the current device.
+- Some helper/setup copy in the UI still assumes a local open-source/self-hosted style workflow around Supabase credentials.
 
 ## License
 
-This project is open source under the MIT License.
+MIT
