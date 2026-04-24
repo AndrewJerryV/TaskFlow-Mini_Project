@@ -286,16 +286,16 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskD
 
         {isSprintOpen && (
           <div className="space-y-[-1px] mt-2">
+            {currentUser?.role !== 'Member' && (
+              <button onClick={onTaskCreate} className="w-full text-left p-2 pl-3 mb-1 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300 transition-colors rounded">
+                <Plus size={14} /> Create issue
+              </button>
+            )}
             {sprintTasks.map(item => (
               <TaskItem key={item.id} item={item} users={users} onUpdate={onTaskUpdate} onClick={handleTaskClick} onDelete={handleTaskDelete} currentUserRole={currentUser?.role} />
             ))}
             {sprintTasks.length === 0 && (
               <p className="text-sm text-gray-400 dark:text-gray-500 italic py-4 text-center">No tasks in sprint</p>
-            )}
-            {currentUser?.role !== 'Member' && (
-              <button onClick={onTaskCreate} className="w-full text-left p-2 pl-3 mt-1 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300 transition-colors rounded">
-                <Plus size={14} /> Create issue
-              </button>
             )}
           </div>
         )}
@@ -316,16 +316,16 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskD
 
         {isBacklogOpen && (
           <div className="space-y-[-1px] mt-2">
+            {currentUser?.role !== 'Member' && (
+              <button onClick={onTaskCreate} className="w-full text-left p-2 pl-3 mb-1 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300 transition-colors rounded">
+                <Plus size={14} /> Create issue
+              </button>
+            )}
             {backlogTasks.map(item => (
               <TaskItem key={item.id} item={item} users={users} onUpdate={onTaskUpdate} onClick={handleTaskClick} onDelete={handleTaskDelete} currentUserRole={currentUser?.role} />
             ))}
             {backlogTasks.length === 0 && (
               <p className="text-sm text-gray-400 dark:text-gray-500 italic py-4 text-center">No tasks in backlog</p>
-            )}
-            {currentUser?.role !== 'Member' && (
-              <button onClick={onTaskCreate} className="w-full text-left p-2 pl-3 mt-1 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300 transition-colors rounded">
-                <Plus size={14} /> Create issue
-              </button>
             )}
           </div>
         )}

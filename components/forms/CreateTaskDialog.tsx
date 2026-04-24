@@ -405,8 +405,8 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
                             <details className="text-[10px] text-gray-500 bg-gray-50 dark:bg-gray-800 p-2 rounded border border-gray-100 dark:border-gray-700">
                                 <summary className="cursor-pointer font-semibold">Debug Scores</summary>
                                 <div className="mt-2 space-y-1">
-                                    {(dataRef.current?.allCandidates || []).map((c: any) => (
-                                        <div key={c.name} className="flex justify-between gap-3">
+                                    {(dataRef.current?.allCandidates || []).map((c: any, idx: number) => (
+                                        <div key={c.id || idx} className="flex justify-between gap-3">
                                             <span>{c.name}</span>
                                             <span>
                                                 Overall: {c.score} ({c.risk}) • Skills: {c.match_percentage}% • Wellness: {c.wellness_score} ({c.wellness_status})

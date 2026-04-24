@@ -11,6 +11,7 @@ interface VideoRoomProps {
 
 export default function VideoRoom({ projectId, onLeave }: VideoRoomProps) {
     const { currentUser } = useAuth();
+    const canManageMeeting = currentUser?.role === 'Admin' || currentUser?.role === 'Manager';
     const [copied, setCopied] = useState(false);
     const [meetingUrl, setMeetingUrl] = useState<string | null>(null);
     const [editingUrl, setEditingUrl] = useState('');
@@ -169,27 +170,29 @@ export default function VideoRoom({ projectId, onLeave }: VideoRoomProps) {
                                 </div>
                             </div>
 
-                            {/* Edit / Remove */}
-                            <div className="flex items-center justify-between">
-                                <button
-                                    onClick={() => setIsEditing(true)}
-                                    className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-                                >
-                                    <Settings size={14} />
-                                    Change link
-                                </button>
-                                <button
-                                    onClick={removeMeetingUrl}
-                                    disabled={saving}
-                                    className="flex items-center gap-1.5 text-sm text-red-500 hover:text-red-600 transition-colors disabled:opacity-50"
-                                >
-                                    <Trash2 size={14} />
-                                    Remove
-                                </button>
-                            </div>
+                            {/* Edit / Remove — Admin & Manager only */}
+                            {canManageMeeting && (
+                                <div className="flex items-center justify-between">
+                                    <button
+                                        onClick={() => setIsEditing(true)}
+                                        className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                                    >
+                                        <Settings size={14} />
+                                        Change link
+                                    </button>
+                                    <button
+                                        onClick={removeMeetingUrl}
+                                        disabled={saving}
+                                        className="flex items-center gap-1.5 text-sm text-red-500 hover:text-red-600 transition-colors disabled:opacity-50"
+                                    >
+                                        <Trash2 size={14} />
+                                        Remove
+                                    </button>
+                                </div>
+                            )}
                         </>
-                    ) : (
-                        /* No meeting link set — show setup */
+                    ) : canManageMeeting ? (
+                        /* No meeting link set — show setup (Admin/Manager only) */
                         <>
                             <div className="text-center py-2">
                                 <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -256,6 +259,17 @@ export default function VideoRoom({ projectId, onLeave }: VideoRoomProps) {
                                 </p>
                             </div>
                         </>
+                    ) : (
+                        /* Member view — no meeting link set yet */
+                        <div className="text-center py-6">
+                            <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-3">
+                                <Video size={28} className="text-gray-400 dark:text-gray-500" />
+                            </div>
+                            <h3 className="font-semibold text-gray-900 dark:text-white mb-1">No Meeting Set Up</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                Ask your admin or manager to set up a meeting link.
+                            </p>
+                        </div>
                     )}
                 </div>
             </div>

@@ -1,23 +1,23 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Task, Status, Priority } from '@/types';
 import { TaskDetailModal } from './TaskDetailModal';
 import { Search, ChevronDown, User as UserIcon, Zap, Circle, ZoomIn, ZoomOut, Clock, Lock } from 'lucide-react';
-import { format, addMonths, subMonths, startOfMonth, eachMonthOfInterval, differenceInDays } from 'date-fns';
+import { format, addMonths, subMonths, startOfMonth, eachMonthOfInterval, eachQuarterOfInterval, differenceInDays } from 'date-fns';
 import { STATUSES } from '@/lib/constants';
 import { useAuth } from '@/contexts/AuthContext';
 
-const TIMELINE_START = startOfMonth(new Date());
-const TIMELINE_END_MONTHS = addMonths(TIMELINE_START, 6);
-const TIMELINE_END_QUARTERS = addMonths(TIMELINE_START, 12);
+const TIMELINE_START = subMonths(startOfMonth(new Date()), 1); // Start from previous month
+const TIMELINE_END_MONTHS = addMonths(TIMELINE_START, 18);      // 18 months total
+const TIMELINE_END_QUARTERS = addMonths(TIMELINE_START, 36);    // 3 years total for Quarters view
 
 export default function TimelineView({ tasks = [], onUpdateTask, projectMemberIds = [] }: { tasks?: Task[], onUpdateTask?: (task: Task) => void, projectMemberIds?: string[] }) {
   const [filter, setFilter] = useState('');
   const [viewMode, setViewMode] = useState<'Months' | 'Quarters'>('Months');
   const [statusFilter, setStatusFilter] = useState<Status | 'all'>('all');
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState(1);
+  const [zoomLevel, setZoomLevel] = useState(8); // Default zoom 800% to show ~3 months in viewport
   const { users } = useAuth();
   
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -31,10 +31,9 @@ export default function TimelineView({ tasks = [], onUpdateTask, projectMemberId
   const baseTimelineWidth = 800;
   const timelineWidth = baseTimelineWidth * zoomLevel;
 
-  const MONTHS = eachMonthOfInterval({
-    start: TIMELINE_START,
-    end: subMonths(TIMELINE_END, 1)
-  });
+  const TIME_UNITS = viewMode === 'Months' 
+    ? eachMonthOfInterval({ start: TIMELINE_START, end: subMonths(TIMELINE_END, 1) })
+    : eachQuarterOfInterval({ start: TIMELINE_START, end: subMonths(TIMELINE_END, 1) });
 
   const todayOffsetDays = differenceInDays(new Date(), TIMELINE_START);
   const todayLeftPct = Math.max(0, Math.min(100, (todayOffsetDays / TOTAL_DAYS) * 100));
@@ -101,6 +100,15 @@ export default function TimelineView({ tasks = [], onUpdateTask, projectMemberId
       bodyScrollRef.current.scrollTo({ left: Math.max(0, scrollToX), behavior: 'smooth' });
     }
   };
+
+  // Auto-scroll to previous month on mount so 3 months (prev, current, next) are visible
+  useEffect(() => {
+    if (bodyScrollRef.current) {
+      // Scroll to put the start of the timeline (previous month) at the left edge
+      bodyScrollRef.current.scrollTo({ left: 0, behavior: 'instant' as ScrollBehavior });
+    }
+  }, []);
+
   const ROW_HEIGHT = 'h-[64px]'; 
 
   const handleTaskClick = (task: Task) => {
@@ -109,7 +117,7 @@ export default function TimelineView({ tasks = [], onUpdateTask, projectMemberId
   };
 
   return (
-    <div className="flex flex-col w-full h-full bg-slate-50/50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden font-sans">
+    <div className="flex flex-col w-full h-full bg-slate-50/50 dark:bg-slate-900 border-t border-slate-200/80 dark:border-slate-800 overflow-hidden font-sans">
       <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 p-5 border-b border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 z-50 relative shadow-sm flex-shrink-0">
         <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
           <div className="relative flex-grow sm:flex-grow-0 group">
@@ -159,13 +167,21 @@ export default function TimelineView({ tasks = [], onUpdateTask, projectMemberId
 
         <div className="flex items-center justify-between w-full lg:w-auto gap-3">
           <div className="flex items-center space-x-1 bg-white dark:bg-slate-800 ring-1 ring-slate-200 dark:ring-slate-700 rounded-2xl p-1 shadow-sm">
-            <button onClick={() => setZoomLevel(prev => Math.max(0.5, prev - 0.25))} className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 hover:text-blue-500 transition-colors">
+            <button 
+              onClick={() => setZoomLevel(prev => Math.max(1.5, prev - 0.5))} 
+              disabled={zoomLevel <= 1.5}
+              className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 hover:text-blue-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-500"
+            >
               <ZoomOut size={16} />
             </button>
             <span className="text-xs font-bold text-slate-600 dark:text-slate-300 w-12 text-center select-none">
-              {Math.round(zoomLevel * 100)}%
+              {Math.round((zoomLevel - 1.5) * 100)}%
             </span>
-            <button onClick={() => setZoomLevel(prev => Math.min(3, prev + 0.25))} className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 hover:text-blue-500 transition-colors">
+            <button 
+              onClick={() => setZoomLevel(prev => Math.min(8, prev + 0.5))} 
+              disabled={zoomLevel >= 8}
+              className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 hover:text-blue-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-500"
+            >
               <ZoomIn size={16} />
             </button>
           </div>
@@ -213,9 +229,9 @@ export default function TimelineView({ tasks = [], onUpdateTask, projectMemberId
             Tasks <span className="ml-2 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full">{filteredTasks.length}</span>
           </div>
           <div className="flex h-full flex-shrink-0" style={{ width: timelineWidth }}>
-            {MONTHS.map((m) => (
+            {TIME_UNITS.map((m) => (
               <div key={m.toString()} className="flex-1 border-r border-slate-200 dark:border-slate-800 flex items-center justify-center text-[11px] font-bold text-slate-500 uppercase tracking-widest">
-                {format(m, 'MMM yyyy')}
+                {viewMode === 'Months' ? format(m, 'MMM yyyy') : format(m, 'QQQ yyyy')}
               </div>
             ))}
           </div>
@@ -232,7 +248,7 @@ export default function TimelineView({ tasks = [], onUpdateTask, projectMemberId
             <div className="w-[280px] flex-shrink-0 border-r border-slate-200/50 dark:border-slate-800/50" />
             <div className="relative flex-shrink-0" style={{ width: timelineWidth }}>
               <div className="absolute inset-0 flex">
-                {MONTHS.map((_, i) => (
+                {TIME_UNITS.map((_, i) => (
                   <div key={i} className="flex-1 border-r border-dashed border-slate-200/60 dark:border-slate-800/60 h-full"></div>
                 ))}
               </div>
@@ -249,7 +265,7 @@ export default function TimelineView({ tasks = [], onUpdateTask, projectMemberId
             </div>
           </div>
 
-          <div className="relative z-10 flex flex-col w-full pb-10">
+          <div className="relative z-10 flex flex-col w-full">
             {/* Dependency Lines Overlay */}
             <svg className="absolute inset-0 pointer-events-none z-10 overflow-visible" style={{ width: '100%', height: '100%' }}>
               <defs>

@@ -519,7 +519,7 @@ export default function ProjectPage() {
             </div>
 
             {/* Main Content Area */}
-            <div className={`flex-1 bg-gray-50/30 dark:bg-gray-900 ${activeTab === 'Chat' || activeTab === 'Forms' || activeTab === 'Pages' || activeTab === 'Calendar' || activeTab === 'Deployments' ? 'overflow-hidden' : 'overflow-auto p-6'}`}>
+            <div className={`flex-1 bg-gray-50/30 dark:bg-gray-900 ${activeTab === 'Chat' || activeTab === 'Forms' || activeTab === 'Pages' || activeTab === 'Calendar' || activeTab === 'Deployments' || activeTab === 'Timeline' ? 'overflow-hidden' : 'overflow-auto p-6'}`}>
                 <CreateTaskDialog
                     isOpen={isCreateTaskOpen}
                     onClose={() => setIsCreateTaskOpen(false)}
