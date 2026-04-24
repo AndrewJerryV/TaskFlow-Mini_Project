@@ -41,11 +41,11 @@ export async function GET(request: Request) {
         }
 
         if (conversationType === 'dm') {
-            if (!currentUserId || !recipientId) {
-                return NextResponse.json({ error: 'currentUserId and recipientId are required for DMs' }, { status: 400 });
+            if (!currentUserId || !recipientId || !projectId) {
+                return NextResponse.json({ error: 'currentUserId, recipientId, and projectId are required for DMs' }, { status: 400 });
             }
 
-            const messages = await db.getDirectMessages(currentUserId, recipientId);
+            const messages = await db.getDirectMessages(currentUserId, recipientId, projectId);
             return NextResponse.json(messages);
         }
 
@@ -80,13 +80,13 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'projectId is required for project chat' }, { status: 400 });
         }
 
-        if (conversationType === 'dm' && !body.recipientId) {
-            return NextResponse.json({ error: 'recipientId is required for direct messages' }, { status: 400 });
+        if (conversationType === 'dm' && (!body.recipientId || !body.projectId)) {
+            return NextResponse.json({ error: 'recipientId and projectId are required for direct messages' }, { status: 400 });
         }
 
         const newMessage: Message = {
             id: crypto.randomUUID(),
-            projectId: conversationType === 'project' ? body.projectId || undefined : undefined,
+            projectId: body.projectId || undefined,
             userId: body.userId,
             content: body.content || '',
             timestamp: new Date().toISOString(),
@@ -139,27 +139,69 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
     try {
         const body = await request.json();
-        const { messageId, userId, emoji } = body;
+        const { messageId, userId, emoji, content, isPinned } = body;
 
-        if (!messageId || !userId || !emoji) {
-            return NextResponse.json({ error: 'messageId, userId, and emoji are required' }, { status: 400 });
+        if (!messageId) {
+            return NextResponse.json({ error: 'messageId is required' }, { status: 400 });
         }
 
-        const message = await db.getMessageById(messageId);
-        if (!message) {
-            return NextResponse.json({ error: 'Message not found' }, { status: 404 });
+        // Handle content update
+        if (content !== undefined) {
+            const updatedMessage = await db.updateMessageContent(messageId, content);
+            if (!updatedMessage) {
+                return NextResponse.json({ error: 'Failed to update content' }, { status: 500 });
+            }
+            return NextResponse.json(updatedMessage);
         }
 
-        const updatedReactions = toggleReaction(message.reactions || [], emoji, userId);
-        const updatedMessage = await db.updateMessageReactions(messageId, updatedReactions);
-
-        if (!updatedMessage) {
-            return NextResponse.json({ error: 'Failed to update reactions' }, { status: 500 });
+        // Handle pin toggle
+        if (isPinned !== undefined) {
+            await db.toggleMessagePin(messageId, isPinned);
+            const updatedMessage = await db.getMessageById(messageId);
+            return NextResponse.json(updatedMessage);
         }
 
-        return NextResponse.json(updatedMessage);
+        // Handle reaction toggle
+        if (userId && emoji) {
+            const message = await db.getMessageById(messageId);
+            if (!message) {
+                return NextResponse.json({ error: 'Message not found' }, { status: 404 });
+            }
+
+            const updatedReactions = toggleReaction(message.reactions || [], emoji, userId);
+            const updatedMessage = await db.updateMessageReactions(messageId, updatedReactions);
+
+            if (!updatedMessage) {
+                return NextResponse.json({ error: 'Failed to update reactions' }, { status: 500 });
+            }
+
+            return NextResponse.json(updatedMessage);
+        }
+
+        return NextResponse.json({ error: 'Invalid update payload' }, { status: 400 });
     } catch (error) {
-        console.error('Error updating message reactions:', error);
+        console.error('Error updating message:', error);
         return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed to update message' }, { status: 500 });
+    }
+}
+
+export async function DELETE(request: Request) {
+    try {
+        const { searchParams } = new URL(request.url);
+        const messageId = searchParams.get('messageId');
+
+        if (!messageId) {
+            return NextResponse.json({ error: 'messageId is required' }, { status: 400 });
+        }
+
+        const success = await db.deleteMessage(messageId);
+        if (!success) {
+            return NextResponse.json({ error: 'Failed to delete message' }, { status: 500 });
+        }
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error('Error deleting message:', error);
+        return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed to delete message' }, { status: 500 });
     }
 }

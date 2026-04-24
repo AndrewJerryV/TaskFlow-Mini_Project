@@ -135,6 +135,7 @@ export interface DbMessage {
   recipient_id?: string | null;
   thread_root_id?: string | null;
   reactions?: string | null;
+  is_pinned?: boolean;
 }
 
 export interface DbComment {

@@ -4,22 +4,33 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Attachment, Message, User } from '@/types';
 import {
     Calendar,
+    ChevronDown,
+    Copy,
     Download,
+    Edit,
     FileText,
     Hash,
+    Forward,
     Image,
     MessageCircle,
     Paperclip,
+    Pin,
     PlayCircle,
+    Plus,
     Reply,
+    Search,
     Send,
+    SmilePlus,
+    Trash,
     Users,
     X,
 } from 'lucide-react';
+import EmojiPicker from 'emoji-picker-react';
 import { MiniCalendar } from '@/components/ui/MiniCalendar';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatFileSize } from '@/lib/utils';
 import { getSupabase } from '@/lib/supabase';
+import { db } from '@/lib/db';
 
 interface ChatViewProps {
     projectId: string;
@@ -47,8 +58,21 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
     const [jumpToDate, setJumpToDate] = useState('');
     const [viewingImage, setViewingImage] = useState<Attachment | null>(null);
     const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
+    const [showEmojiPickerForMessage, setShowEmojiPickerForMessage] = useState<string | null>(null);
+    const [showMessageOptions, setShowMessageOptions] = useState<string | null>(null);
+    const [menuDirection, setMenuDirection] = useState<'up' | 'down'>('up');
+    const [showQuickReactions, setShowQuickReactions] = useState<string | null>(null);
+    const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+    const [showMentions, setShowMentions] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [showSearch, setShowSearch] = useState(false);
+    const [mentionFilter, setMentionFilter] = useState('');
+    const [mentionCursorIndex, setMentionCursorIndex] = useState(-1);
+    const [mentionSelectedIndex, setMentionSelectedIndex] = useState(0);
+    const [collapsedPinned, setCollapsedPinned] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const messageInputRef = useRef<HTMLInputElement>(null);
 
     const projectUsers = useMemo(
         () =>
@@ -77,6 +101,10 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
         return [projectConversation, ...dmConversations];
     }, [projectUsers, currentUser]);
 
+    const pinnedMessages = useMemo(() => 
+        messages.filter(m => m.isPinned).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
+    [messages]);
+
     const activeConversation = conversations.find(conversation => conversation.id === activeConversationId) || conversations[0];
 
     const messageMap = useMemo(() => {
@@ -84,6 +112,9 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
         messages.forEach(message => map.set(message.id, message));
         return map;
     }, [messages]);
+
+    const [forwardingMessage, setForwardingMessage] = useState<Message | null>(null);
+    const [showForwardModal, setShowForwardModal] = useState(false);
 
     useEffect(() => {
         if (!currentUser) return;
@@ -109,6 +140,25 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
         };
     }, [currentUser]);
 
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            const target = event.target as HTMLElement;
+            if (!target.closest('.message-options-menu') && !target.closest('.message-options-trigger')) {
+                setShowMessageOptions(null);
+            }
+        };
+
+        if (showMessageOptions) {
+            document.addEventListener('mousedown', handleClickOutside);
+        } else {
+            document.removeEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [showMessageOptions]);
+
     const queueScrollToBottom = () => {
         setTimeout(() => {
             if (scrollRef.current) {
@@ -117,10 +167,10 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
         }, 100);
     };
 
-    const fetchConversationMessages = async () => {
+    const fetchConversationMessages = async (showLoading = true) => {
         if (!currentUser) return;
 
-        setLoading(true);
+        if (showLoading) setLoading(true);
 
         try {
             const params = new URLSearchParams();
@@ -129,6 +179,7 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
                 params.set('conversationType', 'dm');
                 params.set('currentUserId', currentUser.id);
                 params.set('recipientId', activeConversation.id);
+                params.set('projectId', projectId);
             } else {
                 params.set('conversationType', 'project');
                 params.set('projectId', projectId);
@@ -139,7 +190,7 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
 
             const data = await response.json();
             setMessages(Array.isArray(data) ? data : []);
-            queueScrollToBottom();
+            if (showLoading) queueScrollToBottom();
         } catch (error) {
             console.error(error);
             setMessages([]);
@@ -150,7 +201,7 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
 
     useEffect(() => {
         setReplyingTo(null);
-        void fetchConversationMessages();
+        void fetchConversationMessages(true);
     }, [activeConversationId, projectId, currentUser?.id]);
 
     useEffect(() => {
@@ -158,7 +209,7 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
         const channel = supabase
             .channel(`messages-${projectId}-${currentUser?.id || 'guest'}`)
             .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
-                void fetchConversationMessages();
+                void fetchConversationMessages(false);
             })
             .subscribe();
 
@@ -181,11 +232,17 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
         return date.toLocaleDateString();
     };
 
+    const filteredMessages = useMemo(() => {
+        if (!searchTerm.trim()) return messages;
+        const term = searchTerm.toLowerCase();
+        return messages.filter(m => m.content?.toLowerCase().includes(term));
+    }, [messages, searchTerm]);
+
     const groupedMessages = useMemo(() => {
         const groups: { date: string; messages: Message[] }[] = [];
         let currentDate = '';
 
-        messages.forEach(message => {
+        filteredMessages.forEach(message => {
             const date = formatChatDate(message.timestamp);
             if (date !== currentDate) {
                 currentDate = date;
@@ -196,15 +253,67 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
         });
 
         return groups;
-    }, [messages]);
+    }, [filteredMessages]);
 
     const fileToBase64 = (file: File): Promise<string> =>
         new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.readAsDataURL(file);
             reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
+            reader.onerror = error => reject(error);
         });
+
+    const handlePinMessage = async (message: Message) => {
+        try {
+            const response = await fetch('/api/messages', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ messageId: message.id, isPinned: !message.isPinned }),
+            });
+
+            if (response.ok) {
+                setShowMessageOptions(null);
+                await fetchConversationMessages(false);
+            }
+        } catch (error) {
+            console.error('Error toggling pin:', error);
+        }
+    };
+
+    const handleForwardMessage = (message: Message) => {
+        setForwardingMessage(message);
+        setShowForwardModal(true);
+        setShowMessageOptions(null);
+    };
+
+    const confirmForward = async (targetId: string, type: 'project' | 'dm') => {
+        if (!forwardingMessage || !currentUser) return;
+
+        const forwardData = {
+            id: crypto.randomUUID(),
+            userId: currentUser.id,
+            content: forwardingMessage.content,
+            attachment: forwardingMessage.attachment,
+            timestamp: new Date().toISOString(),
+            conversationType: type,
+            projectId: type === 'project' ? targetId : projectId,
+            recipientId: type === 'dm' ? targetId : undefined,
+        };
+
+        try {
+            const response = await fetch('/api/messages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(forwardData),
+            });
+            if (response.ok) {
+                setShowForwardModal(false);
+                setForwardingMessage(null);
+            }
+        } catch (error) {
+            console.error('Error forwarding message:', error);
+        }
+    };
 
     const handleFileSelect = (type: 'image' | 'video' | 'document') => {
         if (fileInputRef.current) {
@@ -256,6 +365,28 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
     const sendMessage = async () => {
         if (!currentUser || (!newMessage.trim() && !selectedFile)) return;
 
+        if (editingMessage) {
+            try {
+                const response = await fetch('/api/messages', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        messageId: editingMessage.id,
+                        content: newMessage.trim(),
+                    }),
+                });
+
+                if (response.ok) {
+                    setNewMessage('');
+                    setEditingMessage(null);
+                    await fetchConversationMessages(false);
+                }
+            } catch (error) {
+                console.error('Error editing message:', error);
+            }
+            return;
+        }
+
         const attachment = await buildAttachment();
         const payload: Record<string, unknown> = {
             userId: currentUser.id,
@@ -285,7 +416,8 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
         clearSelectedFile();
         setNewMessage('');
         setReplyingTo(null);
-        await fetchConversationMessages();
+        await fetchConversationMessages(false);
+        queueScrollToBottom();
     };
 
     const handleSend = async (e: React.FormEvent) => {
@@ -310,7 +442,7 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
                     emoji,
                 }),
             });
-            await fetchConversationMessages();
+            await fetchConversationMessages(false);
         } catch (error) {
             console.error(error);
         }
@@ -389,6 +521,41 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
         );
     };
 
+    const handleDeleteMessage = async (messageId: string) => {
+        if (!confirm('Are you sure you want to delete this message?')) return;
+        try {
+            const response = await fetch(`/api/messages?messageId=${messageId}`, { method: 'DELETE' });
+            if (response.ok) {
+                setShowMessageOptions(null);
+                await fetchConversationMessages(false);
+            }
+        } catch (error) {
+            console.error('Error deleting message:', error);
+        }
+    };
+
+    const handleEditClick = (message: Message) => {
+        setEditingMessage(message);
+        setNewMessage(message.content || '');
+        setShowMessageOptions(null);
+        messageInputRef.current?.focus();
+    };
+
+    const toggleMessageOptions = (e: React.MouseEvent, messageId: string) => {
+        if (showMessageOptions === messageId) {
+            setShowMessageOptions(null);
+        } else {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const containerRect = scrollRef.current?.getBoundingClientRect();
+            if (containerRect) {
+                const spaceAbove = rect.top - containerRect.top;
+                // If less than 200px space above, open downward
+                setMenuDirection(spaceAbove < 200 ? 'down' : 'up');
+            }
+            setShowMessageOptions(messageId);
+        }
+    };
+
     const renderMessageBubble = (message: Message) => {
         const isSender = message.userId === currentUser?.id;
         const sender =
@@ -399,7 +566,7 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
             <div
                 key={message.id}
                 id={`message-${message.id}`}
-                className={`group mb-3 flex ${isSender ? 'justify-end' : 'justify-start'}`}
+                className={`group relative mb-3 flex ${isSender ? 'justify-end' : 'justify-start'} ${showMessageOptions === message.id ? 'z-50' : 'z-0'}`}
                 onMouseEnter={() => setHoveredMessageId(message.id)}
                 onMouseLeave={() => setHoveredMessageId(null)}
             >
@@ -409,15 +576,67 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
                             {sender?.name || 'Unknown'}
                         </div>
                     )}
-                    <div
-                        className={`rounded-[22px] px-4 py-3 shadow-sm ${
-                            isSender
-                                ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-blue-500/20'
-                                : 'border border-white/70 bg-white/90 text-gray-900 backdrop-blur dark:border-slate-700 dark:bg-slate-800/95 dark:text-gray-100'
-                        }`}
-                    >
+                    <div className={`relative max-w-[90%] rounded-2xl p-3 shadow-sm ${isSender ? 'bg-blue-600 text-white self-end' : 'bg-white text-slate-800 dark:bg-slate-800 dark:text-slate-100 self-start'} ring-1 ring-black/5`}>
+                        {message.isPinned && (
+                            <div className={`absolute -top-1.5 ${isSender ? '-left-1.5' : '-right-1.5'} z-10 flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-md ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700`}>
+                                <Pin size={10} className="text-blue-500 fill-blue-500" />
+                            </div>
+                        )}
+                        <button
+                            onClick={(e) => {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                const spaceBelow = window.innerHeight - rect.bottom;
+                                setMenuDirection(spaceBelow < 250 ? 'up' : 'down');
+                                setShowMessageOptions(showMessageOptions === message.id ? null : message.id);
+                            }}
+                            className={`message-options-trigger absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full ${isSender ? 'hover:bg-blue-500 text-blue-100' : 'hover:bg-slate-100 text-slate-400'}`}
+                        >
+                            <ChevronDown size={16} />
+                        </button>
+                        
+                        {showMessageOptions === message.id && (
+                            <div className={`message-options-menu absolute ${menuDirection === 'up' ? 'bottom-full mb-1' : 'top-8'} right-0 z-50 min-w-[180px] rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800 overflow-hidden animate-in fade-in zoom-in-95 duration-100`}>
+                                <div className="py-1 text-slate-700 dark:text-slate-200">
+                                        <button onClick={() => { setReplyingTo(message); setShowMessageOptions(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                                            <Reply size={16} className="text-slate-400" /> Reply
+                                        </button>
+                                        <button onClick={() => { setForwardingMessage(message); setShowForwardModal(true); setShowMessageOptions(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                                            <Forward size={16} className="text-slate-400" /> Forward
+                                        </button>
+                                        <button onClick={() => { handlePinMessage(message); }} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                                            <Pin size={16} className={message.isPinned ? "text-blue-500" : "text-slate-400"} /> {message.isPinned ? "Unpin" : "Pin"}
+                                        </button>
+                                        <button onClick={() => { navigator.clipboard.writeText(message.content || ''); setShowMessageOptions(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                                            <Copy size={16} className="text-slate-400" /> Copy
+                                        </button>
+                                        {isSender && (
+                                            <>
+                                                <div className="my-1 border-t border-slate-100 dark:border-slate-700" />
+                                                <button onClick={() => { handleEditClick(message); }} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                                                    <Edit size={16} className="text-slate-400" /> Edit
+                                                </button>
+                                                <button onClick={() => { handleDeleteMessage(message.id); }} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30 transition-colors">
+                                                    <Trash size={16} /> Delete
+                                                </button>
+                                            </>
+                                        )}
+                                </div>
+                            </div>
+                        )}
                         {renderQuotedReply(message, isSender)}
-                        {message.content && <p className="whitespace-pre-wrap text-sm">{message.content}</p>}
+                        {message.content && (
+                            <p className="whitespace-pre-wrap text-sm">
+                                {message.content.split(/(@\w+)/g).map((part, i) =>
+                                    part.startsWith('@') ? (
+                                        <span key={i} className={`font-semibold ${isSender ? 'text-sky-200' : 'text-blue-600 dark:text-blue-400'}`}>
+                                            {part}
+                                        </span>
+                                    ) : (
+                                        part
+                                    )
+                                )}
+                            </p>
+                        )}
                         {message.attachment && renderAttachment(message.attachment)}
                         <div className={`mt-2 text-[10px] ${isSender ? 'text-blue-100' : 'text-slate-400 dark:text-slate-500'}`}>
                             {formatTime(message.timestamp)}
@@ -442,22 +661,47 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
                         </div>
                     )}
 
-                    <div className={`mt-1 flex flex-wrap gap-2 text-xs ${hoveredMessageId === message.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
-                        {QUICK_REACTIONS.map(emoji => (
-                            <button
-                                key={`${message.id}-${emoji}`}
-                                onClick={() => handleReaction(message.id, emoji)}
-                                className="rounded-full border border-white/70 bg-white/90 px-2 py-1 shadow-sm backdrop-blur hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700"
-                            >
-                                {emoji}
-                            </button>
-                        ))}
+                    <div className={`mt-2 flex items-center justify-start gap-1.5 ${hoveredMessageId === message.id || showMessageOptions === message.id || showEmojiPickerForMessage === message.id ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'} transition-all duration-200`}>
+                        <div className="flex h-8 items-center gap-2 rounded-full border border-slate-200 bg-white/95 px-3 shadow-sm backdrop-blur-md dark:border-slate-700 dark:bg-slate-800/95">
+                            {QUICK_REACTIONS.map(emoji => (
+                                <button
+                                    key={`${message.id}-${emoji}`}
+                                    onClick={() => handleReaction(message.id, emoji)}
+                                    className="text-base transition-transform hover:scale-125 active:scale-90"
+                                >
+                                    {emoji}
+                                </button>
+                            ))}
+                            <div className="h-3 w-[1px] bg-slate-200 dark:bg-slate-700" />
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowEmojiPickerForMessage(showEmojiPickerForMessage === message.id ? null : message.id)}
+                                    className="flex h-5 w-5 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+                                >
+                                    <Plus size={14} />
+                                </button>
+                                {showEmojiPickerForMessage === message.id && (
+                                    <div className={`absolute bottom-full mb-2 z-50 ${isSender ? 'right-0' : 'left-0'}`}>
+                                        <EmojiPicker
+                                            onEmojiClick={(emoji) => {
+                                                handleReaction(message.id, emoji.emoji);
+                                                setShowEmojiPickerForMessage(null);
+                                            }}
+                                            width={280}
+                                            height={350}
+                                            previewConfig={{ showPreview: false }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        
                         <button
                             onClick={() => setReplyingTo(message)}
-                            className="flex items-center gap-1 rounded-full border border-slate-200 bg-white/90 px-2 py-1 text-slate-600 shadow-sm backdrop-blur hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                            className="flex h-8 items-center gap-1.5 rounded-full border border-slate-200 bg-white/95 px-3 text-slate-500 shadow-sm backdrop-blur-md hover:bg-slate-50 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-800/95 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200 transition-colors"
                         >
                             <Reply size={12} />
-                            Reply
+                            <span className="text-[10px] font-bold uppercase tracking-wider">Reply</span>
                         </button>
                     </div>
                 </div>
@@ -467,8 +711,55 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
 
     const onlineCount = projectUsers.filter(user => onlineUserIds.includes(user.id)).length;
 
+    const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setNewMessage(value);
+
+        const cursorPosition = e.target.selectionStart || 0;
+        const textBeforeCursor = value.substring(0, cursorPosition);
+        const match = textBeforeCursor.match(/(?:\s|^)@(\w*)$/);
+
+        if (match) {
+            setShowMentions(true);
+            setMentionFilter(match[1].toLowerCase());
+            setMentionCursorIndex(cursorPosition - match[1].length - 1);
+            setMentionSelectedIndex(0);
+        } else {
+            setShowMentions(false);
+        }
+    };
+
+    const filteredMentionUsers = useMemo(() => {
+        return projectUsers.filter(u => u.name.toLowerCase().includes(mentionFilter) || u.name.replace(/\s+/g, '').toLowerCase().includes(mentionFilter));
+    }, [projectUsers, mentionFilter]);
+
+    const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (!showMentions) return;
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setMentionSelectedIndex(prev => (prev < filteredMentionUsers.length - 1 ? prev + 1 : prev));
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setMentionSelectedIndex(prev => (prev > 0 ? prev - 1 : 0));
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            const user = filteredMentionUsers[mentionSelectedIndex];
+            if (user) {
+                const beforeMention = newMessage.substring(0, mentionCursorIndex);
+                const afterMention = newMessage.substring(messageInputRef.current?.selectionStart || 0);
+                const mentionText = `@${user.name.replace(/\s+/g, '')} `;
+                setNewMessage(beforeMention + mentionText + afterMention);
+                setShowMentions(false);
+                messageInputRef.current?.focus();
+            }
+        } else if (e.key === 'Escape') {
+            setShowMentions(false);
+        }
+    };
+
     return (
-        <div className="flex h-full overflow-hidden rounded-2xl border border-slate-200/80 bg-white/75 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/90">
+        <div className="flex h-full overflow-hidden bg-white dark:bg-slate-900">
             {viewingImage && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90" onClick={() => setViewingImage(null)}>
                     <button className="absolute right-4 top-4 p-2 text-white" onClick={() => setViewingImage(null)}>
@@ -479,15 +770,7 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
             )}
 
             <aside className="flex w-72 min-h-0 flex-col border-r border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(241,245,255,0.9)_100%)] p-4 backdrop-blur-xl dark:border-slate-800 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.96)_0%,rgba(17,24,39,0.92)_100%)]">
-                <div className="mb-4">
-                    <div className="text-xs font-bold uppercase tracking-[0.2em] text-gray-400">Conversations</div>
-                    <div className="mt-2 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                        <Users size={14} />
-                        {Math.max(onlineCount, currentUser ? 1 : 0)} online
-                    </div>
-                </div>
-
-                <div className="flex min-h-0 flex-1 flex-col gap-5">
+                <div className="flex min-h-0 flex-1 flex-col gap-5 mt-2">
                     <div>
                         <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Channels</div>
                         <button
@@ -552,12 +835,37 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
                                 : `${projectUsers.length} members - shared workspace chat`}
                         </div>
                     </div>
-                    <button
-                        onClick={() => setShowDatePicker(!showDatePicker)}
-                        className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
-                    >
-                        <Calendar size={16} />
-                    </button>
+                    <div className="flex items-center gap-1">
+                        {showSearch && (
+                            <div className="relative mr-2 animate-in fade-in slide-in-from-right-4 duration-200">
+                                <input
+                                    type="text"
+                                    placeholder="Search messages..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-48 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800"
+                                    autoFocus
+                                />
+                                {searchTerm && (
+                                    <button onClick={() => setSearchTerm('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                        <X size={12} />
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                        <button
+                            onClick={() => { setShowSearch(!showSearch); if (showSearch) setSearchTerm(''); }}
+                            className={`rounded-lg p-2 transition-colors ${showSearch ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/30' : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'}`}
+                        >
+                            <Search size={16} />
+                        </button>
+                        <button
+                            onClick={() => setShowDatePicker(!showDatePicker)}
+                            className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+                        >
+                            <Calendar size={16} />
+                        </button>
+                    </div>
                 </div>
 
                 {showDatePicker && (
@@ -571,6 +879,69 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
                                 setShowDatePicker(false);
                             }}
                         />
+                    </div>
+                )}
+
+                {pinnedMessages.length > 0 && (
+                    <div className="group/pins mx-5 my-2">
+                        {/* Primary pinned message - always visible */}
+                        <div className="overflow-hidden rounded-2xl border border-blue-100 bg-white/80 shadow-sm backdrop-blur dark:border-blue-900/30 dark:bg-slate-900/80">
+                            <div className="flex items-center gap-3 px-4 py-2">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                                    <Pin size={16} className="fill-blue-600" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-sm font-medium text-slate-700 dark:text-slate-200">
+                                        {pinnedMessages[0].content || (pinnedMessages[0].attachment ? `Shared ${pinnedMessages[0].attachment.type}` : 'Message')}
+                                    </p>
+                                </div>
+                                {pinnedMessages.length > 1 && (
+                                    <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-600 dark:bg-blue-900/40 dark:text-blue-400">
+                                        {pinnedMessages.length}
+                                    </span>
+                                )}
+                                <button 
+                                    onClick={() => {
+                                        const target = document.getElementById(`message-${pinnedMessages[0].id}`);
+                                        target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    }}
+                                    className="shrink-0 rounded-lg bg-blue-50 px-3 py-1 text-xs font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 transition-colors"
+                                >
+                                    VIEW
+                                </button>
+                            </div>
+                        </div>
+                        {/* Expandable list of older pins - shown on hover */}
+                        {pinnedMessages.length > 1 && (
+                            <div className="max-h-0 overflow-hidden opacity-0 transition-all duration-300 ease-in-out group-hover/pins:max-h-[300px] group-hover/pins:opacity-100 group-hover/pins:mt-1">
+                                <div className="flex flex-col gap-1">
+                                    {pinnedMessages.slice(1).map(pinned => (
+                                        <div 
+                                            key={pinned.id} 
+                                            className="overflow-hidden rounded-2xl border border-blue-50 bg-white/60 shadow-sm backdrop-blur dark:border-blue-900/20 dark:bg-slate-900/60"
+                                        >
+                                            <div className="flex items-center gap-3 px-4 py-2">
+                                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-50/60 text-blue-500 dark:bg-blue-900/20 dark:text-blue-400">
+                                                    <Pin size={14} className="fill-blue-500" />
+                                                </div>
+                                                <p className="min-w-0 flex-1 truncate text-sm text-slate-600 dark:text-slate-300">
+                                                    {pinned.content || (pinned.attachment ? `Shared ${pinned.attachment.type}` : 'Message')}
+                                                </p>
+                                                <button 
+                                                    onClick={() => {
+                                                        const target = document.getElementById(`message-${pinned.id}`);
+                                                        target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                    }}
+                                                    className="shrink-0 rounded-lg bg-blue-50 px-2.5 py-0.5 text-[11px] font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 transition-colors"
+                                                >
+                                                    VIEW
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -643,46 +1014,146 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
                     </div>
                 )}
 
-                <form onSubmit={handleSend} className="flex items-center gap-2 border-t border-slate-200/80 bg-white/80 px-3 py-3 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/85">
-                    <div className="relative">
-                        <button
-                            type="button"
-                            onClick={() => setShowAttachMenu(!showAttachMenu)}
-                            className="rounded-full p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
-                        >
-                            <Paperclip size={18} />
-                        </button>
-                        {showAttachMenu && (
-                            <div className="absolute bottom-12 left-0 z-10 min-w-[160px] rounded-xl border border-slate-200 bg-white/95 py-2 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-800/95">
-                                <button type="button" className="flex w-full items-center gap-3 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700" onClick={() => handleFileSelect('image')}>
-                                    <Image size={16} /> Photos
-                                </button>
-                                <button type="button" className="flex w-full items-center gap-3 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700" onClick={() => handleFileSelect('video')}>
-                                    <PlayCircle size={16} /> Videos
-                                </button>
-                                <button type="button" className="flex w-full items-center gap-3 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700" onClick={() => handleFileSelect('document')}>
-                                    <FileText size={16} /> Documents
+                <div className="relative">
+                    {showMentions && (
+                        <div className="absolute bottom-full left-14 mb-2 z-20 min-w-[200px] max-w-[240px] rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                            <div className="max-h-48 overflow-y-auto py-1">
+                                {filteredMentionUsers.map((user, idx) => (
+                                    <button
+                                        key={user.id}
+                                        type="button"
+                                        onClick={() => {
+                                            const beforeMention = newMessage.substring(0, mentionCursorIndex);
+                                            const afterMention = newMessage.substring(messageInputRef.current?.selectionStart || 0);
+                                            const mentionText = `@${user.name.replace(/\s+/g, '')} `;
+                                            setNewMessage(beforeMention + mentionText + afterMention);
+                                            setShowMentions(false);
+                                            messageInputRef.current?.focus();
+                                        }}
+                                        className={`flex w-full items-center gap-2 px-3 py-2 text-sm ${idx === mentionSelectedIndex ? 'bg-slate-100 dark:bg-slate-700' : 'hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+                                    >
+                                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                                            {user.name.charAt(0).toUpperCase()}
+                                        </div>
+                                        <span className="truncate text-slate-700 dark:text-slate-200">{user.name}</span>
+                                    </button>
+                                ))}
+                                {filteredMentionUsers.length === 0 && (
+                                    <div className="px-3 py-2 text-sm text-slate-500">No users found</div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                    {replyingTo || editingMessage ? (
+                        <div className="border-t border-slate-200/80 bg-white/70 px-4 py-2 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
+                            <div className="flex items-start justify-between gap-3 rounded-2xl border-l-4 border-blue-500 bg-white/90 px-3 py-2 shadow-sm dark:bg-slate-900/90">
+                                <div className="min-w-0">
+                                    <div className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                                        {editingMessage ? 'Editing Message' : `Replying to ${projectUsers.find(user => user.id === replyingTo?.userId)?.name || users.find(user => user.id === replyingTo?.userId)?.name || 'Unknown'}`}
+                                    </div>
+                                    <div className="truncate text-sm text-gray-600 dark:text-gray-300">
+                                        {editingMessage ? editingMessage.content : replyingTo?.content}
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setReplyingTo(null);
+                                        setEditingMessage(null);
+                                        if (editingMessage) setNewMessage('');
+                                    }}
+                                    className="rounded-full p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                                >
+                                    <X size={14} />
                                 </button>
                             </div>
-                        )}
-                    </div>
-                    <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
-                    <input
-                        type="text"
-                        className="flex-1 rounded-full border border-slate-300 bg-white/90 px-4 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800/95 dark:text-white"
-                        placeholder={activeConversation?.type === 'dm' ? `Message ${activeConversation.title}` : 'Message project room'}
-                        value={newMessage}
-                        onChange={event => setNewMessage(event.target.value)}
-                    />
-                    <button
-                        type="submit"
-                        disabled={!newMessage.trim() && !selectedFile}
-                        className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 disabled:bg-gray-300 dark:disabled:bg-gray-700"
-                    >
-                        <Send size={16} />
-                    </button>
-                </form>
+                        </div>
+                    ) : null}
+
+                    <form onSubmit={handleSend} className="flex items-center gap-2 border-t border-slate-200/80 bg-white/80 px-3 py-3 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/85">
+                        <div className="relative">
+                            <button
+                                type="button"
+                                onClick={() => setShowAttachMenu(!showAttachMenu)}
+                                className="rounded-full p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+                            >
+                                <Paperclip size={18} />
+                            </button>
+                            {showAttachMenu && (
+                                <div className="absolute bottom-12 left-0 z-10 min-w-[160px] rounded-xl border border-slate-200 bg-white/95 py-2 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-800/95">
+                                    <button type="button" className="flex w-full items-center gap-3 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700" onClick={() => handleFileSelect('image')}>
+                                        <Image size={16} /> Photos
+                                    </button>
+                                    <button type="button" className="flex w-full items-center gap-3 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700" onClick={() => handleFileSelect('video')}>
+                                        <PlayCircle size={16} /> Videos
+                                    </button>
+                                    <button type="button" className="flex w-full items-center gap-3 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700" onClick={() => handleFileSelect('document')}>
+                                        <FileText size={16} /> Documents
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                        <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
+                        <input
+                            ref={messageInputRef}
+                            type="text"
+                            className="flex-1 rounded-full border border-slate-300 bg-white/90 px-4 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800/95 dark:text-white"
+                            placeholder={editingMessage ? "Edit your message..." : (activeConversation?.type === 'dm' ? `Message ${activeConversation.title}` : 'Message project room')}
+                            value={newMessage}
+                            onChange={handleMessageChange}
+                            onKeyDown={handleInputKeyDown}
+                        />
+                        <button
+                            type="submit"
+                            disabled={!newMessage.trim() && !selectedFile}
+                            className={`flex items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 ${editingMessage ? 'px-4 py-2 h-auto w-auto min-w-[70px] text-xs font-bold' : 'h-10 w-10'}`}
+                        >
+                            {editingMessage ? 'SAVE' : <Send size={16} />}
+                        </button>
+                    </form>
+                </div>
             </section>
+            
+            {/* Forward Modal */}
+            {showForwardModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900 border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-200">
+                        <div className="mb-6 flex items-center justify-between">
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white">Forward Message</h3>
+                            <button onClick={() => setShowForwardModal(false)} className="rounded-full p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        
+                        <div className="mb-6 rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+                            <p className="line-clamp-3 text-sm text-slate-600 dark:text-slate-400 italic">
+                                "{forwardingMessage?.content}"
+                            </p>
+                        </div>
+
+                        <div className="max-h-[350px] overflow-y-auto pr-2 space-y-1">
+                            <p className="px-2 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Select Conversation</p>
+                            {conversations.map(conv => (
+                                <button
+                                    key={conv.id}
+                                    onClick={() => confirmForward(conv.id, conv.type)}
+                                    className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800 transition-all active:scale-[0.98]"
+                                >
+                                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/20">
+                                        {conv.type === 'project' ? <Hash size={20} /> : (conv.user?.name?.[0] || 'U')}
+                                    </div>
+                                    <div className="flex-1 overflow-hidden">
+                                        <p className="font-bold text-slate-900 dark:text-white truncate">{conv.title}</p>
+                                        <p className="text-xs text-slate-500 truncate">{conv.type === 'project' ? 'Project Channel' : 'Direct Message'}</p>
+                                    </div>
+                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                                        <Send size={14} />
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

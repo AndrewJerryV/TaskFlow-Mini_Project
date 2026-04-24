@@ -53,6 +53,7 @@ export interface Message {
   recipientId?: string;
   threadRootId?: string | null;
   reactions?: MessageReaction[];
+  isPinned?: boolean;
 }
 
 export interface MessageReaction {

@@ -2,8 +2,6 @@
 
 TaskFlow is a full-stack project management platform built with **Next.js**, **React**, **Supabase**, and an in-app **TypeScript ML engine**. It combines Kanban workflows, project analytics, real-time collaboration, and ML-assisted planning in a single app runtime.
 
-> Live product overview: open `product-page.html`
-
 ---
 
 ## Key Features

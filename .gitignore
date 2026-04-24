@@ -35,6 +35,7 @@ yarn-error.log*
 
 # vercel
 .vercel
+.vscode
 
 # typescript
 *.tsbuildinfo
@@ -53,3 +54,5 @@ ML/skill_matcher_model/
 
 # Retrained ML Models
 ML/my_setfit_model_critical/
+
+/supabase

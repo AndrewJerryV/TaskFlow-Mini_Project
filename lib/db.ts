@@ -82,11 +82,16 @@ function toMessage(dbMessage: DbMessage): Message {
         userId: dbMessage.user_id,
         content: parsed.content,
         timestamp: dbMessage.timestamp,
-        attachment: dbMessage.attachment ? JSON.parse(dbMessage.attachment) : undefined,
+        attachment: dbMessage.attachment 
+            ? (typeof dbMessage.attachment === 'string' ? JSON.parse(dbMessage.attachment) : dbMessage.attachment) 
+            : undefined,
         conversationType: dbMessage.conversation_type || parsed.metadata.conversationType || 'project',
         recipientId: dbMessage.recipient_id || parsed.metadata.recipientId || undefined,
         threadRootId: dbMessage.thread_root_id || parsed.metadata.threadRootId || null,
-        reactions: dbMessage.reactions ? JSON.parse(dbMessage.reactions) : (parsed.metadata.reactions || []),
+        reactions: dbMessage.reactions 
+            ? (typeof dbMessage.reactions === 'string' ? JSON.parse(dbMessage.reactions) : dbMessage.reactions) 
+            : (parsed.metadata.reactions || []),
+        isPinned: dbMessage.is_pinned || parsed.metadata.isPinned || false,
     };
 }
 
@@ -100,6 +105,7 @@ type LegacyMessageMetadata = {
     recipientId?: string;
     threadRootId?: string | null;
     reactions?: Message['reactions'];
+    isPinned?: boolean;
 };
 
 const LEGACY_MESSAGE_PREFIX = '[[TFMETA:';
@@ -130,6 +136,7 @@ function serializeLegacyMessageContent(content: string, metadata: LegacyMessageM
     if (metadata.recipientId) normalized.recipientId = metadata.recipientId;
     if (metadata.threadRootId) normalized.threadRootId = metadata.threadRootId;
     if (metadata.reactions && metadata.reactions.length > 0) normalized.reactions = metadata.reactions;
+    if (metadata.isPinned) normalized.isPinned = metadata.isPinned;
 
     if (Object.keys(normalized).length === 0) {
         return content;
@@ -463,6 +470,70 @@ class Database {
             return null;
         }
         return toProject(data);
+    }
+
+    async updateMessageContent(messageId: string, content: string): Promise<Message | null> {
+        const { data, error } = await getSupabase()
+            .from('messages')
+            .update({ content })
+            .eq('id', messageId)
+            .select('*')
+            .single();
+
+        if (error || !data) {
+            console.error('Error updating message content:', error);
+            return null;
+        }
+        return toMessage(data);
+    }
+
+    async toggleMessagePin(messageId: string, isPinned: boolean): Promise<void> {
+        const supabase = getSupabase();
+        const { error } = await supabase
+            .from('messages')
+            .update({ is_pinned: isPinned })
+            .eq('id', messageId);
+        if (error) {
+            if (isMissingMessageColumnError(error)) {
+                const existing = await this.getMessageById(messageId);
+                if (!existing) throw error;
+
+                const { error: fallbackError } = await supabase
+                    .from('messages')
+                    .update({
+                        content: serializeLegacyMessageContent(existing.content, {
+                            conversationType: existing.conversationType,
+                            recipientId: existing.recipientId,
+                            threadRootId: existing.threadRootId,
+                            reactions: existing.reactions,
+                            isPinned: isPinned,
+                        }),
+                    })
+                    .eq('id', messageId);
+
+                if (fallbackError) throw fallbackError;
+                return;
+            }
+            throw error;
+        }
+
+
+
+
+
+    }
+
+    async deleteMessage(id: string): Promise<boolean> {
+        const { error } = await getSupabase()
+            .from('messages')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error deleting message:', error);
+            return false;
+        }
+        return true;
     }
 
     async getProjectMembers(projectId: string): Promise<string[]> {
@@ -804,6 +875,7 @@ class Database {
             .from('messages')
             .select('*')
             .eq('project_id', projectId)
+            .eq('conversation_type', 'project')
             .order('timestamp', { ascending: true });
 
         if (error) {
@@ -813,13 +885,18 @@ class Database {
         return (data || []).map(toMessage);
     }
 
-    async getDirectMessages(userId: string, recipientId: string): Promise<Message[]> {
-        const { data, error } = await getSupabase()
+    async getDirectMessages(userId: string, recipientId: string, projectId?: string): Promise<Message[]> {
+        let query = getSupabase()
             .from('messages')
             .select('*')
             .eq('conversation_type', 'dm')
-            .or(`and(user_id.eq.${userId},recipient_id.eq.${recipientId}),and(user_id.eq.${recipientId},recipient_id.eq.${userId})`)
-            .order('timestamp', { ascending: true });
+            .or(`and(user_id.eq.${userId},recipient_id.eq.${recipientId}),and(user_id.eq.${recipientId},recipient_id.eq.${userId})`);
+
+        if (projectId) {
+            query = query.eq('project_id', projectId);
+        }
+
+        const { data, error } = await query.order('timestamp', { ascending: true });
 
         if (error) {
             if (isMissingMessageColumnError(error)) {
@@ -833,13 +910,14 @@ class Database {
                     return [];
                 }
 
-                return (fallbackData || [])
-                    .map(toMessage)
-                    .filter(message =>
-                        message.conversationType === 'dm' &&
-                        ((message.userId === userId && message.recipientId === recipientId) ||
-                            (message.userId === recipientId && message.recipientId === userId))
-                    );
+                  return (fallbackData || [])
+                      .map(toMessage)
+                      .filter(message =>
+                          message.conversationType === 'dm' &&
+                          (!projectId || message.projectId === projectId) &&
+                          ((message.userId === userId && message.recipientId === recipientId) ||
+                              (message.userId === recipientId && message.recipientId === userId))
+                      );
             }
             console.error('Error fetching direct messages:', error);
             return [];
@@ -968,7 +1046,7 @@ class Database {
                             conversationType: existing.conversationType,
                             recipientId: existing.recipientId,
                             threadRootId: existing.threadRootId,
-                            reactions,
+                            reactions: reactions || [],
                         }),
                     })
                     .eq('id', id)
@@ -976,7 +1054,7 @@ class Database {
                     .single();
 
                 if (fallback.error || !fallback.data) {
-                    console.error('Error updating fallback message reactions:', fallback.error);
+                    console.error('Error updating message reactions with legacy fallback:', fallback.error);
                     return null;
                 }
 

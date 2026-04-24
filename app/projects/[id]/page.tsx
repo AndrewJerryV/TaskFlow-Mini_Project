@@ -169,7 +169,8 @@ export default function ProjectPage() {
         if (id && currentUser?.id) {
             fetchData();
         }
-    }, [id, currentUser?.id, fetchData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [id, currentUser?.id]);
 
     useEffect(() => {
         if (!id || !currentUser?.id) return;
@@ -421,7 +422,7 @@ export default function ProjectPage() {
     );
 
     return (
-        <div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden bg-white dark:bg-gray-900">
+        <div className="flex flex-col h-full overflow-hidden bg-white dark:bg-gray-900">
             {isVideoOpen && <VideoRoom projectId={id} onLeave={() => setIsVideoOpen(false)} />}
 
             {/* Header */}
