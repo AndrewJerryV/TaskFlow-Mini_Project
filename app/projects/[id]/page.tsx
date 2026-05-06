@@ -22,6 +22,7 @@ import VideoRoom from '@/components/VideoRoom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Video, Folder, FileText, BarChart3, Plus, UserPlus, Check, Rocket, Calendar, PieChart } from 'lucide-react';
 import { getSupabase } from '@/lib/supabase';
+import { db } from '@/lib/db';
 
 // Nav Items definition
 const NAV_ITEMS = ['Recommendations', 'Summary', 'Backlog', 'Board', 'Timeline', 'Code', 'Pages', 'Deployments', 'Calendar', 'Reports', 'Time Tracking', 'Chat', 'Forms', 'Shortcuts'] as const;
@@ -257,16 +258,10 @@ export default function ProjectPage() {
         setTasks(prev => prev.map(t => t.id == taskId ? { ...t, status: newStatus } : t));
 
         try {
-            const res = await fetch('/api/tasks', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: taskId, status: newStatus, userId: currentUser?.id })
-            });
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.error || 'Failed to update task');
+            const updatedTask = await db.updateTask(taskId, { status: newStatus }, currentUser?.id);
+            if (!updatedTask) {
+                throw new Error('Failed to update task');
             }
-            const updatedTask = await res.json();
             setTasks(prev => prev.map(t => t.id == taskId ? updatedTask : t));
         } catch (err: any) {
             console.error("Failed to update task", err);
@@ -282,16 +277,16 @@ export default function ProjectPage() {
         setTasks(prev => prev.map(t => t.id == updatedTask.id ? updatedTask : t));
 
         try {
-            const res = await fetch('/api/tasks', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...updatedTask, userId: currentUser?.id })
-            });
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.error || 'Failed to update task');
+            const realTask = await db.updateTask(updatedTask.id, updatedTask, currentUser?.id);
+            if (!realTask) {
+                throw new Error('Failed to update task');
             }
-            const realTask = await res.json();
+
+            if (updatedTask.assigneeId && !projectMembers.includes(updatedTask.assigneeId)) {
+                await db.addProjectMember(id, updatedTask.assigneeId);
+                setProjectMembers(prev => prev.includes(updatedTask.assigneeId!) ? prev : [...prev, updatedTask.assigneeId!]);
+            }
+
             setTasks(prev => prev.map(t => t.id == realTask.id ? realTask : t));
 
             // Alert if new member was auto-added during update
@@ -313,7 +308,7 @@ export default function ProjectPage() {
 
     const handleTaskCreateSubmit = async (taskData: Partial<Task>) => {
         const newTask: Task = {
-            id: `temp-${Date.now()}`,
+            id: crypto.randomUUID(),
             projectId: id,
             title: taskData.title || 'Untitled',
             description: taskData.description || '',
@@ -331,16 +326,17 @@ export default function ProjectPage() {
         setTasks(prev => [...prev, newTask]);
 
         try {
-            const res = await fetch('/api/tasks', {
-                method: 'POST',
-                body: JSON.stringify({ ...newTask, userId: currentUser?.id }),
-                headers: { 'Content-Type': 'application/json' }
-            });
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.error || 'Failed');
+            await db.addTask(newTask, currentUser?.id);
+            const realTask = await db.getTaskById(newTask.id);
+            if (!realTask) {
+                throw new Error('Failed');
             }
-            const realTask = await res.json();
+
+            if (taskData.assigneeId && !projectMembers.includes(taskData.assigneeId)) {
+                await db.addProjectMember(id, taskData.assigneeId);
+                setProjectMembers(prev => prev.includes(taskData.assigneeId!) ? prev : [...prev, taskData.assigneeId!]);
+            }
+
             setTasks(prev => prev.map(t => t.id === newTask.id ? realTask : t));
 
             // Alert if new member was auto-added
@@ -363,13 +359,10 @@ export default function ProjectPage() {
         setTasks(prev => prev.filter(t => t.id !== taskId));
 
         try {
-            const res = await fetch(`/api/tasks?id=${taskId}&userId=${currentUser?.id}`, {
-                method: 'DELETE',
-            });
-            
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.error || 'Failed to delete task');
+            const success = await db.deleteTask(taskId, currentUser?.id || 'system');
+
+            if (!success) {
+                throw new Error('Failed to delete task');
             }
         } catch (err: any) {
             console.error("Failed to delete task", err);
@@ -382,18 +375,18 @@ export default function ProjectPage() {
         if (!confirm('Are you sure you want to remove this member from the project?')) return;
 
         try {
-            const res = await fetch(`/api/projects/${id}/members/${userIdToRemove}?requestUserId=${currentUser?.id}`, {
-                method: 'DELETE',
-            });
+            const unassignedCount = await db.unassignUserTasks(id, userIdToRemove);
+            const success = await db.removeProjectMember(id, userIdToRemove);
 
-            if (res.ok) {
-                // Remove from local state
+            if (success) {
                 setProjectMembers(prev => prev.filter(uid => uid !== userIdToRemove));
                 setSelectedMembers(prev => prev.filter(uid => uid !== userIdToRemove));
+                if (unassignedCount > 0) {
+                    setTasks(prev => prev.map(task => task.assigneeId === userIdToRemove ? { ...task, assigneeId: undefined } : task));
+                }
                 setLastSyncTime(Date.now());
             } else {
-                const data = await res.json();
-                alert(data.error || 'Failed to remove member');
+                alert('Failed to remove member');
             }
         } catch (error) {
             console.error('Error removing member:', error);
@@ -581,32 +574,30 @@ export default function ProjectPage() {
                             onClick={async () => {
                                 console.log("Done button clicked. Selected members:", selectedMembers);
                                 try {
-                                    const res = await fetch(`/api/projects/${id}/members`, {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ userIds: selectedMembers, requestUserId: currentUser?.id })
-                                    });
+                                    const currentMembers = await db.getProjectMembers(id);
+                                    const projectOwnerId = project?.ownerId;
+                                    const desiredMembers = Array.from(new Set([
+                                        ...selectedMembers,
+                                        ...(projectOwnerId ? [projectOwnerId] : []),
+                                    ]));
+                                    const toAdd = desiredMembers.filter(memberId => !currentMembers.includes(memberId));
+                                    const toRemove = currentMembers.filter(memberId => !desiredMembers.includes(memberId) && memberId !== projectOwnerId);
 
-                                    console.log("Member update response status:", res.status);
-
-                                    if (res.ok) {
-                                        const updatedMembers = await res.json();
-                                        console.log("Member update successful. Updated members:", updatedMembers);
-                                        setProjectMembers(updatedMembers);
-                                        setSelectedMembers(updatedMembers);
-                                        setLastSyncTime(Date.now());
-                                        setIsInviteOpen(false);
-                                        // Use a slight delay before alert to ensure state updates are processed
-                                        setTimeout(() => alert(`Project members updated!`), 100);
-                                    } else {
-                                        let errorMsg = 'Failed to update members';
-                                        try {
-                                            const data = await res.json();
-                                            errorMsg = data.error || errorMsg;
-                                        } catch (e) { }
-                                        console.error("Member update error:", errorMsg);
-                                        alert(`Error: ${errorMsg}`);
+                                    for (const memberId of toAdd) {
+                                        await db.addProjectMember(id, memberId);
                                     }
+
+                                    for (const memberId of toRemove) {
+                                        await db.removeProjectMember(id, memberId);
+                                    }
+
+                                    const updatedMembers = await db.getProjectMembers(id);
+                                    console.log("Member update successful. Updated members:", updatedMembers);
+                                    setProjectMembers(updatedMembers);
+                                    setSelectedMembers(updatedMembers);
+                                    setLastSyncTime(Date.now());
+                                    setIsInviteOpen(false);
+                                    setTimeout(() => alert(`Project members updated!`), 100);
                                 } catch (err) {
                                     console.error("Connection error in member update:", err);
                                     alert('Failed to update members - check console for details');

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link2, Plus, Trash2, X, Globe, Pencil } from 'lucide-react';
+import { db } from '@/lib/db';
 
 interface Shortcut {
     id: string;
@@ -27,11 +28,8 @@ export default function ShortcutsView({ projectId }: ShortcutsViewProps) {
         async function fetchShortcuts() {
             try {
                 setLoading(true);
-                const res = await fetch(`/api/shortcuts?projectId=${projectId}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    setShortcuts(data);
-                }
+                const data = await db.getShortcuts(projectId);
+                setShortcuts(data);
             } catch (error) {
                 console.error('Error fetching shortcuts:', error);
             } finally {
@@ -47,25 +45,21 @@ export default function ShortcutsView({ projectId }: ShortcutsViewProps) {
         if (!url.startsWith('http://') && !url.startsWith('https://')) url = 'https://' + url;
         if (editId) {
             try {
-                const res = await fetch('/api/shortcuts', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: editId, name: newShortcut.name, url }),
-                });
-                if (res.ok) {
-                    const updated = await res.json();
+                const updated = await db.updateShortcut(editId, { name: newShortcut.name, url });
+                if (updated) {
                     setShortcuts(prev => prev.map(s => s.id === editId ? updated : s));
                 }
             } catch (error) { console.error('Error editing shortcut:', error); }
         } else {
             try {
-                const res = await fetch('/api/shortcuts', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ project_id: projectId, name: newShortcut.name, url }),
+                const created = await db.addShortcut({
+                    id: crypto.randomUUID(),
+                    project_id: projectId,
+                    name: newShortcut.name,
+                    url,
+                    type: 'link',
                 });
-                if (res.ok) {
-                    const created = await res.json();
+                if (created) {
                     setShortcuts(prev => [...prev, created]);
                 }
             } catch (error) { console.error('Error adding shortcut:', error); }
@@ -77,8 +71,8 @@ export default function ShortcutsView({ projectId }: ShortcutsViewProps) {
 
     const handleDeleteShortcut = async (id: string) => {
         try {
-            const res = await fetch(`/api/shortcuts?id=${id}`, { method: 'DELETE' });
-            if (res.ok) {
+            const success = await db.deleteShortcut(id);
+            if (success) {
                 setShortcuts(prev => prev.filter(s => s.id !== id));
             }
         } catch (error) {

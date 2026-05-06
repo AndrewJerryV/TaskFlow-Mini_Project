@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Task, User } from '@/types';
 import { AlertTriangle, Activity, Users, CheckCircle2, Loader2, ArrowRight, Sparkles, Heart } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { db } from '@/lib/db';
 
 interface BottleneckAlertProps {
     tasks?: Task[];
@@ -61,17 +62,10 @@ export function BottleneckAlert({ tasks = [], users = [], currentUser = null, pr
         if (!currentUser?.id) return;
         setApplyingSwap(suggestion.taskId);
         try {
-            const res = await fetch('/api/tasks', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    id: suggestion.taskId,
-                    userId: currentUser.id,
-                    assigneeId: suggestion.toUser.id,
-                    isSwap: true,
-                }),
-            });
-            if (res.ok) {
+            const updatedTask = await db.updateTask(suggestion.taskId, {
+                assigneeId: suggestion.toUser.id,
+            }, currentUser.id);
+            if (updatedTask) {
                 setAppliedSwaps(prev => new Set([...prev, suggestion.taskId]));
                 router.refresh();
             }

@@ -26,7 +26,7 @@ export default function Navbar() {
       }`}
     >
       <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-3">
+        <Link href="/landing" className="flex items-center gap-3">
   <div className="w-16 h-16 rounded-xl flex items-center justify-center overflow-hidden shrink-0">
     <img src="/icon.svg" alt="TaskFlow" className="w-full h-full object-contain" />
   </div>
@@ -57,7 +57,7 @@ export default function Navbar() {
             </Link>
           ) : (
             <Link 
-  href="/login" 
+  href="/setup" 
   className="px-6 py-2.5 bg-accent-blue/10 border border-accent-blue/30 text-accent-blue rounded-full font-bold text-sm hover:bg-accent-blue/20 hover:translate-y-[-2px] hover:shadow-xl hover:shadow-accent-blue/20 transition-all flex items-center gap-2 backdrop-blur-md"
 >
   Get Started

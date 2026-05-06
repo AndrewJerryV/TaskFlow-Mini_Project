@@ -10,6 +10,7 @@ import { getUserName, getActionDisplay } from '@/lib/utils';
 import { Sparkles, ArrowRight, Trash2, MessageSquare, Edit, ChevronDown, ChevronUp, Brain } from 'lucide-react';
 import { WellnessAlerts } from '@/components/WellnessAlerts';
 import { TaskOfTheDay } from '@/components/TaskOfTheDay';
+import { db } from '@/lib/db';
 
 // Icon component to render Lucide icons by name
 const ActionIcon = ({ iconName, size = 14 }: { iconName: string; size?: number }) => {
@@ -143,9 +144,9 @@ export default function Home() {
                           e.preventDefault();
                           e.stopPropagation();
                           if (confirm('Are you sure you want to delete this project?')) {
-                            fetch(`/api/projects?id=${project.id}&userId=${currentUser?.id}`, { method: 'DELETE' })
-                              .then((res) => {
-                                if (res.ok) {
+                            db.deleteProject(project.id)
+                              .then((success) => {
+                                if (success) {
                                   setProjects(prev => prev.filter(p => p.id !== project.id));
                                 } else {
                                   alert('Failed to delete project');

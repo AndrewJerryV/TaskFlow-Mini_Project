@@ -10,6 +10,7 @@ import { getRoleColor } from '@/lib/utils';
 import { Project, Task, User } from '@/types';
 import { TimerRunningIndicator } from '@/components/TimerRunningIndicator';
 import { TimerProvider } from '@/contexts/TimerContext';
+import { hasClientSupabaseConfig } from '@/lib/browser-supabase-config';
 
 interface AuthenticatedLayoutProps {
     children: ReactNode;
@@ -23,11 +24,15 @@ interface SearchResult {
     projectId?: string;
 }
 
+const PUBLIC_PATHS = ['/login', '/', '/setup', '/landing'];
+const ALWAYS_PUBLIC_PATHS = ['/', '/setup', '/landing'];
+
 export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
     const { currentUser, isLoading, logout, authError, setAuthError, isLoggingOut } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
-    const publicPaths = ['/login', '/', '/setup'];
+    const requiresSupabaseConfig = pathname !== '/' && pathname !== '/setup' && pathname !== '/landing';
+    const hasSupabaseConfig = hasClientSupabaseConfig();
 
     // Search state
     const [searchQuery, setSearchQuery] = useState('');
@@ -37,10 +42,17 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
     const searchRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (!isLoading && !currentUser && !publicPaths.includes(pathname)) {
+        if (requiresSupabaseConfig && !hasSupabaseConfig) {
+            const query = typeof window !== 'undefined' ? window.location.search.slice(1) : '';
+            const nextPath = query ? `${pathname}?${query}` : pathname;
+            router.replace(`/setup?next=${encodeURIComponent(nextPath)}`);
+            return;
+        }
+
+        if (!isLoading && !currentUser && !PUBLIC_PATHS.includes(pathname)) {
             router.push('/login');
         }
-    }, [currentUser, isLoading, router, pathname]);
+    }, [currentUser, hasSupabaseConfig, isLoading, pathname, requiresSupabaseConfig, router]);
 
     // Close search results when clicking outside
     useEffect(() => {
@@ -158,7 +170,15 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
     };
 
     // Public pages must remain reachable while auth initialization is resolving.
-    if (publicPaths.includes(pathname)) {
+    if (ALWAYS_PUBLIC_PATHS.includes(pathname)) {
+        return <>{children}</>;
+    }
+
+    if (requiresSupabaseConfig && !hasSupabaseConfig) {
+        return null;
+    }
+
+    if (pathname === '/login') {
         return <>{children}</>;
     }
 

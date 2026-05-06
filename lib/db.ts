@@ -1186,6 +1186,32 @@ class Database {
         return toTimeEntry(data);
     }
 
+    async addManualTimeEntry(taskId: string, userId: string, minutes: number, projectId?: string, note?: string): Promise<TimeEntry | null> {
+        const endTime = new Date();
+        const startTime = new Date(endTime.getTime() - minutes * 60000);
+
+        const { data, error } = await getSupabase()
+            .from('time_entries')
+            .insert({
+                task_id: taskId,
+                user_id: userId,
+                project_id: projectId,
+                start_time: startTime.toISOString(),
+                end_time: endTime.toISOString(),
+                duration_minutes: Math.max(1, Math.round(minutes)),
+                note: note || null,
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error adding manual time entry:', error);
+            return null;
+        }
+
+        return toTimeEntry(data);
+    }
+
     // Get single task by ID
     async getTaskById(id: string): Promise<Task | null> {
         const { data, error } = await getSupabase()
@@ -1599,6 +1625,21 @@ class Database {
             return false;
         }
         return true;
+    }
+
+    async updateShortcut(id: string, updates: { name?: string; url?: string }): Promise<DbShortcut | null> {
+        const { data, error } = await getSupabase()
+            .from('shortcuts')
+            .update(updates)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error updating shortcut:', error);
+            return null;
+        }
+        return data;
     }
 
     // Repo Links

@@ -5,6 +5,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Deployment, Task } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { CustomSelect } from '@/components/ui/CustomSelect';
+import { db } from '@/lib/db';
 
 interface CreateDeploymentDialogProps {
     isOpen: boolean;
@@ -54,23 +55,20 @@ export function CreateDeploymentDialog({ isOpen, onClose, currentProjectId, onDe
 
         setIsSubmitting(true);
         try {
-            const res = await fetch('/api/deployments', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    projectId: currentProjectId,
-                    userId: currentUser.id,
-                    version,
-                    environment,
-                    status,
-                    releaseNotes,
-                    taskIds: Array.from(selectedTaskIds)
-                })
-            });
+            const success = await db.createDeployment({
+                id: crypto.randomUUID(),
+                projectId: currentProjectId,
+                version,
+                environment,
+                status,
+                releaseNotes,
+                createdBy: currentUser.id,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            }, Array.from(selectedTaskIds));
 
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.error || 'Failed to create deployment');
+            if (!success) {
+                throw new Error('Failed to create deployment');
             }
 
             onDeploymentCreated();

@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { Task } from '@/types';
+import { db } from '@/lib/db';
 
 interface ActiveTimer {
     taskId: string;
@@ -38,25 +39,21 @@ export function TimerProvider({ children }: { children: ReactNode }) {
 
         const syncTimer = async () => {
             try {
-                // 1. Check DB for active timer (Most reliable)
-                const res = await fetch(`/api/time-entries?userId=${currentUser.id}`);
-                if (res.ok) {
-                    const dbEntry = await res.json();
-                    if (dbEntry) {
-                        const newTimer: ActiveTimer = {
-                            taskId: dbEntry.taskId,
-                            taskTitle: '', // We might need to fetch this or ignore for UI
-                            projectId: dbEntry.projectId || '',
-                            startTime: dbEntry.startTime,
-                        };
-                        setActiveTimer(newTimer);
-                        setDbTimerId(dbEntry.id);
-                        
-                        const start = new Date(dbEntry.startTime);
-                        const diff = Math.floor((new Date().getTime() - start.getTime()) / 60000);
-                        setElapsedMinutes(Math.max(0, diff));
-                        return;
-                    }
+                const dbEntry = await db.getActiveTimer(currentUser.id);
+                if (dbEntry) {
+                    const newTimer: ActiveTimer = {
+                        taskId: dbEntry.taskId,
+                        taskTitle: '',
+                        projectId: dbEntry.projectId || '',
+                        startTime: dbEntry.startTime,
+                    };
+                    setActiveTimer(newTimer);
+                    setDbTimerId(dbEntry.id);
+
+                    const start = new Date(dbEntry.startTime);
+                    const diff = Math.floor((new Date().getTime() - start.getTime()) / 60000);
+                    setElapsedMinutes(Math.max(0, diff));
+                    return;
                 }
 
                 // 2. Fallback to localStorage if DB is empty but we had something (less likely now)
@@ -119,19 +116,8 @@ export function TimerProvider({ children }: { children: ReactNode }) {
         if (!currentUser) return;
 
         try {
-            // 1. Create entry in DB immediately
-            const res = await fetch('/api/time-entries', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    taskId: task.id,
-                    userId: currentUser.id,
-                    projectId: task.projectId
-                })
-            });
-
-            if (!res.ok) throw new Error('Failed to start timer in DB');
-            const entry = await res.json();
+            const entry = await db.startTimeEntry(task.id, currentUser.id, task.projectId);
+            if (!entry) throw new Error('Failed to start timer in DB');
 
             const newTimer: ActiveTimer = {
                 taskId: task.id,
@@ -160,22 +146,13 @@ export function TimerProvider({ children }: { children: ReactNode }) {
         }
 
         try {
-            const payload: Record<string, string> = {
-                note: 'Logged via TaskFlow Timer',
-                userId: currentUser.id,
-            };
-
             if (dbTimerId) {
-                payload.id = dbTimerId;
+                const stoppedEntry = await db.stopTimeEntry(dbTimerId, 'Logged via TaskFlow Timer');
+                if (!stoppedEntry) throw new Error('Failed to stop timer in DB');
+            } else {
+                const stoppedEntries = await db.stopActiveTimersForUser(currentUser.id, undefined, 'Logged via TaskFlow Timer');
+                if (stoppedEntries.length === 0) throw new Error('Failed to stop timer in DB');
             }
-
-            const res = await fetch('/api/time-entries', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (!res.ok) throw new Error('Failed to stop timer in DB');
 
             // Clear local state after server confirms stop.
             setActiveTimer(null);

@@ -3,6 +3,12 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { getSupabase } from '../lib/supabase';
 import { User } from '@/types';
+import { hasClientSupabaseConfig } from '@/lib/browser-supabase-config';
+import {
+  clearPendingFirstAdminSetup,
+  getPendingFirstAdminSetup,
+  pendingFirstAdminMatches,
+} from '@/lib/first-admin-setup';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -66,6 +72,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const loadSession = async () => {
       try {
+        if (!hasClientSupabaseConfig()) {
+          setCurrentUser(null);
+          setIsLoading(false);
+          return;
+        }
+
         const supabase = getSupabase();
 
         const handleAuthChange = async (
@@ -173,11 +185,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('[SignIn] Error loading user profile:', error);
     }
 
-    // If OAuth user isn't in DB, block login and show message on login page
+    // If the first-admin setup flow just completed, create that admin profile.
     if (error && error.code === 'PGRST116') {
-      const isOauth = provider && provider !== 'email';
+      const normalizedProvider = provider ?? 'email';
+      const pendingAdmin = getPendingFirstAdminSetup();
+      const shouldCreateFirstAdmin = pendingFirstAdminMatches(
+        pendingAdmin,
+        normalizedProvider,
+        email
+      );
 
-      if (isOauth) {
+      if (provider && provider !== 'email' && !shouldCreateFirstAdmin) {
         setAuthError('You are not an existing user.');
         await supabase.auth.signOut();
         setCurrentUser(null);
@@ -190,11 +208,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .insert({
           id: userId,
           email,
-          name: email?.split('@')[0] ?? 'User',
-          role: 'Member',
+          name: shouldCreateFirstAdmin
+            ? pendingAdmin?.name
+            : email?.split('@')[0] ?? 'User',
+          role: shouldCreateFirstAdmin ? 'Admin' : 'Member',
           skills: [],
-          wellness_score: 0,
-          max_workload: 0
+          wellness_score: shouldCreateFirstAdmin ? 85 : 0,
+          max_workload: shouldCreateFirstAdmin ? 5 : 0
         })
         .select()
         .single<ProfileRow>();
@@ -206,6 +226,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       data = created;
+      if (shouldCreateFirstAdmin) {
+        clearPendingFirstAdminSetup();
+      }
     }
 
     if (!data) {

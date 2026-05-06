@@ -265,16 +265,9 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
 
     const handlePinMessage = async (message: Message) => {
         try {
-            const response = await fetch('/api/messages', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ messageId: message.id, isPinned: !message.isPinned }),
-            });
-
-            if (response.ok) {
-                setShowMessageOptions(null);
-                await fetchConversationMessages(false);
-            }
+            await db.toggleMessagePin(message.id, !message.isPinned);
+            setShowMessageOptions(null);
+            await fetchConversationMessages(false);
         } catch (error) {
             console.error('Error toggling pin:', error);
         }
@@ -301,15 +294,9 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
         };
 
         try {
-            const response = await fetch('/api/messages', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(forwardData),
-            });
-            if (response.ok) {
-                setShowForwardModal(false);
-                setForwardingMessage(null);
-            }
+            await db.addMessage(forwardData as Message);
+            setShowForwardModal(false);
+            setForwardingMessage(null);
         } catch (error) {
             console.error('Error forwarding message:', error);
         }
@@ -367,16 +354,8 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
 
         if (editingMessage) {
             try {
-                const response = await fetch('/api/messages', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        messageId: editingMessage.id,
-                        content: newMessage.trim(),
-                    }),
-                });
-
-                if (response.ok) {
+                const updatedMessage = await db.updateMessageContent(editingMessage.id, newMessage.trim());
+                if (updatedMessage) {
                     setNewMessage('');
                     setEditingMessage(null);
                     await fetchConversationMessages(false);
@@ -403,15 +382,17 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
             payload.projectId = projectId;
         }
 
-        const response = await fetch('/api/messages', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
+        await db.addMessage({
+            id: crypto.randomUUID(),
+            userId: payload.userId as string,
+            content: payload.content as string,
+            attachment: payload.attachment as Attachment | undefined,
+            timestamp: new Date().toISOString(),
+            threadRootId: payload.threadRootId as string | null | undefined,
+            conversationType: payload.conversationType as 'project' | 'dm',
+            recipientId: payload.recipientId as string | undefined,
+            projectId: payload.projectId as string | undefined,
         });
-
-        if (!response.ok) {
-            throw new Error('Failed to send message');
-        }
 
         clearSelectedFile();
         setNewMessage('');
@@ -433,15 +414,23 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
         if (!currentUser) return;
 
         try {
-            await fetch('/api/messages', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    messageId,
-                    userId: currentUser.id,
-                    emoji,
-                }),
-            });
+            const message = await db.getMessageById(messageId);
+            if (!message) return;
+
+            const nextReactions = [...(message.reactions || [])];
+            const existingReaction = nextReactions.find(reaction => reaction.emoji === emoji);
+            if (existingReaction) {
+                if (existingReaction.userIds.includes(currentUser.id)) {
+                    existingReaction.userIds = existingReaction.userIds.filter(userId => userId !== currentUser.id);
+                } else {
+                    existingReaction.userIds = [...existingReaction.userIds, currentUser.id];
+                }
+            } else {
+                nextReactions.push({ emoji, userIds: [currentUser.id] });
+            }
+
+            const filteredReactions = nextReactions.filter(reaction => reaction.userIds.length > 0);
+            await db.updateMessageReactions(messageId, filteredReactions);
             await fetchConversationMessages(false);
         } catch (error) {
             console.error(error);
@@ -524,8 +513,8 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
     const handleDeleteMessage = async (messageId: string) => {
         if (!confirm('Are you sure you want to delete this message?')) return;
         try {
-            const response = await fetch(`/api/messages?messageId=${messageId}`, { method: 'DELETE' });
-            if (response.ok) {
+            const success = await db.deleteMessage(messageId);
+            if (success) {
                 setShowMessageOptions(null);
                 await fetchConversationMessages(false);
             }

@@ -11,6 +11,7 @@ import { PRIORITY_COLORS, STATUS_COLORS } from '@/lib/constants';
 import { getUserName, getActionDisplay } from '@/lib/utils';
 import { getSupabase } from '@/lib/supabase';
 import { RealtimePostgresInsertPayload } from '@supabase/supabase-js';
+import { db } from '@/lib/db';
 
 // Icon component to render Lucide icons by name
 const ActionIcon = ({ iconName, size = 14 }: { iconName: string; size?: number }) => {
@@ -119,11 +120,8 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete, pro
     const fetchComments = async (taskId: string) => {
         setLoadingComments(true);
         try {
-            const res = await fetch(`/api/comments?taskId=${taskId}`);
-            if (res.ok) {
-                const data = await res.json();
-                setComments(Array.isArray(data) ? data : []);
-            }
+            const data = await db.getComments(taskId);
+            setComments(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Error fetching comments:', error);
         } finally {
@@ -133,11 +131,8 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete, pro
 
     const fetchTimeEntries = async (taskId: string) => {
         try {
-            const res = await fetch(`/api/time-entries?taskId=${taskId}`);
-            if (res.ok) {
-                const data = await res.json();
-                setTimeEntries(Array.isArray(data) ? data : []);
-            }
+            const data = await db.getTimeEntries(taskId);
+            setTimeEntries(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Error fetching time entries:', error);
         }
@@ -148,15 +143,12 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete, pro
         const taskTitle = task.title; // Capture before async
         setLoadingHistory(true);
         try {
-            const res = await fetch('/api/activity');
-            if (res.ok) {
-                const data = await res.json();
-                if (Array.isArray(data)) {
-                    const taskLogs = data.filter((log: any) =>
-                        log.entityId === taskId || log.details.includes(taskTitle)
-                    );
-                    setHistory(taskLogs);
-                }
+            const data = await db.getActivityLogs();
+            if (Array.isArray(data)) {
+                const taskLogs = data.filter((log: any) =>
+                    log.entityId === taskId || log.details.includes(taskTitle)
+                );
+                setHistory(taskLogs);
             }
         } catch (error) {
             console.error('Error fetching history:', error);
@@ -168,11 +160,8 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete, pro
     const fetchDeployments = async (taskId: string) => {
         setLoadingDeployments(true);
         try {
-            const res = await fetch(`/api/deployments?taskId=${taskId}`);
-            if (res.ok) {
-                const data = await res.json();
-                setDeployments(Array.isArray(data) ? data : []);
-            }
+            const data = await db.getTaskDeployments(taskId);
+            setDeployments(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Error fetching deployments:', error);
         } finally {
@@ -183,11 +172,8 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete, pro
     const fetchProjectTasks = async (projectId: string) => {
         setLoadingProjectTasks(true);
         try {
-            const res = await fetch(`/api/tasks?projectId=${projectId}`);
-            if (res.ok) {
-                const data = await res.json();
-                setProjectTasks(Array.isArray(data) ? data : []);
-            }
+            const data = await db.getTasks(projectId);
+            setProjectTasks(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Error fetching project tasks:', error);
         } finally {
@@ -213,16 +199,11 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete, pro
     };
 
     const handleDelete = async () => {
-        if (task && currentUser) {
+        if (task) {
             setIsDeleting(true);
             try {
-                const res = await fetch(`/api/tasks/${task.id}?userId=${currentUser.id}`, {
-                    method: 'DELETE',
-                });
-                if (res.ok) {
-                    onDelete(task.id);
-                    onClose();
-                }
+                await onDelete(task.id);
+                onClose();
             } catch (error) {
                 console.error('Error deleting task:', error);
             } finally {
@@ -235,21 +216,17 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete, pro
         if (!newComment.trim() || !task || !currentUser) return;
 
         try {
-            const res = await fetch('/api/comments', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    taskId: task.id,
-                    userId: currentUser.id,
-                    content: newComment,
-                }),
-            });
+            const comment: Comment = {
+                id: crypto.randomUUID(),
+                taskId: task.id,
+                userId: currentUser.id,
+                content: newComment,
+                createdAt: new Date().toISOString(),
+            };
 
-            if (res.ok) {
-                const comment = await res.json();
-                setComments([...comments, comment]);
-                setNewComment('');
-            }
+            await db.addComment(comment);
+            setComments(prev => prev.some(existing => existing.id === comment.id) ? prev : [...prev, comment]);
+            setNewComment('');
         } catch (error) {
             console.error('Error adding comment:', error);
         }
@@ -268,35 +245,16 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete, pro
         if (!timeLogMinutes || isNaN(Number(timeLogMinutes)) || Number(timeLogMinutes) <= 0 || !task || !currentUser) return;
 
         try {
-            // New logic: Directly use time-entries API (We'll send it as a closed entry)
-            // Note: Since this is manual, we'll set start_time and end_time accordingly
-            const minutes = Number(timeLogMinutes);
-            const endTime = new Date();
-            const startTime = new Date(endTime.getTime() - minutes * 60000);
+            const createdEntry = await db.addManualTimeEntry(
+                task.id,
+                currentUser.id,
+                Number(timeLogMinutes),
+                task.projectId,
+                'Manual log'
+            );
 
-            const res = await fetch('/api/time-entries', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    taskId: task.id,
-                    userId: currentUser.id,
-                    projectId: task.projectId
-                })
-            });
-
-            if (res.ok) {
-                const entry = await res.json();
-                // Immediately "Stop" it with the manual duration
-                await fetch('/api/time-entries', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        id: entry.id,
-                        note: 'Manual log'
-                    })
-                });
-                
-                fetchTimeEntries(task.id);
+            if (createdEntry) {
+                await fetchTimeEntries(task.id);
                 setTimeLogMinutes('');
             }
         } catch (error) {

@@ -8,6 +8,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { getSupabase } from '@/lib/supabase';
 import { RealtimePostgresInsertPayload } from '@supabase/supabase-js';
+import { db } from '@/lib/db';
 
 const NOTIFICATION_CONFIG: Record<string, {
     icon: React.ElementType;
@@ -137,12 +138,8 @@ export function NotificationBell() {
     const handleMarkAsRead = async (id: string, e?: React.MouseEvent) => {
         if (e) e.stopPropagation();
         try {
-            const res = await fetch('/api/notifications', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id })
-            });
-            if (res.ok) {
+            const success = await db.markNotificationRead(id);
+            if (success) {
                 setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
                 setUnreadCount(prev => Math.max(0, prev - 1));
             }
@@ -156,12 +153,8 @@ export function NotificationBell() {
         if (!currentUser || unreadCount === 0) return;
         setIsLoading(true);
         try {
-            const res = await fetch('/api/notifications', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: currentUser.id, markAllRead: true })
-            });
-            if (res.ok) {
+            const success = await db.markAllNotificationsRead(currentUser.id);
+            if (success) {
                 setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
                 setUnreadCount(0);
             }

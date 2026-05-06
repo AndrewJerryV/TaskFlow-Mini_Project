@@ -1,462 +1,862 @@
 'use client';
 
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import {
-  Database, Key, Shield, ExternalLink, CheckCircle2,
-  AlertCircle, Eye, EyeOff, ArrowRight, Loader2, Copy,
-  ChevronDown, ChevronRight, Sparkles, Terminal, Globe
+  AlertCircle,
+  ArrowRight,
+  ChevronDown,
+  CheckCircle2,
+  Database,
+  Eye,
+  EyeOff,
+  ExternalLink,
+  Globe,
+  Github,
+  Key,
+  Loader2,
+  LockKeyhole,
+  Mail,
+  Shield,
+  SlidersHorizontal,
+  UserPlus,
 } from 'lucide-react';
-import Link from 'next/link';
+import { getSiteUrl } from '@/lib/site-url';
+import {
+  getCachedDeviceEnvValues,
+  getStoredDeviceEnvVault,
+  resolveClientEnvValues,
+  saveDeviceEnvVault,
+  unlockDeviceEnvVault,
+  type DeviceEnvValues,
+} from '@/lib/device-env-vault';
+import { savePendingFirstAdminSetup, type FirstAdminProvider } from '@/lib/first-admin-setup';
+import { resetSupabaseClient } from '@/lib/supabase';
 
 type StepStatus = 'idle' | 'loading' | 'success' | 'error';
 
-interface FieldConfig {
-  key: string;
+type FieldConfig = {
+  key: keyof DeviceEnvValues;
   label: string;
   envName: string;
   placeholder: string;
   description: string;
-  type: 'url' | 'key';
-  docsHint: string;
+  docsHref: string;
+  docsLabel: string;
   icon: React.ReactNode;
-  color: string;
-}
+  required?: boolean;
+};
 
-const fields: FieldConfig[] = [
+const FIELD_CONFIGS: FieldConfig[] = [
   {
-    key: 'url',
-    label: 'Project URL',
+    key: 'SUPABASE_URL',
+    label: 'Supabase Project URL',
     envName: 'NEXT_PUBLIC_SUPABASE_URL',
     placeholder: 'https://xxxxxxxxxxxxxxxxxxxx.supabase.co',
-    description: 'The base URL of your Supabase project.',
-    type: 'url',
-    docsHint: 'Found in Project Settings → API → Project URL',
+    description: 'Required. Used by the browser app to connect directly to your Supabase project.',
+    docsHref: 'https://supabase.com/dashboard/projects',
+    docsLabel: 'Supabase project settings',
     icon: <Globe size={18} />,
-    color: 'from-[#3ecf8e] to-[#1a9e6a]',
+    required: true,
   },
   {
-    key: 'anonKey',
-    label: 'Anon / Public Key',
+    key: 'SUPABASE_ANON_KEY',
+    label: 'Supabase Publishable / Anon Key',
     envName: 'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-    placeholder: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-    description: 'Safe to expose in the browser. Used for all client-side queries.',
-    type: 'key',
-    docsHint: 'Found in Project Settings → API → Project API Keys → anon public',
-    icon: <Key size={18} />,
-    color: 'from-[#9d7dff] to-[#7c5cbf]',
+    placeholder: 'sb_publishable_xxxxxxxxxxxx',
+    description: 'Required. Paste the key that starts with sb_publishable_. Older Supabase projects may call this the anon public key.',
+    docsHref: 'https://supabase.com/docs/guides/api/api-keys',
+    docsLabel: 'Supabase API keys',
+    icon: <Database size={18} />,
+    required: true,
   },
   {
-    key: 'serviceKey',
-    label: 'Service Role Key',
-    envName: 'SUPABASE_SERVICE_ROLE_KEY',
-    placeholder: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-    description: 'Server-side only. Never expose this in the browser. Used for admin operations.',
-    type: 'key',
-    docsHint: 'Found in Project Settings → API → Project API Keys → service_role secret',
+    key: 'SUPABASE_ACCESS_TOKEN',
+    label: 'Supabase Access Token',
+    envName: 'SUPABASE_ACCESS_TOKEN',
+    placeholder: 'sbp_xxxxxxxxxxxx',
+    description: 'Required for setup only. Used once to create the database tables through Supabase Management API.',
+    docsHref: 'https://supabase.com/dashboard/account/tokens',
+    docsLabel: 'Supabase access tokens',
+    icon: <Key size={18} />,
+    required: true,
+  },
+  {
+    key: 'GITHUB_ACCESS_TOKEN',
+    label: 'GitHub Access Token',
+    envName: 'GITHUB_ACCESS_TOKEN',
+    placeholder: 'github_pat_xxxxxxxxxxxx',
+    description: 'Optional. Stored only in this browser vault for GitHub-connected features.',
+    docsHref: 'https://github.com/settings/tokens',
+    docsLabel: 'GitHub personal access tokens',
+    icon: <Key size={18} />,
+  },
+  {
+    key: 'ALTCHA_HMAC_SECRET',
+    label: 'ALTCHA HMAC Secret',
+    envName: 'ALTCHA_HMAC_SECRET',
+    placeholder: 'ALTCHA secret',
+    description: 'Optional. Stored only in this browser vault for local ALTCHA-related flows.',
+    docsHref: 'https://altcha.org/docs/v2/server-integration/',
+    docsLabel: 'ALTCHA docs',
     icon: <Shield size={18} />,
-    color: 'from-[#f59e0b] to-[#d97706]',
+  },
+  {
+    key: 'ALTCHA_HMAC_KEY_SECRET',
+    label: 'ALTCHA HMAC Key Secret',
+    envName: 'ALTCHA_HMAC_KEY_SECRET',
+    placeholder: 'ALTCHA key secret',
+    description: 'Optional. Companion key for ALTCHA signature verification.',
+    docsHref: 'https://altcha.org/docs/v2/sentinel/configuration/api-keys/',
+    docsLabel: 'ALTCHA sentinel keys',
+    icon: <Shield size={18} />,
+  },
+  {
+    key: 'INDIEPITCHER_API_KEY',
+    label: 'Email API Key',
+    envName: 'INDIEPITCHER_API_KEY',
+    placeholder: 'sc_xxxxxxxxxxxx',
+    description: 'Optional. Stored only in this browser vault for email-related features.',
+    docsHref: 'https://docs.indiepitcher.com/api-reference/introduction',
+    docsLabel: 'IndiePitcher API docs',
+    icon: <Key size={18} />,
   },
 ];
 
-const steps = [
-  { id: 1, label: 'Create Supabase Project', icon: <Database size={16} /> },
-  { id: 2, label: 'Enter Credentials', icon: <Key size={16} /> },
-  { id: 3, label: 'Test Connection', icon: <CheckCircle2 size={16} /> },
-  { id: 4, label: 'Launch App', icon: <Sparkles size={16} /> },
-];
+const EMPTY_VALUES: DeviceEnvValues = {
+  SUPABASE_URL: '',
+  SUPABASE_ANON_KEY: '',
+  SUPABASE_ACCESS_TOKEN: '',
+  GITHUB_ACCESS_TOKEN: '',
+  ALTCHA_HMAC_SECRET: '',
+  ALTCHA_HMAC_KEY_SECRET: '',
+  INDIEPITCHER_API_KEY: '',
+};
+
+const REQUIRED_FIELDS = FIELD_CONFIGS.filter(field => field.required);
+const OPTIONAL_FIELDS = FIELD_CONFIGS.filter(field => !field.required);
 
 export default function SetupPage() {
-  const [values, setValues] = useState({ url: '', anonKey: '', serviceKey: '' });
-  const [showKey, setShowKey] = useState({ anonKey: false, serviceKey: false });
-  const [testStatus, setTestStatus] = useState<StepStatus>('idle');
-  const [testMessage, setTestMessage] = useState('');
+  const [values, setValues] = useState<DeviceEnvValues>(EMPTY_VALUES);
+  const [activeStep, setActiveStep] = useState<1 | 2>(1);
+  const [showKey, setShowKey] = useState<Record<string, boolean>>({});
+  const [showAdvancedKeys, setShowAdvancedKeys] = useState(false);
+  const [vaultPassword, setVaultPassword] = useState('');
+  const [hasStoredVault, setHasStoredVault] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [activeStep, setActiveStep] = useState(2);
-  const [expandedHint, setExpandedHint] = useState<string | null>(null);
-  const [copied, setCopied] = useState<string | null>(null);
+  const [status, setStatus] = useState<StepStatus>('idle');
+  const [statusMessage, setStatusMessage] = useState('');
+  const [schemaModalOpen, setSchemaModalOpen] = useState(false);
+  const [schemaStepIndex, setSchemaStepIndex] = useState(0);
+  const [schemaError, setSchemaError] = useState('');
+  const [adminProvider, setAdminProvider] = useState<FirstAdminProvider>('email');
+  const [adminName, setAdminName] = useState('');
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [oauthProviderEnabled, setOauthProviderEnabled] = useState(false);
+  const [adminStatus, setAdminStatus] = useState<StepStatus>('idle');
+  const [adminStatusMessage, setAdminStatusMessage] = useState('');
+  const [unlockingVault, setUnlockingVault] = useState(false);
 
+  useEffect(() => {
+    const resolvedValues = resolveClientEnvValues();
+    const sessionValues = getCachedDeviceEnvValues();
+    setValues(resolvedValues);
+    setHasStoredVault(Boolean(getStoredDeviceEnvVault()));
 
-  const handleChange = (key: string, val: string) => {
-    setValues(prev => ({ ...prev, [key]: val }));
-    setTestStatus('idle');
-    setTestMessage('');
+    if (sessionValues?.SUPABASE_URL && sessionValues.SUPABASE_ANON_KEY) {
+      setSaved(true);
+      setActiveStep(2);
+      setStatus('success');
+      setStatusMessage('Device vault already unlocked for this browser session.');
+    }
+  }, []);
+
+  const requiredReady = useMemo(
+    () => Boolean(values.SUPABASE_URL && values.SUPABASE_ANON_KEY && values.SUPABASE_ACCESS_TOKEN),
+    [values.SUPABASE_ACCESS_TOKEN, values.SUPABASE_ANON_KEY, values.SUPABASE_URL]
+  );
+
+  const adminReady = useMemo(() => {
+    const baseReady = Boolean(adminName.trim() && adminEmail.trim());
+    if (adminProvider === 'email') {
+      return baseReady && adminPassword.length >= 6;
+    }
+
+    return baseReady;
+  }, [adminEmail, adminName, adminPassword, adminProvider]);
+
+  const handleChange = (key: keyof DeviceEnvValues, value: string) => {
+    setValues(prev => ({ ...prev, [key]: value }));
     setSaved(false);
+    setStatus('idle');
+    setStatusMessage('');
   };
 
-  const handleCopyEnv = async () => {
-    const envContent = `NEXT_PUBLIC_SUPABASE_URL=${values.url}
-NEXT_PUBLIC_SUPABASE_ANON_KEY=${values.anonKey}
-SUPABASE_SERVICE_ROLE_KEY=${values.serviceKey}`;
-    await navigator.clipboard.writeText(envContent);
-    setCopied('env');
-    setTimeout(() => setCopied(null), 2000);
-  };
-
-  const handleTestConnection = async () => {
-    if (!values.url || !values.anonKey) {
-      setTestStatus('error');
-      setTestMessage('Please fill in the Project URL and Anon Key first.');
+  const handleUnlockVault = async () => {
+    if (!vaultPassword.trim()) {
+      setStatus('error');
+      setStatusMessage('Enter your device vault password to unlock saved keys.');
       return;
     }
 
-    setTestStatus('loading');
-    setTestMessage('');
+    setUnlockingVault(true);
+    setStatus('idle');
+    setStatusMessage('');
 
     try {
-      // Dynamically import supabase-js and test connectivity
-      const { createClient } = await import('@supabase/supabase-js');
-      const client = createClient(values.url, values.anonKey);
-      const { error } = await client.from('users').select('id').limit(1);
-
-      if (error && error.code === 'PGRST301') {
-        // Row Level Security active → DB is accessible but RLS is blocking. Connection works.
-        setTestStatus('success');
-        setTestMessage('Connection successful! Database is reachable and RLS is active.');
-        setActiveStep(4);
-      } else if (error && (error.message?.includes('Unable to connect') || error.message?.includes('fetch'))) {
-        setTestStatus('error');
-        setTestMessage('Could not reach Supabase. Check your Project URL and ensure the project is active.');
-      } else {
-        // Either success or a table-not-found error — either way, URL & key are valid
-        setTestStatus('success');
-        setTestMessage('Connection successful! Your credentials are valid.');
-        setActiveStep(4);
+      const unlockedValues = await unlockDeviceEnvVault(vaultPassword.trim());
+      if (!unlockedValues) {
+        setStatus('error');
+        setStatusMessage('No saved device vault was found in this browser.');
+        return;
       }
-    } catch (err: any) {
-      setTestStatus('error');
-      setTestMessage(err?.message || 'Connection failed. Please check your credentials.');
+
+      setValues(unlockedValues);
+      resetSupabaseClient();
+      setSaved(true);
+      setActiveStep(2);
+      setStatus('success');
+      setStatusMessage('Saved keys unlocked for this browser session.');
+    } catch {
+      setStatus('error');
+      setStatusMessage('Unable to unlock the saved device vault. Check the password and try again.');
+    } finally {
+      setUnlockingVault(false);
     }
   };
 
-  const allFilled = values.url && values.anonKey && values.serviceKey;
+  const handleTestAndSave = async () => {
+    if (!requiredReady) {
+      setStatus('error');
+      setStatusMessage('Enter the Supabase URL, publishable key, and access token first.');
+      return;
+    }
+
+    if (!vaultPassword.trim()) {
+      setStatus('error');
+      setStatusMessage('Enter a device vault password so the keys can be encrypted locally.');
+      return;
+    }
+
+    setSchemaModalOpen(true);
+    setSchemaStepIndex(0);
+    setSchemaError('');
+    setStatus('loading');
+    setStatusMessage('');
+
+    try {
+      setSchemaStepIndex(1);
+      const { createClient } = await import('@supabase/supabase-js');
+      const client = createClient(values.SUPABASE_URL, values.SUPABASE_ANON_KEY);
+      const { error } = await client.from('users').select('id').limit(1);
+
+      if (error && (error.message?.includes('Unable to connect') || error.message?.includes('fetch'))) {
+        setStatus('error');
+        setStatusMessage('Could not reach Supabase. Check the URL and make sure the project is active.');
+        setSchemaError('Could not reach Supabase. Check the URL and publishable key.');
+        return;
+      }
+
+      setSchemaStepIndex(2);
+      const schemaResponse = await fetch('/api/setup/schema', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supabaseUrl: values.SUPABASE_URL,
+          accessToken: values.SUPABASE_ACCESS_TOKEN,
+        }),
+      });
+      const schemaResult = await schemaResponse.json().catch(() => ({ ok: false }));
+
+      if (!schemaResponse.ok || !schemaResult.ok) {
+        const schemaMessage = schemaResult.error || 'Could not create the database tables.';
+        setStatus('error');
+        setStatusMessage(schemaMessage);
+        setSchemaError(schemaMessage);
+        return;
+      }
+
+      setSchemaStepIndex(3);
+      await saveDeviceEnvVault(vaultPassword.trim(), values);
+      resetSupabaseClient();
+      setSaved(true);
+      setHasStoredVault(true);
+      setActiveStep(2);
+      setSchemaStepIndex(4);
+      setStatus('success');
+      setStatusMessage('Database tables created and keys saved in this browser vault.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Connection failed. Check your keys and try again.';
+      setStatus('error');
+      setStatusMessage(message);
+      setSchemaError(message);
+    }
+  };
+
+  const savePendingAdmin = () => {
+    savePendingFirstAdminSetup({
+      provider: adminProvider,
+      email: adminEmail,
+      name: adminName,
+    });
+  };
+
+  const handleCreateAdmin = async () => {
+    if (!saved && status !== 'success') {
+      setAdminStatus('error');
+      setAdminStatusMessage('Save the encrypted Supabase vault before creating the admin login.');
+      return;
+    }
+
+    if (!adminReady) {
+      setAdminStatus('error');
+      setAdminStatusMessage(
+        adminProvider === 'email'
+          ? 'Enter the admin name, email, and a password with at least 6 characters.'
+          : 'Enter the admin name and the email used by the Google or GitHub account.'
+      );
+      return;
+    }
+
+    if (adminProvider !== 'email' && !oauthProviderEnabled) {
+      setAdminStatus('error');
+      setAdminStatusMessage(
+        `Enable the ${adminProvider === 'google' ? 'Google' : 'GitHub'} provider in Supabase Auth first, then tick the confirmation box below.`
+      );
+      return;
+    }
+
+    setAdminStatus('loading');
+    setAdminStatusMessage('');
+
+    try {
+      const { getSupabase } = await import('@/lib/supabase');
+      const supabase = getSupabase();
+      savePendingAdmin();
+
+      if (adminProvider === 'email') {
+        const createAdminResponse = await fetch('/api/setup/create-admin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            supabaseUrl: values.SUPABASE_URL,
+            accessToken: values.SUPABASE_ACCESS_TOKEN,
+            name: adminName.trim(),
+            email: adminEmail.trim(),
+            password: adminPassword,
+          }),
+        });
+        const createAdminResult = await createAdminResponse.json().catch(() => ({ ok: false }));
+
+        if (!createAdminResponse.ok || !createAdminResult.ok) {
+          setAdminStatus('error');
+          setAdminStatusMessage(createAdminResult.error || 'Unable to create the admin login.');
+          return;
+        }
+
+        setAdminStatus('success');
+        setAdminStatusMessage('Admin login is ready. Continue to login and sign in with this email.');
+        return;
+      }
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: adminProvider,
+        options: {
+          redirectTo: getSiteUrl('/login'),
+        },
+      });
+
+      if (error) {
+        setAdminStatus('error');
+        setAdminStatusMessage(error.message);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to create the admin login.';
+      setAdminStatus('error');
+      setAdminStatusMessage(message);
+    }
+  };
+
+  const continueToNextStep = () => {
+    const params = new URLSearchParams(window.location.search);
+    const nextPath = params.get('next') || '/login';
+    window.location.assign(nextPath);
+  };
+
+  const renderField = (field: FieldConfig, compact = false) => {
+    const isSecretField = field.key !== 'SUPABASE_URL';
+    const isVisible = showKey[field.key] ?? false;
+
+    return (
+      <div key={field.key} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_14px_45px_rgba(15,23,42,0.04)]">
+        <div className="mb-3 flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#e9fbf4] text-[#119c67]">
+              {field.icon}
+            </div>
+            <div className="min-w-0">
+              <label htmlFor={field.key} className="block text-sm font-bold text-gray-950">
+                {field.label}
+                {field.required ? <span className="ml-1 text-red-500">*</span> : null}
+              </label>
+              <code className="block truncate text-[11px] font-semibold text-gray-400">{field.envName}</code>
+            </div>
+          </div>
+          <a
+            href={field.docsHref}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold text-gray-500 transition hover:bg-gray-100 hover:text-[#119c67]"
+            aria-label={field.docsLabel}
+          >
+            Docs
+            <ExternalLink size={12} />
+          </a>
+        </div>
+
+        {!compact && <p className="mb-3 text-sm leading-relaxed text-gray-500">{field.description}</p>}
+
+        <div className="relative">
+          <input
+            id={field.key}
+            type={!isSecretField ? 'url' : isVisible ? 'text' : 'password'}
+            value={values[field.key]}
+            onChange={(event) => handleChange(field.key, event.target.value)}
+            placeholder={field.placeholder}
+            className="h-12 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 pr-12 font-mono text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#3ecf8e] focus:bg-white focus:ring-4 focus:ring-[#3ecf8e]/10"
+          />
+          {isSecretField && (
+            <button
+              type="button"
+              onClick={() =>
+                setShowKey(prev => ({ ...prev, [field.key]: !prev[field.key] }))
+              }
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 transition hover:text-gray-700"
+              aria-label={isVisible ? `Hide ${field.label}` : `Show ${field.label}`}
+            >
+              {isVisible ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const setupSaved = saved || status === 'success';
+
+  const schemaSteps = [
+    'Checking required setup values',
+    'Testing Supabase connection',
+    'Creating TaskFlow database tables',
+    'Encrypting keys on this device',
+    'Setup is ready',
+  ];
 
   return (
-    <div className="min-h-screen bg-[#f8f9fc] font-poppins relative overflow-x-hidden">
-      {/* Animated Background */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000008_1px,transparent_1px),linear-gradient(to_bottom,#00000008_1px,transparent_1px)] bg-[size:60px_60px]" />
-        <div className="absolute top-[-200px] left-[-100px] w-[600px] h-[600px] bg-[#3ecf8e]/10 blur-[130px] rounded-full" />
-        <div className="absolute bottom-[-200px] right-[-100px] w-[500px] h-[500px] bg-[#9d7dff]/10 blur-[130px] rounded-full" />
-      </div>
-
-      <div className="relative z-10 max-w-3xl mx-auto px-6 py-16">
-
-        {/* Header */}
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#e8fff5_0,#f7f9fc_38%,#f8f9fc_100%)] px-4 py-8 font-poppins text-gray-950 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-5xl">
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-16"
+          className="mb-8 text-center"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#3ecf8e]/10 border border-[#3ecf8e]/20 text-[#3ecf8e] text-xs font-bold uppercase tracking-widest mb-6">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#3ecf8e] opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#3ecf8e]" />
-            </span>
-            Open Source Setup
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#3ecf8e]/25 bg-white/80 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-[#119c67] shadow-sm">
+            <LockKeyhole size={14} />
+            Setup
           </div>
-          <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tighter mb-4">
-            Connect Your{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#3ecf8e] to-[#9d7dff]">
-              Supabase
-            </span>
+          <h1 className="text-4xl font-black leading-tight tracking-tight text-gray-950 md:text-5xl">
+            {activeStep === 2 ? 'Create your first admin' : 'Connect your Supabase project'}
           </h1>
-          <p className="text-gray-500 text-lg font-medium max-w-lg mx-auto leading-relaxed">
-            TaskFlow needs your Supabase project credentials to power authentication, the database, and real-time features.
+          <p className="mx-auto mt-4 max-w-2xl text-base font-medium leading-relaxed text-gray-600">
+            {activeStep === 2
+              ? 'Your Supabase keys are saved on this device. Now choose how the Admin will sign in.'
+              : 'Paste your Supabase URL, publishable key, access token, then choose a vault password. TaskFlow will create the tables for you.'}
           </p>
         </motion.div>
 
-        {/* Progress Steps */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="flex items-center justify-center gap-0 mb-12 overflow-x-auto"
-        >
-          {steps.map((step, i) => (
-            <React.Fragment key={step.id}>
-              <div className="flex flex-col items-center gap-1.5 min-w-[70px]">
-                <div
-                  className={`w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all duration-500 ${
-                    activeStep >= step.id
-                      ? 'bg-[#3ecf8e] border-[#3ecf8e] text-white shadow-lg shadow-[#3ecf8e]/30'
-                      : 'bg-white border-gray-200 text-gray-400'
-                  }`}
-                >
-                  {step.icon}
-                </div>
-                <span className={`text-[10px] font-bold tracking-wide text-center leading-tight ${
-                  activeStep >= step.id ? 'text-[#1a9e6a]' : 'text-gray-400'
-                }`}>
-                  {step.label}
-                </span>
+        <div className="mb-6 grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => setActiveStep(1)}
+            className={`rounded-2xl border p-4 text-left shadow-sm transition hover:border-[#3ecf8e]/60 ${
+            activeStep === 1
+              ? 'border-[#3ecf8e]/40 bg-white'
+              : 'border-[#3ecf8e]/25 bg-[#effdf7]'
+          }`}>
+            <div className="flex items-center gap-3">
+              <div className={`flex h-9 w-9 items-center justify-center rounded-full ${
+                setupSaved ? 'bg-[#3ecf8e] text-white' : 'bg-gray-950 text-white'
+              }`}>
+                {setupSaved ? <CheckCircle2 size={18} /> : <Database size={18} />}
               </div>
-              {i < steps.length - 1 && (
-                <div className={`h-[2px] w-8 mb-5 transition-all duration-500 ${
-                  activeStep > step.id ? 'bg-[#3ecf8e]' : 'bg-gray-200'
-                }`} />
-              )}
-            </React.Fragment>
-          ))}
-        </motion.div>
-
-        {/* Step 1 tip */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="mb-8 p-5 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-start gap-4"
-        >
-          <div className="w-10 h-10 rounded-xl bg-[#3ecf8e]/10 flex items-center justify-center flex-shrink-0 text-[#3ecf8e]">
-            <Database size={20} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-gray-900 font-semibold mb-1">Don&apos;t have a Supabase project yet?</p>
-            <p className="text-gray-500 text-sm leading-relaxed">
-              Create a free project at{' '}
-              <a
-                href="https://supabase.com/dashboard"
-                target="_blank"
-                rel="noreferrer"
-                className="text-[#3ecf8e] hover:underline inline-flex items-center gap-1"
-              >
-                supabase.com/dashboard <ExternalLink size={12} />
-              </a>
-              {' '}, then come back here with your credentials.
-            </p>
-          </div>
-        </motion.div>
-
-        {/* Credential Fields */}
-        <div className="space-y-5">
-          {fields.map((field, i) => (
-            <motion.div
-              key={field.key}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.35 + i * 0.07 }}
-              className="bg-white backdrop-blur-xl border border-gray-200 rounded-3xl p-6 hover:border-gray-300 hover:shadow-md transition-all duration-300"
-            >
-              {/* Field Header */}
-              <div className="flex items-start justify-between gap-4 mb-4">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-2xl bg-gradient-to-br ${field.color} flex items-center justify-center text-white shadow-lg flex-shrink-0`}>
-                    {field.icon}
-                  </div>
-                  <div>
-                    <label htmlFor={field.key} className="text-gray-900 font-bold text-sm block">
-                      {field.label}
-                    </label>
-                    <code className="text-[11px] text-gray-400 font-mono">{field.envName}</code>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setExpandedHint(expandedHint === field.key ? null : field.key)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0 mt-1"
-                >
-                  {expandedHint === field.key
-                    ? <ChevronDown size={16} />
-                    : <ChevronRight size={16} />}
-                </button>
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-gray-400">Step 1</p>
+                <p className="font-black text-gray-950">Create tables and save keys</p>
               </div>
-
-              {/* Hint */}
-              <AnimatePresence>
-                {expandedHint === field.key && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="mb-4 p-3.5 bg-gray-50 rounded-2xl border border-gray-200 flex items-start gap-3">
-                      <Terminal size={14} className="text-gray-400 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-gray-700 text-sm mb-1">{field.description}</p>
-                        <p className="text-gray-400 text-xs">{field.docsHint}</p>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Input */}
-              <div className="relative">
-                <input
-                  id={field.key}
-                  type={
-                    field.type === 'url'
-                      ? 'url'
-                      : showKey[field.key as keyof typeof showKey]
-                      ? 'text'
-                      : 'password'
-                  }
-                  value={values[field.key as keyof typeof values]}
-                  onChange={(e) => handleChange(field.key, e.target.value)}
-                  placeholder={field.placeholder}
-                  autoComplete="new-password"
-                  data-form-type="other"
-                  className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 text-gray-900 placeholder-gray-400 font-mono text-sm focus:outline-none focus:border-[#3ecf8e] focus:ring-2 focus:ring-[#3ecf8e]/10 transition-all pr-12"
-                />
-                {field.type === 'key' && (
-                  <button
-                    type="button"
-                    onClick={() => setShowKey(prev => ({
-                      ...prev,
-                      [field.key]: !prev[field.key as keyof typeof prev]
-                    }))}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    {showKey[field.key as keyof typeof showKey]
-                      ? <EyeOff size={16} />
-                      : <Eye size={16} />}
-                  </button>
-                )}
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (setupSaved) setActiveStep(2);
+            }}
+            disabled={!setupSaved}
+            className={`rounded-2xl border p-4 text-left shadow-sm transition enabled:hover:border-[#3ecf8e]/60 disabled:cursor-not-allowed disabled:opacity-60 ${
+            activeStep === 2
+              ? 'border-[#3ecf8e]/40 bg-white'
+              : 'border-gray-200 bg-white/65'
+          }`}>
+            <div className="flex items-center gap-3">
+              <div className={`flex h-9 w-9 items-center justify-center rounded-full ${
+                activeStep === 2 ? 'bg-gray-950 text-white' : 'bg-gray-100 text-gray-500'
+              }`}>
+                <UserPlus size={18} />
               </div>
-
-              {/* Validation indicator */}
-              {values[field.key as keyof typeof values] && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="mt-2 flex items-center gap-1.5 text-[#3ecf8e] text-xs font-medium"
-                >
-                  <CheckCircle2 size={12} />
-                  Entered
-                </motion.div>
-              )}
-            </motion.div>
-          ))}
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-gray-400">Step 2</p>
+                <p className="font-black text-gray-950">Create Admin login</p>
+              </div>
+            </div>
+          </button>
         </div>
 
-        {/* Test Connection Button */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="mt-8 space-y-4"
-        >
-          <button
-            onClick={handleTestConnection}
-            disabled={testStatus === 'loading' || !values.url || !values.anonKey}
-            className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#3ecf8e] to-[#9d7dff] font-bold text-white text-lg flex items-center justify-center gap-3 hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-2xl shadow-[#3ecf8e]/20"
-          >
-            {testStatus === 'loading' ? (
-              <>
-                <Loader2 size={22} className="animate-spin" />
-                Testing Connection...
-              </>
-            ) : (
-              <>
-                <Database size={22} />
-                Test Connection
-              </>
-            )}
-          </button>
-
-          {/* Status Message */}
-          <AnimatePresence mode="wait">
-            {testStatus === 'success' && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="flex items-start gap-3 p-4 bg-[#3ecf8e]/10 border border-[#3ecf8e]/30 rounded-2xl"
-              >
-                <CheckCircle2 size={20} className="text-[#3ecf8e] mt-0.5 flex-shrink-0" />
-                <p className="text-[#3ecf8e] font-medium text-sm">{testMessage}</p>
-              </motion.div>
-            )}
-            {testStatus === 'error' && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="flex items-start gap-3 p-4 bg-red-500/10 border border-red-500/30 rounded-2xl"
-              >
-                <AlertCircle size={20} className="text-red-400 mt-0.5 flex-shrink-0" />
-                <p className="text-red-400 font-medium text-sm">{testMessage}</p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-
-        {/* Copy .env block */}
-        {allFilled && (
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-8 bg-gray-900 border border-gray-700 rounded-3xl p-6"
+            className="rounded-[32px] border border-white/80 bg-white/85 p-5 shadow-[0_26px_90px_rgba(15,23,42,0.09)] backdrop-blur sm:p-7"
           >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2 text-gray-400 text-sm font-bold uppercase tracking-widest font-mono">
-                <Terminal size={14} />
-                .env.local
-              </div>
-              <button
-                onClick={handleCopyEnv}
-                className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-gray-400 hover:text-white bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl transition-all"
-              >
-                <Copy size={12} />
-                {copied === 'env' ? 'Copied!' : 'Copy'}
-              </button>
-            </div>
-            <pre className="text-xs font-mono text-gray-300 overflow-x-auto leading-relaxed">
-              <span className="text-green-400"># Paste this into your .env.local file{'\n'}</span>
-              <span className="text-gray-500">NEXT_PUBLIC_SUPABASE_URL</span>=
-              <span className="text-[#3ecf8e]">{values.url || '...'}{'\n'}</span>
-              <span className="text-gray-500">NEXT_PUBLIC_SUPABASE_ANON_KEY</span>=
-              <span className="text-[#9d7dff]">{values.anonKey ? values.anonKey.slice(0, 20) + '...' : '...'}{'\n'}</span>
-              <span className="text-gray-500">SUPABASE_SERVICE_ROLE_KEY</span>=
-              <span className="text-amber-400">{values.serviceKey ? values.serviceKey.slice(0, 20) + '...' : '...'}</span>
-            </pre>
-            <p className="mt-4 text-xs text-gray-500 leading-relaxed">
-              Copy the block above, paste it into a <code className="text-gray-300">.env.local</code> file at the root of the project, then restart your dev server with <code className="text-gray-300">npm run dev</code>.
-            </p>
+            {activeStep === 1 ? (
+              <>
+                <div className="mb-6">
+                  <h2 className="text-2xl font-black tracking-tight text-gray-950">Step 1: paste your keys</h2>
+                  <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-500">
+                    You need the project URL, the key that starts with sb_publishable_, and a Supabase access token. The password below encrypts them in this browser.
+                  </p>
+                </div>
+
+                <div className="grid gap-4">
+                  {REQUIRED_FIELDS.map(field => renderField(field))}
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                  <label htmlFor="vaultPassword" className="mb-2 block text-sm font-bold text-gray-950">
+                    Create a vault password
+                  </label>
+                  <input
+                    id="vaultPassword"
+                    type="password"
+                    value={vaultPassword}
+                    onChange={(event) => setVaultPassword(event.target.value)}
+                    placeholder="Password used to unlock this browser later"
+                    className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#3ecf8e] focus:ring-4 focus:ring-[#3ecf8e]/10"
+                  />
+                  <p className="mt-2 text-xs leading-relaxed text-gray-500">
+                    This password is not sent to Supabase. It only locks the local encrypted vault.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleTestAndSave}
+                  disabled={status === 'loading'}
+                  className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#21b978] px-5 py-4 text-sm font-black text-white shadow-lg shadow-[#21b978]/20 transition hover:bg-[#119c67] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {status === 'loading' ? <Loader2 size={18} className="animate-spin" /> : <LockKeyhole size={18} />}
+                    Create tables, save keys, and go to Step 2
+                </button>
+
+                {hasStoredVault && (
+                  <button
+                    type="button"
+                    onClick={handleUnlockVault}
+                    disabled={unlockingVault}
+                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-gray-700 transition hover:border-[#3ecf8e] hover:text-[#119c67] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {unlockingVault ? <Loader2 size={16} className="animate-spin" /> : <LockKeyhole size={16} />}
+                    I already saved keys on this device
+                  </button>
+                )}
+
+                {status !== 'idle' && (
+                  <div
+                    className={`mt-4 rounded-2xl border p-4 text-sm ${
+                      status === 'success'
+                        ? 'border-[#3ecf8e]/25 bg-[#3ecf8e]/10 text-[#166534]'
+                        : status === 'error'
+                        ? 'border-red-200 bg-red-50 text-red-700'
+                        : 'border-gray-200 bg-gray-50 text-gray-600'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      {status === 'success' ? (
+                        <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
+                      ) : status === 'error' ? (
+                        <AlertCircle size={18} className="mt-0.5 shrink-0" />
+                      ) : (
+                        <Loader2 size={18} className="mt-0.5 shrink-0 animate-spin" />
+                      )}
+                      <span>{statusMessage}</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-5 rounded-2xl border border-dashed border-gray-200 bg-gray-50/70 p-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvancedKeys(prev => !prev)}
+                    className="flex w-full items-center justify-between gap-4 rounded-xl px-2 py-2 text-left"
+                  >
+                    <span className="flex items-center gap-3">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-gray-600 shadow-sm">
+                        <SlidersHorizontal size={17} />
+                      </span>
+                      <span>
+                        <span className="block text-sm font-bold text-gray-950">Optional keys</span>
+                        <span className="block text-xs font-medium text-gray-500">Skip this unless you need GitHub, ALTCHA, or email features now.</span>
+                      </span>
+                    </span>
+                    <ChevronDown
+                      size={18}
+                      className={`shrink-0 text-gray-400 transition-transform ${showAdvancedKeys ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+
+                  {showAdvancedKeys && (
+                    <div className="mt-3 grid gap-3">
+                      {OPTIONAL_FIELDS.map(field => renderField(field, true))}
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mb-6">
+                  <h2 className="text-2xl font-black tracking-tight text-gray-950">Step 2: choose the Admin login</h2>
+                  <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-500">
+                    This account becomes the first Admin in TaskFlow. Use email/password, Google, or GitHub.
+                  </p>
+                </div>
+
+                <div className="mb-5 grid grid-cols-3 gap-2 rounded-2xl bg-gray-100 p-1.5">
+                  {([
+                    { value: 'email', label: 'Email', icon: <Mail size={16} /> },
+                    { value: 'google', label: 'Google', icon: <Globe size={16} /> },
+                    { value: 'github', label: 'GitHub', icon: <Github size={16} /> },
+                  ] as const).map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => {
+                        setAdminProvider(option.value);
+                        setOauthProviderEnabled(false);
+                        setAdminStatus('idle');
+                        setAdminStatusMessage('');
+                      }}
+                      className={`flex min-h-12 items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold transition ${
+                        adminProvider === option.value
+                          ? 'bg-white text-gray-950 shadow-sm'
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      {option.icon}
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    value={adminName}
+                    onChange={(event) => setAdminName(event.target.value)}
+                    placeholder="Admin full name"
+                    className="h-12 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#3ecf8e] focus:bg-white focus:ring-4 focus:ring-[#3ecf8e]/10"
+                  />
+                  <input
+                    type="email"
+                    value={adminEmail}
+                    onChange={(event) => setAdminEmail(event.target.value)}
+                    placeholder={
+                      adminProvider === 'email'
+                        ? 'Admin email'
+                        : `Email on the admin ${adminProvider === 'google' ? 'Google' : 'GitHub'} account`
+                    }
+                    className="h-12 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#3ecf8e] focus:bg-white focus:ring-4 focus:ring-[#3ecf8e]/10"
+                  />
+                  {adminProvider === 'email' && (
+                    <input
+                      type="password"
+                      value={adminPassword}
+                      onChange={(event) => setAdminPassword(event.target.value)}
+                      placeholder="Admin password"
+                      minLength={6}
+                      className="h-12 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#3ecf8e] focus:bg-white focus:ring-4 focus:ring-[#3ecf8e]/10"
+                    />
+                  )}
+                </div>
+
+                {adminProvider !== 'email' && (
+                  <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                    <p className="font-bold">
+                      Enable {adminProvider === 'google' ? 'Google' : 'GitHub'} in Supabase first
+                    </p>
+                    <p className="mt-1 leading-relaxed">
+                      Go to Supabase Dashboard - Authentication - Providers, enable {adminProvider === 'google' ? 'Google' : 'GitHub'}, and add that provider's client ID and secret. Otherwise Supabase returns "Unsupported provider".
+                    </p>
+                    <label className="mt-3 flex items-start gap-2 font-semibold">
+                      <input
+                        type="checkbox"
+                        checked={oauthProviderEnabled}
+                        onChange={(event) => setOauthProviderEnabled(event.target.checked)}
+                        className="mt-1 h-4 w-4 rounded border-amber-300 text-amber-700 focus:ring-amber-500"
+                      />
+                      <span>I enabled this provider in Supabase Auth</span>
+                    </label>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleCreateAdmin}
+                  disabled={adminStatus === 'loading'}
+                  className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gray-950 px-5 py-4 text-sm font-black text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {adminStatus === 'loading' ? <Loader2 size={18} className="animate-spin" /> : <UserPlus size={18} />}
+                  {adminProvider === 'email' ? 'Create Admin and continue' : `Continue with ${adminProvider === 'google' ? 'Google' : 'GitHub'}`}
+                </button>
+
+                {adminStatus === 'success' && (
+                  <button
+                    type="button"
+                    onClick={continueToNextStep}
+                    className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#3ecf8e]/40 bg-[#effdf7] px-5 text-sm font-black text-gray-950 transition hover:border-[#3ecf8e]"
+                  >
+                    Go to login
+                    <ArrowRight size={18} />
+                  </button>
+                )}
+
+                {adminStatus !== 'idle' && (
+                  <div
+                    className={`mt-4 rounded-2xl border p-4 text-sm ${
+                      adminStatus === 'success'
+                        ? 'border-[#3ecf8e]/25 bg-[#3ecf8e]/10 text-[#166534]'
+                        : adminStatus === 'error'
+                        ? 'border-red-200 bg-red-50 text-red-700'
+                        : 'border-gray-200 bg-gray-50 text-gray-600'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      {adminStatus === 'success' ? (
+                        <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
+                      ) : adminStatus === 'error' ? (
+                        <AlertCircle size={18} className="mt-0.5 shrink-0" />
+                      ) : (
+                        <Loader2 size={18} className="mt-0.5 shrink-0 animate-spin" />
+                      )}
+                      <span>{adminStatusMessage}</span>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </motion.div>
-        )}
 
-        {/* Next Step */}
-        <AnimatePresence>
-          {testStatus === 'success' && (
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="mt-8"
-            >
-              <Link
-                href="/login"
-                className="group w-full py-5 px-6 rounded-3xl bg-white border border-[#3ecf8e]/40 hover:border-[#3ecf8e] hover:shadow-lg hover:shadow-[#3ecf8e]/10 font-bold text-gray-900 text-lg flex items-center justify-center gap-3 transition-all duration-300"
-              >
-                <Sparkles size={22} className="text-[#3ecf8e]" />
-                Continue to Login
-                <ArrowRight size={22} className="text-gray-500 group-hover:translate-x-1 transition-transform" />
-              </Link>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Footer note */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-          className="mt-12 text-center text-xs text-gray-400 leading-relaxed"
-        >
-          Your credentials are never stored in the browser or sent to any external server.{' '}
-          They are only used to connect directly to your own Supabase project.{' '}
-          <a
-            href="https://github.com/AndrewJerryV/TaskFlow-Mini_Project"
-            target="_blank"
-            rel="noreferrer"
-            className="text-gray-400 hover:text-gray-700 transition-colors underline underline-offset-2"
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="rounded-[28px] border border-white/80 bg-white/75 p-5 text-sm shadow-sm backdrop-blur lg:sticky lg:top-8 lg:self-start"
           >
-            View source on GitHub
-          </a>
-        </motion.p>
+            <h2 className="font-black text-gray-950">What you need</h2>
+            <ol className="mt-4 space-y-4 text-gray-600">
+              <li className="flex gap-3">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-950 text-xs font-black text-white">1</span>
+                <span><strong className="text-gray-950">Supabase URL</strong><br />Found in Supabase Project Settings.</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-950 text-xs font-black text-white">2</span>
+                <span><strong className="text-gray-950">Supabase publishable key</strong><br />Use the browser-safe key that starts with sb_publishable_.</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-950 text-xs font-black text-white">3</span>
+                <span><strong className="text-gray-950">Supabase access token</strong><br />Used once to create the tables.</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-950 text-xs font-black text-white">4</span>
+                <span><strong className="text-gray-950">Admin login</strong><br />Email/password, Google, or GitHub.</span>
+              </li>
+            </ol>
+            <div className="mt-5 rounded-2xl bg-[#effdf7] p-4 text-sm leading-relaxed text-[#166534]">
+              No service-role key is needed on this page. Setup values are encrypted in this browser after tables are created.
+            </div>
+          </motion.div>
+        </div>
       </div>
+
+      {schemaModalOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-gray-950/50 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-[0_30px_100px_rgba(15,23,42,0.35)]">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#effdf7] text-[#119c67]">
+                {schemaError ? <AlertCircle size={22} /> : schemaStepIndex >= 4 ? <CheckCircle2 size={22} /> : <Loader2 size={22} className="animate-spin" />}
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-gray-950">
+                  {schemaError ? 'Setup stopped' : schemaStepIndex >= 4 ? 'Database ready' : 'Creating database'}
+                </h2>
+                <p className="mt-1 text-sm leading-relaxed text-gray-500">
+                  {schemaError
+                    ? 'Fix the issue below, then run setup again.'
+                    : 'Keep this popup open while TaskFlow creates the tables it needs.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-3">
+              {schemaSteps.map((step, index) => {
+                const isDone = index < schemaStepIndex || (!schemaError && schemaStepIndex >= 4 && index === 4);
+                const isActive = !schemaError && index === schemaStepIndex && schemaStepIndex < 4;
+
+                return (
+                  <div key={step} className="flex items-center gap-3 rounded-2xl bg-gray-50 px-4 py-3">
+                    <div className={`flex h-7 w-7 items-center justify-center rounded-full ${
+                      isDone
+                        ? 'bg-[#21b978] text-white'
+                        : isActive
+                        ? 'bg-gray-950 text-white'
+                        : 'bg-white text-gray-400'
+                    }`}>
+                      {isDone ? <CheckCircle2 size={15} /> : isActive ? <Loader2 size={15} className="animate-spin" /> : <span className="text-xs font-black">{index + 1}</span>}
+                    </div>
+                    <span className={`text-sm font-bold ${isDone || isActive ? 'text-gray-950' : 'text-gray-400'}`}>
+                      {step}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {schemaError && (
+              <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
+                {schemaError}
+              </div>
+            )}
+
+            {(schemaError || schemaStepIndex >= 4) && (
+              <button
+                type="button"
+                onClick={() => setSchemaModalOpen(false)}
+                className="mt-5 flex h-12 w-full items-center justify-center rounded-2xl bg-gray-950 px-5 text-sm font-black text-white transition hover:bg-gray-800"
+              >
+                {schemaError ? 'Close and fix details' : 'Continue to Step 2'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

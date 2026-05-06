@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSiteUrl } from '@/lib/site-url';
 import { getSupabase } from '../../lib/supabase';
+import { getPendingFirstAdminSetup, pendingFirstAdminMatches } from '@/lib/first-admin-setup';
+import { resolveClientEnvValues } from '@/lib/device-env-vault';
 import 'altcha';
 
 export default function LoginPage() {
@@ -38,21 +40,66 @@ export default function LoginPage() {
   };
 
   useEffect(() => {
-    const widget = altchaRef.current;
-    if (!widget) return;
+    const syncPayloadFromForm = () => {
+      const widget =
+        altchaRef.current ||
+        document.querySelector<HTMLElement>('altcha-widget');
+      const formPayload = formRef.current
+        ?.querySelector<HTMLInputElement>('input[name="altcha"]')
+        ?.value;
+      const widgetPayload = widget ? ((widget as any)?.payload as string | undefined) : '';
+      const shadowPayload = (widget?.shadowRoot
+        ?.querySelector<HTMLInputElement>('input[name="altcha"]')
+        ?.value) || '';
+      const widgetState = (widget as any)?.getState?.();
+      const widgetText = `${widget?.textContent ?? ''} ${widget?.shadowRoot?.textContent ?? ''}`.toLowerCase();
+      const nextPayload = formPayload || widgetPayload || shadowPayload;
+
+      if (nextPayload) {
+        setAltchaPayload(nextPayload);
+        setAltchaVerified(true);
+        setError('');
+        return true;
+      }
+
+      if (widgetState === 'verified' || widgetText.includes('verified')) {
+        setAltchaVerified(true);
+        setError('');
+        return true;
+      }
+
+      return false;
+    };
 
     const onVerified = (event: Event) => {
       const detail = (event as CustomEvent<{ payload?: string | null }>).detail;
-      if (!detail?.payload) return;
+      const payload = detail?.payload;
 
-      setAltchaPayload(detail.payload);
-      setAltchaVerified(true);
-      setError('');
+      if (payload) {
+        setAltchaPayload(payload);
+        setAltchaVerified(true);
+        setError('');
+        return;
+      }
+
+      window.setTimeout(syncPayloadFromForm, 0);
     };
 
     const onStateChange = (event: Event) => {
       const detail = (event as CustomEvent<{ state?: string }>).detail;
       if (!detail?.state) return;
+
+      if (detail.state === 'verified') {
+        const payload = (event as CustomEvent<{ payload?: string | null }>).detail.payload;
+        if (payload) {
+          setAltchaPayload(payload);
+          setAltchaVerified(true);
+          setError('');
+        } else {
+          window.setTimeout(syncPayloadFromForm, 0);
+        }
+        return;
+      }
 
       if (detail.state === 'unverified' || detail.state === 'error' || detail.state === 'expired') {
         setAltchaPayload(null);
@@ -65,14 +112,31 @@ export default function LoginPage() {
       setAltchaVerified(false);
     };
 
-    widget.addEventListener('verified', onVerified);
-    widget.addEventListener('statechange', onStateChange);
-    widget.addEventListener('expired', onExpired);
+    const attachListeners = () => {
+      const widget =
+        altchaRef.current ||
+        document.querySelector<HTMLElement>('altcha-widget');
+      if (!widget) return null;
+
+      widget.addEventListener('verified', onVerified);
+      widget.addEventListener('statechange', onStateChange);
+      widget.addEventListener('expired', onExpired);
+      return widget;
+    };
+
+    let attachedWidget = attachListeners();
+    const payloadSyncInterval = window.setInterval(() => {
+      if (!attachedWidget) {
+        attachedWidget = attachListeners();
+      }
+      syncPayloadFromForm();
+    }, 250);
 
     return () => {
-      widget.removeEventListener('verified', onVerified);
-      widget.removeEventListener('statechange', onStateChange);
-      widget.removeEventListener('expired', onExpired);
+      window.clearInterval(payloadSyncInterval);
+      attachedWidget?.removeEventListener('verified', onVerified);
+      attachedWidget?.removeEventListener('statechange', onStateChange);
+      attachedWidget?.removeEventListener('expired', onExpired);
     };
   }, []);
 
@@ -120,7 +184,16 @@ export default function LoginPage() {
   };
 
   const verifyAltcha = async () => {
-    const payload = getAltchaPayload();
+    let payload = getAltchaPayload();
+
+    if (!payload && altchaVerified) {
+      const verifyResult = await (altchaRef.current as any)?.verify?.().catch(() => null);
+      payload = verifyResult?.payload ?? getAltchaPayload();
+
+      if (payload) {
+        setAltchaPayload(payload);
+      }
+    }
 
     if (!payload) {
       showAltchaRequiredMessage();
@@ -142,6 +215,44 @@ export default function LoginPage() {
     }
 
     return true;
+  };
+
+  const tryConfirmPendingSetupAdmin = async () => {
+    const pendingAdmin = getPendingFirstAdminSetup();
+    if (!pendingFirstAdminMatches(pendingAdmin, 'email', email)) {
+      return false;
+    }
+
+    const envValues = resolveClientEnvValues();
+    if (!envValues.SUPABASE_URL || !envValues.SUPABASE_ACCESS_TOKEN) {
+      return false;
+    }
+
+    const supabase = getSupabase();
+    const { data } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: loginRedirectUrl,
+      },
+    });
+
+    if (!data.user?.id) {
+      return false;
+    }
+
+    const confirmResponse = await fetch('/api/setup/confirm-admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        supabaseUrl: envValues.SUPABASE_URL,
+        accessToken: envValues.SUPABASE_ACCESS_TOKEN,
+        userId: data.user.id,
+        email,
+      }),
+    });
+
+    return confirmResponse.ok;
   };
 
   const handleEmailAuth = async (e: React.FormEvent) => {
@@ -182,6 +293,21 @@ export default function LoginPage() {
 
         if (signInError) {
           if (signInError.message.includes('Email not confirmed')) {
+            const confirmed = await tryConfirmPendingSetupAdmin();
+            if (confirmed) {
+              const { error: retryError } = await supabase.auth.signInWithPassword({
+                email,
+                password
+              });
+
+              if (!retryError) {
+                shouldResetAltcha = false;
+                setSuccess('Signing you in...');
+                router.replace('/dashboard');
+                return;
+              }
+            }
+
             setError('Please verify your email before signing in. Check your inbox for the verification link.');
           } else {
             setError(signInError.message);
@@ -254,7 +380,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="h-screen overflow-hidden flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-3 sm:p-4">
+    <div className="min-h-screen overflow-y-auto flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-3 sm:p-4">
       <div className="bg-white rounded-2xl shadow-xl p-5 sm:p-6 w-full max-w-md">
         <div className="text-center mb-4">
           <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3 overflow-hidden">
@@ -304,7 +430,7 @@ export default function LoginPage() {
               type="checkbox"
               auto="off"
               configuration='{"hideFooter":true}'
-              className="w-full overflow-hidden rounded-[15px] shadow-sm ring-1 ring-blue-100"
+              className="block w-full rounded-[15px] shadow-sm ring-1 ring-blue-100"
               style={altchaWidgetStyle}
             />
           </div>

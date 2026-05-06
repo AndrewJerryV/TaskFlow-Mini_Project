@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Form, FormField, FormFieldType, FormResponse, User } from '@/types';
 import { Plus, FileText, Trash2, Edit3, BarChart3, ClipboardList, ChevronLeft, Send, CheckCircle2, Copy, X, Calendar, Users, AlertCircle, Inbox } from 'lucide-react';
 import { CustomSelect } from './ui/CustomSelect';
+import { db } from '@/lib/db';
 
 interface FormsViewProps { projectId: string; }
 
@@ -173,19 +174,28 @@ export default function FormsView({ projectId }: FormsViewProps) {
         const finalStatus = status || builderStatus;
         try {
             if (editingFormId) {
-                const res = await fetch('/api/forms', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: editingFormId, title: builderTitle, description: builderDesc, fields: builderFields, status: finalStatus }),
+                const updatedForm = await db.updateForm(editingFormId, {
+                    title: builderTitle,
+                    description: builderDesc,
+                    fields: builderFields,
+                    status: finalStatus,
                 });
-                if (res.ok) { showToast('Form updated!'); await fetchForms(); setViewMode('list'); }
+                if (updatedForm) { showToast('Form updated!'); await fetchForms(); setViewMode('list'); }
             } else {
-                const res = await fetch('/api/forms', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ projectId, title: builderTitle, description: builderDesc, fields: builderFields, status: finalStatus, createdBy: currentUser?.id }),
+                await db.addForm({
+                    id: crypto.randomUUID(),
+                    projectId,
+                    title: builderTitle,
+                    description: builderDesc,
+                    fields: builderFields,
+                    status: finalStatus,
+                    createdBy: currentUser?.id || '',
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
                 });
-                if (res.ok) { showToast(finalStatus === 'active' ? 'Form published!' : 'Form saved as draft!'); await fetchForms(); setViewMode('list'); }
+                showToast(finalStatus === 'active' ? 'Form published!' : 'Form saved as draft!');
+                await fetchForms();
+                setViewMode('list');
             }
         } catch (e) { console.error(e); showToast('Failed to save form'); }
     };
@@ -193,8 +203,8 @@ export default function FormsView({ projectId }: FormsViewProps) {
     const deleteForm = async (id: string) => {
         if (!confirm('Delete this form and all its responses?')) return;
         try {
-            const res = await fetch(`/api/forms?id=${id}`, { method: 'DELETE' });
-            if (res.ok) { setForms(prev => prev.filter(f => f.id !== id)); showToast('Form deleted'); }
+            const success = await db.deleteForm(id);
+            if (success) { setForms(prev => prev.filter(f => f.id !== id)); showToast('Form deleted'); }
         } catch (e) { console.error(e); }
     };
 
@@ -232,13 +242,14 @@ export default function FormsView({ projectId }: FormsViewProps) {
         });
         if (errors.size) { setFillErrors(errors); showToast('Please fill in all required fields'); return; }
         try {
-            const res = await fetch('/api/forms/responses', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ formId: activeForm.id, respondentId: currentUser.id, answers: fillAnswers }),
+            const updatedResponse = await db.upsertFormResponse({
+                id: userResponses[activeForm.id]?.id || crypto.randomUUID(),
+                formId: activeForm.id,
+                respondentId: currentUser.id,
+                answers: fillAnswers,
+                submittedAt: new Date().toISOString(),
             });
-            if (res.ok) {
-                const updatedResponse = await res.json();
+            if (updatedResponse) {
                 setUserResponses(prev => ({ ...prev, [activeForm.id]: updatedResponse }));
                 setSubmitted(true);
                 showToast('Response saved!');

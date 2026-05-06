@@ -5,6 +5,7 @@ import { Task, User } from '@/types';
 import { AlertCircle, Brain, Coffee, Heart, Sparkles, TrendingDown, Check, Loader2, UserPlus, ArrowRightLeft, Inbox, ChevronDown, ChevronUp } from 'lucide-react';
 import { Modal } from './ui/Modal';
 import { useAuth } from '@/contexts/AuthContext';
+import { db } from '@/lib/db';
 
 interface WellnessAlertsProps {
   tasks: Task[];
@@ -148,20 +149,9 @@ export function WellnessAlerts({ tasks, users }: WellnessAlertsProps) {
       throw new Error('You must be signed in to rebalance tasks.');
     }
 
-    const response = await fetch('/api/tasks', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: taskId,
-        userId: currentUser.id,
-        assigneeId
-      })
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.json().catch(() => ({}));
-      const message = typeof errorBody?.error === 'string' ? errorBody.error : 'Task update failed';
-      throw new Error(message);
+    const updatedTask = await db.updateTask(taskId, { assigneeId: assigneeId || undefined }, currentUser.id);
+    if (!updatedTask) {
+      throw new Error('Task update failed');
     }
   };
 

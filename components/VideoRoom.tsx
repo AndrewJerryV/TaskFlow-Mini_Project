@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Video, ExternalLink, X, Copy, Check, Users, Settings, Save, Trash2 } from 'lucide-react';
+import { db } from '@/lib/db';
 
 interface VideoRoomProps {
     projectId: string;
@@ -48,12 +49,8 @@ export default function VideoRoom({ projectId, onLeave }: VideoRoomProps) {
             if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
                 url = 'https://' + url;
             }
-            const res = await fetch('/api/meeting', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ projectId, meetingUrl: url || null }),
-            });
-            if (res.ok) {
+            const success = await db.setMeetingUrl(projectId, url || null);
+            if (success) {
                 setMeetingUrl(url || null);
                 setEditingUrl(url || '');
                 setIsEditing(false);
@@ -68,12 +65,8 @@ export default function VideoRoom({ projectId, onLeave }: VideoRoomProps) {
     const removeMeetingUrl = async () => {
         setSaving(true);
         try {
-            const res = await fetch('/api/meeting', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ projectId, meetingUrl: null }),
-            });
-            if (res.ok) {
+            const success = await db.setMeetingUrl(projectId, null);
+            if (success) {
                 setMeetingUrl(null);
                 setEditingUrl('');
                 setIsEditing(false);

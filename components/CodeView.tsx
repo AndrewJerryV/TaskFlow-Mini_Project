@@ -6,6 +6,8 @@ import { Modal } from '@/components/ui/Modal';
 import { formatDate } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { User } from '@/types';
+import { fetchGithubRepoDetailsFromClient, getClientGithubToken } from '@/lib/client-integrations';
+import { db } from '@/lib/db';
 
 interface CodeViewProps {
     projectId: string;
@@ -49,17 +51,23 @@ function parseGitHubUrl(url: string): { owner: string; repo: string } | null {
 function RepoCard({ repo, currentUser, onDelete, onOpenInNewTab, onCopyLink, copiedId }: { repo: RepoLink, currentUser: User | null, onDelete: (id: string) => void, onOpenInNewTab: (url: string) => void, onCopyLink: (id: string, url: string) => void, copiedId: string | null }) {
     const [githubData, setGithubData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [githubError, setGithubError] = useState<string | null>(null);
 
     useEffect(() => {
         async function fetchRepoDetails() {
             try {
-                const res = await fetch(`/api/github?owner=${repo.owner}&repo=${repo.repo}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    setGithubData(data);
+                const token = getClientGithubToken();
+                if (!token) {
+                    setGithubError('Add a GitHub access token in the browser vault to load live repository data.');
+                    return;
                 }
+
+                const data = await fetchGithubRepoDetailsFromClient(repo.owner, repo.repo);
+                setGithubData(data);
             } catch (e) {
                 console.error("Failed to fetch GitHub data for repo", repo.repo);
+                const message = e instanceof Error ? e.message : 'Failed to fetch GitHub data.';
+                setGithubError(message);
             } finally {
                 setLoading(false);
             }
@@ -185,7 +193,7 @@ function RepoCard({ repo, currentUser, onDelete, onOpenInNewTab, onCopyLink, cop
                         )}
                     </div>
                 ) : (
-                    <div className="text-sm text-red-500 mb-4">Failed to load repository data.</div>
+                    <div className="text-sm text-red-500 mb-4">{githubError || 'Failed to load repository data.'}</div>
                 )}
             </div>
 
@@ -255,11 +263,8 @@ export default function CodeView({ projectId }: CodeViewProps) {
         async function fetchRepos() {
             try {
                 setLoading(true);
-                const res = await fetch(`/api/repos?projectId=${projectId}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    setRepos(data);
-                }
+                const data = await db.getRepoLinks(projectId);
+                setRepos(data);
             } catch (error) {
                 console.error('Error fetching repos:', error);
             } finally {
@@ -293,21 +298,16 @@ export default function CodeView({ projectId }: CodeViewProps) {
         }
 
         try {
-            const res = await fetch('/api/repos', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    project_id: projectId,
-                    name: `${parsed.owner}/${parsed.repo}`,
-                    url: url,
-                    owner: parsed.owner,
-                    repo: parsed.repo,
-                    description: newDescription.trim() || undefined,
-                }),
+            const created = await db.addRepoLink({
+                id: crypto.randomUUID(),
+                project_id: projectId,
+                name: `${parsed.owner}/${parsed.repo}`,
+                url,
+                owner: parsed.owner,
+                repo: parsed.repo,
+                description: newDescription.trim() || undefined,
             });
-
-            if (res.ok) {
-                const created = await res.json();
+            if (created) {
                 setRepos(prev => [...prev, created]);
             }
         } catch (error) {
@@ -323,8 +323,8 @@ export default function CodeView({ projectId }: CodeViewProps) {
     const handleDeleteRepo = async (repoId: string) => {
         if (!confirm('Remove this repository?')) return;
         try {
-            const res = await fetch(`/api/repos?id=${repoId}`, { method: 'DELETE' });
-            if (res.ok) {
+            const success = await db.deleteRepoLink(repoId);
+            if (success) {
                 setRepos(prev => prev.filter(r => r.id !== repoId));
             }
         } catch (error) {

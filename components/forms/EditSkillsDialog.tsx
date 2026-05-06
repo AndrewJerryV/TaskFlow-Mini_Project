@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { User } from '@/types';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
+import { db } from '@/lib/db';
 
 interface EditSkillsDialogProps {
     isOpen: boolean;
@@ -56,15 +57,9 @@ export function EditSkillsDialog({ isOpen, onClose, onSuccess, user }: EditSkill
                 }
             });
 
-            const response = await fetch(`/api/users/${user.id}/skills`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ skills, skillExperience })
-            });
-
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || 'Failed to update skills');
+            const result = await db.updateUserSkills(user.id, skills, skillExperience);
+            if (!result.success) {
+                throw new Error(result.error?.message || 'Failed to update skills');
             }
 
             onSuccess();

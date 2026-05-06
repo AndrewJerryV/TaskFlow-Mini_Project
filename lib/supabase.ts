@@ -1,24 +1,38 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://fawhdeawrihomivctrnw.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+import { resolveClientSupabaseConfig } from './browser-supabase-config';
 
 let supabase: SupabaseClient | null = null;
+let cachedClientKey: string | null = null;
+
+function getServerConfig() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+
+  if (!url || !anonKey) {
+    return null;
+  }
+
+  return { url, anonKey };
+}
 
 export function getSupabase(): SupabaseClient {
-  if (!supabase) {
+  const isServer = typeof window === 'undefined';
+  const config = isServer ? getServerConfig() : resolveClientSupabaseConfig();
 
-    if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error(
-        'Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY'
-      );
-    }
+  if (!config) {
+    throw new Error(
+      isServer
+        ? 'Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY on the server'
+        : 'Missing Supabase client configuration. Complete setup first.'
+    );
+  }
 
-    const isServer = typeof window === 'undefined';
+  const nextClientKey = `${isServer ? 'server' : 'client'}:${config.url}:${config.anonKey}`;
 
+  if (!supabase || cachedClientKey !== nextClientKey) {
     supabase = createClient(
-      supabaseUrl,
-      supabaseAnonKey,
+      config.url,
+      config.anonKey,
       {
         auth: {
           persistSession: !isServer,
@@ -28,9 +42,15 @@ export function getSupabase(): SupabaseClient {
         }
       }
     );
+    cachedClientKey = nextClientKey;
   }
 
   return supabase;
+}
+
+export function resetSupabaseClient(): void {
+  supabase = null;
+  cachedClientKey = null;
 }
 
 // Database Types

@@ -3,6 +3,7 @@ import { Modal } from '@/components/ui/Modal';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { User } from '@/types';
+import { db } from '@/lib/db';
 
 interface CreateProjectDialogProps {
     isOpen: boolean;
@@ -64,23 +65,40 @@ export function CreateProjectDialog({ isOpen, onClose }: CreateProjectDialogProp
         e.preventDefault();
         setLoading(true);
         try {
-            const res = await fetch('/api/projects', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name, key, description,
-                    ownerId: currentUser?.id,
-                    managerId: managerId || currentUser?.id,
-                    memberIds: selectedMembers
-                })
-            });
-            if (res.ok) {
-                const project = await res.json();
-                onClose();
-                setName(''); setKey(''); setDescription(''); setManagerId(''); setSelectedMembers([]); setManualKey(false);
-                router.push(`/projects/${project.id}`);
-                router.refresh();
+            if (!currentUser?.id) {
+                throw new Error('You must be signed in to create a project.');
             }
+
+            const projectId = crypto.randomUUID();
+            const managerOrOwnerId = managerId || currentUser.id;
+            await db.addProject({
+                id: projectId,
+                name,
+                key,
+                description,
+                ownerId: managerOrOwnerId,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            });
+
+            const memberIds = new Set(selectedMembers);
+            memberIds.add(currentUser.id);
+            memberIds.add(managerOrOwnerId);
+
+            for (const memberId of memberIds) {
+                if (memberId === managerOrOwnerId) continue;
+                await db.addProjectMember(projectId, memberId);
+            }
+
+            onClose();
+            setName('');
+            setKey('');
+            setDescription('');
+            setManagerId('');
+            setSelectedMembers([]);
+            setManualKey(false);
+            router.push(`/projects/${projectId}`);
+            router.refresh();
         } catch (error) {
             console.error(error);
         } finally {
