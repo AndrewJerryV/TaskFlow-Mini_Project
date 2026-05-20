@@ -108,29 +108,17 @@ export default function ProjectPage() {
         if (!id || !currentUser) return;
         try {
             if (!silent && !project) setLoading(true);
-            // Fetch Tasks
-            const tasksRes = await fetch(`/api/tasks?projectId=${id}&userId=${currentUser?.id}`);
-            if (!tasksRes.ok) {
-                try {
-                    const errData = await tasksRes.json();
-                    console.error("API error fetching tasks:", errData);
-                } catch (e) {
-                    console.error("API error fetching tasks (non-JSON):", tasksRes.status);
-                }
-                setTasks([]);
-            } else {
-                const tasksData = await tasksRes.json();
-                if (Array.isArray(tasksData)) {
-                    setTasks(tasksData);
-                } else {
-                    console.error("Tasks response is not an array:", tasksData);
-                    setTasks([]);
-                }
-            }
+            const [tasksData, projectsData, membersData] = await Promise.all([
+                db.getTasks(id),
+                db.getProjects(currentUser.id),
+                db.getProjectMembers(id),
+            ]);
 
-            // Fetch Projects to find current one
-            const projectsRes = await fetch(`/api/projects?userId=${currentUser?.id}`);
-            const projectsData = await projectsRes.json();
+            let nextTasks = Array.isArray(tasksData) ? tasksData : [];
+            if (currentUser.role === 'Member') {
+                nextTasks = nextTasks.filter(t => !t.isPrivate || t.assigneeId === currentUser.id);
+            }
+            setTasks(nextTasks);
 
             if (Array.isArray(projectsData)) {
                 const currentProject = projectsData.find((p: Project) => p.id === id);
@@ -140,27 +128,26 @@ export default function ProjectPage() {
                 } else {
                     setProject(currentProject);
                 }
+            } else {
+                setProject(null);
             }
 
-            // Fetch Project Members
             // If we recently updated members manually (within last 5 seconds), skip background sync
             if (!silent || Date.now() - lastSyncTime > 5000) {
-                const membersRes = await fetch(`/api/projects/${id}/members`);
-                if (membersRes.ok) {
-                    const membersData = await membersRes.json();
-                    setProjectMembers(membersData);
-                    // Only sync selected members if modal is NOT open to avoid overwriting user selection
-                    if (!isInviteOpen) {
-                        setSelectedMembers(membersData);
-                    } else if (silent) {
-                        console.log("Background sync: Modal is open, skipping selectedMembers update to preserve user input.");
-                    }
+                const nextMembers = Array.isArray(membersData) ? membersData : [];
+                setProjectMembers(nextMembers);
+                // Only sync selected members if modal is NOT open to avoid overwriting user selection
+                if (!isInviteOpen) {
+                    setSelectedMembers(nextMembers);
+                } else if (silent) {
+                    console.log("Background sync: Modal is open, skipping selectedMembers update to preserve user input.");
                 }
             }
 
 
         } catch (err) {
-            console.error("API error fetching data:", err);
+            console.error("Error fetching project data:", err);
+            setTasks([]);
         } finally {
             if (!silent) setLoading(false);
         }

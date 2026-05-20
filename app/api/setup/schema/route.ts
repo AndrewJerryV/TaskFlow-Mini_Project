@@ -284,6 +284,34 @@ export async function POST(request: Request) {
       );
     }
 
+    // Safety check: if the users table already has rows, abort to avoid accidental data loss.
+    // Some management operations can be destructive on poorly-scoped SQL; never run schema creation
+    // that might alter or recreate tables when there is existing user data.
+    const checkResponse = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: `select count(*)::int as cnt from public.users;`,
+        read_only: true,
+      }),
+    });
+
+    const checkResult = await checkResponse.json().catch(() => null);
+
+    if (checkResponse.ok && Array.isArray(checkResult?.result) && checkResult.result[0] && typeof checkResult.result[0].cnt === 'number') {
+      const existing = checkResult.result[0].cnt as number;
+      if (existing > 0) {
+        return NextResponse.json({
+          ok: true,
+          skipped: true,
+          message: 'Schema application skipped: public.users already contains rows. No destructive changes performed.'
+        });
+      }
+    }
+
     const response = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
       method: 'POST',
       headers: {
