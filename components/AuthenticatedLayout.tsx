@@ -42,15 +42,15 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
     const searchRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (requiresSupabaseConfig && !hasSupabaseConfig) {
+        if (pathname !== '/login' && requiresSupabaseConfig && !hasSupabaseConfig) {
             const query = typeof window !== 'undefined' ? window.location.search.slice(1) : '';
             const nextPath = query ? `${pathname}?${query}` : pathname;
-            router.replace(`/setup?next=${encodeURIComponent(nextPath)}`);
+            router.replace(`/login?issue=supabase&next=${encodeURIComponent(nextPath)}`);
             return;
         }
 
         if (!isLoading && !currentUser && !PUBLIC_PATHS.includes(pathname)) {
-            router.push('/login');
+            router.push('/login?issue=auth');
         }
     }, [currentUser, hasSupabaseConfig, isLoading, pathname, requiresSupabaseConfig, router]);
 

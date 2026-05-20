@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSiteUrl } from '@/lib/site-url';
 import { getSupabase, resetSupabaseClient } from '../../lib/supabase';
@@ -17,6 +17,7 @@ import 'altcha';
 export default function LoginPage() {
   const { currentUser, isLoading, authError, setAuthError } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
@@ -27,6 +28,7 @@ export default function LoginPage() {
   const [altchaPayload, setAltchaPayload] = useState<string | null>(null);
   const [altchaVerified, setAltchaVerified] = useState(false);
   const [supabaseConfigModalOpen, setSupabaseConfigModalOpen] = useState(false);
+  const [supabaseConfigNotice, setSupabaseConfigNotice] = useState('');
   const [supabaseConfigError, setSupabaseConfigError] = useState('');
   const [supabaseConfigSaving, setSupabaseConfigSaving] = useState(false);
   const [supabaseConfigValues, setSupabaseConfigValues] = useState({
@@ -157,6 +159,7 @@ export default function LoginPage() {
     try {
       const vals = resolveClientEnvValues();
       const hasConfig = hasClientSupabaseConfig();
+      const issue = searchParams.get('issue');
       console.debug('[Env] Supabase client config present:', {
         hasConfig,
         url: vals.SUPABASE_URL ? '<present>' : '<missing>',
@@ -166,17 +169,21 @@ export default function LoginPage() {
         url: vals.SUPABASE_URL ?? '',
         anonKey: vals.SUPABASE_ANON_KEY ?? '',
       });
-      setSupabaseConfigModalOpen(!hasConfig);
+      if (issue === 'supabase') {
+        setSupabaseConfigNotice('Supabase configuration is missing. Enter it to continue.');
+      }
+      setSupabaseConfigModalOpen(!hasConfig || issue === 'supabase');
     } catch (e) {
       console.debug('[Env] Error checking Supabase client config', e);
     }
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
     if (!isLoading && currentUser) {
-      router.replace('/dashboard');
+      const next = searchParams.get('next');
+      router.replace(next || '/dashboard');
     }
-  }, [currentUser, isLoading, router]);
+  }, [currentUser, isLoading, router, searchParams]);
 
   useEffect(() => {
     if (authError) {
@@ -353,6 +360,7 @@ export default function LoginPage() {
     } catch (err) {
       if (err instanceof Error && err.message.includes('Missing Supabase client configuration')) {
         setError('Supabase client configuration is missing. Please enter it to continue.');
+        setSupabaseConfigNotice('Supabase configuration is missing. Enter it to continue.');
         setSupabaseConfigModalOpen(true);
         return;
       }
@@ -385,6 +393,7 @@ export default function LoginPage() {
         SUPABASE_ANON_KEY: anonKey,
       });
       resetSupabaseClient();
+      setSupabaseConfigNotice('');
       setSupabaseConfigModalOpen(false);
     } catch (err) {
       console.error('[Env] Failed to save Supabase client config', err);
@@ -428,6 +437,7 @@ export default function LoginPage() {
       console.error('[Auth] signInWithOAuth google error', e);
       if (e instanceof Error && e.message.includes('Missing Supabase client configuration')) {
         setError('Supabase client configuration is missing. Please enter it to continue.');
+        setSupabaseConfigNotice('Supabase configuration is missing. Enter it to continue.');
         setSupabaseConfigModalOpen(true);
       } else {
         setError('Unable to start Google OAuth.');
@@ -468,6 +478,7 @@ export default function LoginPage() {
       console.error('[Auth] signInWithOAuth github error', e);
       if (e instanceof Error && e.message.includes('Missing Supabase client configuration')) {
         setError('Supabase client configuration is missing. Please enter it to continue.');
+        setSupabaseConfigNotice('Supabase configuration is missing. Enter it to continue.');
         setSupabaseConfigModalOpen(true);
       } else {
         setError('Unable to start GitHub OAuth.');
@@ -610,6 +621,11 @@ export default function LoginPage() {
         maxWidth="max-w-md"
       >
         <div className="p-5 space-y-4">
+          {supabaseConfigNotice && (
+            <div className="text-sm text-blue-700 bg-blue-50 border border-blue-100 rounded-lg p-2">
+              {supabaseConfigNotice}
+            </div>
+          )}
           <p className="text-sm text-gray-600">
             Enter your Supabase URL and anon key to continue. This saves for this browser session only.
           </p>
@@ -621,6 +637,7 @@ export default function LoginPage() {
                 value={supabaseConfigValues.url}
                 onChange={(e) => {
                   setSupabaseConfigError('');
+                  setSupabaseConfigNotice('');
                   setSupabaseConfigValues(prev => ({ ...prev, url: e.target.value }));
                 }}
                 placeholder="https://xxxxxxxxxxxxxxxxxxxx.supabase.co"
@@ -634,6 +651,7 @@ export default function LoginPage() {
                 value={supabaseConfigValues.anonKey}
                 onChange={(e) => {
                   setSupabaseConfigError('');
+                  setSupabaseConfigNotice('');
                   setSupabaseConfigValues(prev => ({ ...prev, anonKey: e.target.value }));
                 }}
                 placeholder="sb_publishable_xxxxxxxxxxxx"
