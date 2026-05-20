@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { getSupabase } from '@/lib/supabase';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const { id: userId } = await params;
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         return NextResponse.json({ issues: 0, prs: 0, actions: 0, reposAnalyzed: 0 });
     }
 
-    const { data: repos, error } = await getSupabase()
+    const { data: repos, error } = await getSupabaseAdmin()
         .from('repo_links')
         .select('*')
         .in('project_id', projectIds);

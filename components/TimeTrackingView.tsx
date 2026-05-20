@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { apiFetch } from '@/lib/api/fetchWithSupabase';
 import { Clock, Users, BarChart3, Timer, Filter, X, TrendingUp, Activity, Briefcase, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { CustomSelect } from './ui/CustomSelect';
 import { Task, User } from '@/types';
@@ -127,7 +128,7 @@ export default function TimeTrackingView({ projectId, tasks: propTasks }: TimeTr
             if (filterStartDate) params.set('startDate', filterStartDate);
             if (filterEndDate) params.set('endDate', filterEndDate);
 
-            const res = await fetch(`/api/time-tracking?${params.toString()}`);
+            const res = await apiFetch(`/api/time-tracking?${params.toString()}`);
             if (!res.ok) {
                 const errData = await res.json();
                 throw new Error(errData.error || 'Failed to fetch');

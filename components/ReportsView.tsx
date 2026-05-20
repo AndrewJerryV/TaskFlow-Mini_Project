@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { apiFetch } from '@/lib/api/fetchWithSupabase';
 import { BarChart3, Users, CheckCircle, Clock, AlertTriangle, Download, Filter, X } from 'lucide-react';
 import { Task, User } from '@/types';
 import { getTimeRangeDate, isOverdue } from '@/lib/utils';
@@ -38,7 +39,7 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
     // Fetch tasks if not provided
     useEffect(() => {
         if (tasks.length === 0) {
-            fetch(`/api/tasks?projectId=${projectId}`)
+            apiFetch(`/api/tasks?projectId=${projectId}`)
                 .then(res => res.json())
                 .then(data => setProjectTasks(Array.isArray(data) ? data : []))
                 .catch(console.error);
@@ -47,7 +48,7 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
 
     // Fetch users for assignee filter
     useEffect(() => {
-        fetch('/api/users')
+        apiFetch('/api/users')
             .then(res => res.json())
             .then(data => setUsers(Array.isArray(data) ? data : []))
             .catch(console.error);
@@ -171,7 +172,7 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
         // Fetch time tracking data for this project
         let timeData: { perTask: any[]; perUser: any[]; perProject: any[] } = { perTask: [], perUser: [], perProject: [] };
         try {
-            const res = await fetch(`/api/time-tracking?projectId=${projectId}`);
+            const res = await apiFetch(`/api/time-tracking?projectId=${projectId}`);
             if (res.ok) {
                 timeData = await res.json();
             }

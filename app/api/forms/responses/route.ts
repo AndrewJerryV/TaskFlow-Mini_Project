@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { getSupabase } from '@/lib/supabase';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { FormResponse } from '@/types';
 
 type ProjectMemberRow = {
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
                 });
 
                 // Also notify managers/admins in the project
-                const { data: members } = await getSupabase()
+                const { data: members } = await getSupabaseAdmin()
                     .from('project_members')
                     .select('user_id, role')
                     .eq('project_id', form.projectId);

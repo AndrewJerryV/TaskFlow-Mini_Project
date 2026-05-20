@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getSupabase } from '@/lib/supabase';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 const getErrorMessage = (error: unknown) =>
   error instanceof Error ? error.message : 'Unknown error';
 
 export async function GET() {
   try {
-    const { data, error } = await getSupabase().rpc('get_admin_create_user_v2_definition');
+  const { data, error } = await getSupabaseAdmin().rpc('get_admin_create_user_v2_definition');
 
     if (error) {
       return NextResponse.json(

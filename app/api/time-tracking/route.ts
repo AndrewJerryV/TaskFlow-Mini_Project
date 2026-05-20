@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabase } from '@/lib/supabase';
+import { getSupabaseForRequest } from '@/lib/server-supabase-helper';
 
 export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     const endDate = searchParams.get('endDate');
 
     try {
-        const supabase = getSupabase();
+        const supabase = getSupabaseForRequest(req);
 
         // 1. Fetch all relevant time entries (Source of truth)
         let query = supabase
