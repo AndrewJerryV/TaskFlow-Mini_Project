@@ -226,6 +226,10 @@ export function resolveClientEnvValues(): DeviceEnvValues {
   });
 }
 
+export function saveSessionDeviceEnvValues(values: Partial<DeviceEnvValues>) {
+  setCachedDeviceEnvValues(normalizeEnvValues(values));
+}
+
 export function hasClientSupabaseConfig(): boolean {
   const values = resolveClientEnvValues();
   return Boolean(values.SUPABASE_URL && values.SUPABASE_ANON_KEY);

@@ -4,11 +4,15 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSiteUrl } from '@/lib/site-url';
-import { getSupabase } from '../../lib/supabase';
+import { getSupabase, resetSupabaseClient } from '../../lib/supabase';
 import { getPendingFirstAdminSetup, pendingFirstAdminMatches } from '@/lib/first-admin-setup';
-import { resolveClientEnvValues } from '@/lib/device-env-vault';
+import {
+  hasClientSupabaseConfig,
+  resolveClientEnvValues,
+  saveSessionDeviceEnvValues,
+} from '@/lib/device-env-vault';
+import { Modal } from '@/components/ui/Modal';
 import 'altcha';
-import { hasClientSupabaseConfig, resolveClientEnvValues as resolveClientEnv } from '@/lib/device-env-vault';
 
 export default function LoginPage() {
   const { currentUser, isLoading, authError, setAuthError } = useAuth();
@@ -22,6 +26,13 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [altchaPayload, setAltchaPayload] = useState<string | null>(null);
   const [altchaVerified, setAltchaVerified] = useState(false);
+  const [supabaseConfigModalOpen, setSupabaseConfigModalOpen] = useState(false);
+  const [supabaseConfigError, setSupabaseConfigError] = useState('');
+  const [supabaseConfigSaving, setSupabaseConfigSaving] = useState(false);
+  const [supabaseConfigValues, setSupabaseConfigValues] = useState({
+    url: '',
+    anonKey: '',
+  });
   const formRef = useRef<HTMLFormElement | null>(null);
   const altchaRef = useRef<HTMLElement | null>(null);
   const altchaWidgetStyle: React.CSSProperties & Record<`--${string}`, string> = {
@@ -144,16 +155,24 @@ export default function LoginPage() {
   useEffect(() => {
     // Log whether Supabase client config is available on the client.
     try {
-      const vals = resolveClientEnv();
+      const vals = resolveClientEnvValues();
+      const hasConfig = hasClientSupabaseConfig();
       console.debug('[Env] Supabase client config present:', {
-        hasConfig: hasClientSupabaseConfig(),
+        hasConfig,
         url: vals.SUPABASE_URL ? '<present>' : '<missing>',
         anonKeyPresent: vals.SUPABASE_ANON_KEY ? true : false,
       });
+      setSupabaseConfigValues({
+        url: vals.SUPABASE_URL ?? '',
+        anonKey: vals.SUPABASE_ANON_KEY ?? '',
+      });
+      setSupabaseConfigModalOpen(!hasConfig);
     } catch (e) {
       console.debug('[Env] Error checking Supabase client config', e);
     }
+  }, []);
 
+  useEffect(() => {
     if (!isLoading && currentUser) {
       router.replace('/dashboard');
     }
@@ -332,6 +351,12 @@ export default function LoginPage() {
         }
       }
     } catch (err) {
+      if (err instanceof Error && err.message.includes('Missing Supabase client configuration')) {
+        setError('Supabase client configuration is missing. Please enter it to continue.');
+        setSupabaseConfigModalOpen(true);
+        return;
+      }
+
       setError('An unexpected error occurred. Please try again.');
       console.error('Auth error:', err);
     } finally {
@@ -342,6 +367,33 @@ export default function LoginPage() {
     }
   };
 
+  const handleSaveSupabaseConfig = () => {
+    const url = supabaseConfigValues.url.trim();
+    const anonKey = supabaseConfigValues.anonKey.trim();
+
+    if (!url || !anonKey) {
+      setSupabaseConfigError('Enter both the Supabase URL and anon key.');
+      return;
+    }
+
+    setSupabaseConfigSaving(true);
+    setSupabaseConfigError('');
+
+    try {
+      saveSessionDeviceEnvValues({
+        SUPABASE_URL: url,
+        SUPABASE_ANON_KEY: anonKey,
+      });
+      resetSupabaseClient();
+      setSupabaseConfigModalOpen(false);
+    } catch (err) {
+      console.error('[Env] Failed to save Supabase client config', err);
+      setSupabaseConfigError('Unable to save Supabase configuration.');
+    } finally {
+      setSupabaseConfigSaving(false);
+    }
+  };
+
   const signInWithGoogle = async () => {
     setError('');
     setSuccess('');
@@ -349,9 +401,9 @@ export default function LoginPage() {
     console.debug('[Auth] signInWithGoogle clicked');
     const altchaValid = await verifyAltcha();
     if (!altchaValid) return;
-    const supabase = getSupabase();
-    console.debug('[Auth] calling supabase.auth.signInWithOAuth google', { redirectTo: loginRedirectUrl });
     try {
+      const supabase = getSupabase();
+      console.debug('[Auth] calling supabase.auth.signInWithOAuth google', { redirectTo: loginRedirectUrl });
       const { data, error: signInError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -374,7 +426,12 @@ export default function LoginPage() {
       }
     } catch (e) {
       console.error('[Auth] signInWithOAuth google error', e);
-      setError('Unable to start Google OAuth.');
+      if (e instanceof Error && e.message.includes('Missing Supabase client configuration')) {
+        setError('Supabase client configuration is missing. Please enter it to continue.');
+        setSupabaseConfigModalOpen(true);
+      } else {
+        setError('Unable to start Google OAuth.');
+      }
       resetAltcha();
     }
   };
@@ -386,9 +443,9 @@ export default function LoginPage() {
     console.debug('[Auth] signInWithGithub clicked');
     const altchaValid = await verifyAltcha();
     if (!altchaValid) return;
-    const supabase = getSupabase();
-    console.debug('[Auth] calling supabase.auth.signInWithOAuth github', { redirectTo: loginRedirectUrl });
     try {
+      const supabase = getSupabase();
+      console.debug('[Auth] calling supabase.auth.signInWithOAuth github', { redirectTo: loginRedirectUrl });
       const { data, error: signInError } = await supabase.auth.signInWithOAuth({
         provider: 'github',
         options: {
@@ -409,7 +466,12 @@ export default function LoginPage() {
       }
     } catch (e) {
       console.error('[Auth] signInWithOAuth github error', e);
-      setError('Unable to start GitHub OAuth.');
+      if (e instanceof Error && e.message.includes('Missing Supabase client configuration')) {
+        setError('Supabase client configuration is missing. Please enter it to continue.');
+        setSupabaseConfigModalOpen(true);
+      } else {
+        setError('Unable to start GitHub OAuth.');
+      }
       resetAltcha();
     }
   };
@@ -540,6 +602,67 @@ export default function LoginPage() {
           </button>
         </div>
       </div>
+
+      <Modal
+        isOpen={supabaseConfigModalOpen}
+        onClose={() => setSupabaseConfigModalOpen(false)}
+        title="Missing Supabase configuration"
+        maxWidth="max-w-md"
+      >
+        <div className="p-5 space-y-4">
+          <p className="text-sm text-gray-600">
+            Enter your Supabase URL and anon key to continue. This saves for this browser session only.
+          </p>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Supabase URL</label>
+              <input
+                type="url"
+                value={supabaseConfigValues.url}
+                onChange={(e) => {
+                  setSupabaseConfigError('');
+                  setSupabaseConfigValues(prev => ({ ...prev, url: e.target.value }));
+                }}
+                placeholder="https://xxxxxxxxxxxxxxxxxxxx.supabase.co"
+                className="w-full px-3 py-2 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Supabase anon key</label>
+              <input
+                type="password"
+                value={supabaseConfigValues.anonKey}
+                onChange={(e) => {
+                  setSupabaseConfigError('');
+                  setSupabaseConfigValues(prev => ({ ...prev, anonKey: e.target.value }));
+                }}
+                placeholder="sb_publishable_xxxxxxxxxxxx"
+                className="w-full px-3 py-2 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+              />
+            </div>
+          </div>
+          {supabaseConfigError && (
+            <div className="text-sm text-red-600">{supabaseConfigError}</div>
+          )}
+          <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
+            <button
+              type="button"
+              onClick={() => window.location.assign('/setup')}
+              className="px-4 py-2 text-sm rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Open setup
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveSupabaseConfig}
+              disabled={supabaseConfigSaving}
+              className="px-4 py-2 text-sm rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-60"
+            >
+              {supabaseConfigSaving ? 'Saving...' : 'Save for this session'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
