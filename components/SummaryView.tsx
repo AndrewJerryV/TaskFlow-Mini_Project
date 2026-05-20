@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Task, ActivityLog, User } from '@/types';
+import { db } from '@/lib/db';
 import { Activity, PieChart, Info, TrendingUp, Clock, AlertTriangle, CheckCircle2, Target, Brain } from 'lucide-react';
 import { getUserName, formatRelativeTime, isOverdue, isDueWithinDays } from '@/lib/utils';
 
@@ -346,24 +347,19 @@ export default function SummaryView({ tasks, projectId, currentUser }: SummaryVi
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [activityRes, usersRes] = await Promise.all([
-          fetch('/api/activity'),
-          fetch('/api/users')
+        const [activityData, usersData] = await Promise.all([
+          db.getActivityLogs(),
+          db.getUsers(),
         ]);
 
-        if (activityRes.ok) {
-          const data = await activityRes.json();
-          // Filter to project tasks if projectId provided
-          const projectTaskIds = new Set(tasks.map(t => t.id));
-          const filtered = projectId
-            ? data.filter((log: ActivityLog) => projectTaskIds.has(log.entityId))
-            : data;
-          setActivityLogs(filtered.slice(0, 5));
-        }
+        const activityArray = Array.isArray(activityData) ? activityData : [];
+        const projectTaskIds = new Set(tasks.map(t => t.id));
+        const filtered = projectId
+          ? activityArray.filter((log: ActivityLog) => projectTaskIds.has(log.entityId))
+          : activityArray;
+        setActivityLogs(filtered.slice(0, 5));
 
-        if (usersRes.ok) {
-          setUsers(await usersRes.json());
-        }
+        setUsers(Array.isArray(usersData) ? usersData : []);
       } catch (error) {
         console.error('Failed to fetch activity:', error);
       }

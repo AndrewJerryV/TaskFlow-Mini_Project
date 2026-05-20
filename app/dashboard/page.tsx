@@ -227,10 +227,24 @@ function ActivityFeedList({ users }: { users: any[] }) {
 
   useEffect(() => {
     if (!currentUser?.id) return;
-    fetch(`/api/activity?userId=${currentUser.id}`)
-      .then(res => res.json())
-      .then(data => setLogs(Array.isArray(data) ? data : []))
-      .catch(err => console.error(err));
+    let isActive = true;
+    const loadLogs = async () => {
+      try {
+        const data = await db.getActivityLogsForUser(currentUser.id);
+        if (isActive) {
+          setLogs(Array.isArray(data) ? data : []);
+        }
+      } catch (err) {
+        console.error('Failed to load activity logs:', err);
+        if (isActive) {
+          setLogs([]);
+        }
+      }
+    };
+    loadLogs();
+    return () => {
+      isActive = false;
+    };
   }, [currentUser?.id]);
 
   const getLocalUserName = (userId: string) => getUserName(users, userId);
