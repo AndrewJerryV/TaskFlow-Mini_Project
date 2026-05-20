@@ -62,19 +62,16 @@ export function NotificationBell() {
     const fetchNotifications = async () => {
         if (!currentUser) return;
         try {
-            const res = await fetch(`/api/notifications?userId=${currentUser.id}`);
-            if (res.ok) {
-                const data = await res.json();
-                setNotifications(data);
-                const newUnread = data.filter((n: Notification) => !n.isRead).length;
-                // Animate bell if new notifications arrived
-                if (newUnread > prevUnreadRef.current) {
-                    setAnimateBell(true);
-                    setTimeout(() => setAnimateBell(false), 1000);
-                }
-                prevUnreadRef.current = newUnread;
-                setUnreadCount(newUnread);
+            const data = await db.getNotifications(currentUser.id);
+            setNotifications(data);
+            const newUnread = data.filter((n: Notification) => !n.isRead).length;
+            // Animate bell if new notifications arrived
+            if (newUnread > prevUnreadRef.current) {
+                setAnimateBell(true);
+                setTimeout(() => setAnimateBell(false), 1000);
             }
+            prevUnreadRef.current = newUnread;
+            setUnreadCount(newUnread);
         } catch (error) {
             console.error('Failed to fetch notifications:', error);
         }
