@@ -1,6 +1,6 @@
-import { db } from '@/lib/db';
 import { Comment } from '@/types';
 import { NextResponse } from 'next/server';
+import { getSupabaseForRequest } from '@/lib/server-supabase-helper';
 
 export async function GET(request: Request) {
     try {
@@ -11,8 +11,9 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'Task ID is required' }, { status: 400 });
         }
 
-        const comments = await db.getComments(taskId);
-        return NextResponse.json(comments);
+        const supabase = getSupabaseForRequest(request);
+        const { data } = await supabase.from('comments').select('*').eq('task_id', taskId).order('created_at', { ascending: true });
+        return NextResponse.json(data || []);
     } catch (error) {
         console.error('Error fetching comments:', error);
         return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed to fetch comments' }, { status: 500 });
@@ -35,7 +36,18 @@ export async function POST(request: Request) {
             createdAt: new Date().toISOString(),
         };
 
-        await db.addComment(newComment);
+        const supabase2 = getSupabaseForRequest(request);
+        const { error } = await supabase2.from('comments').insert({
+            id: newComment.id,
+            task_id: newComment.taskId,
+            user_id: newComment.userId,
+            content: newComment.content,
+            created_at: newComment.createdAt
+        });
+        if (error) {
+            console.error('Error inserting comment:', error);
+            return NextResponse.json({ error: 'Failed to create comment' }, { status: 500 });
+        }
         return NextResponse.json(newComment);
     } catch (error) {
         console.error('Error creating comment:', error);

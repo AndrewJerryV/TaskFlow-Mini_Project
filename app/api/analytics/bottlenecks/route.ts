@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getSupabaseForRequest } from '@/lib/server-supabase-helper';
 import { Task } from '@/types';
 import { analyzeWellness, assignTaskWithEngine, getTaskLoadStats } from '@/lib/ml-engine';
 
@@ -309,23 +309,29 @@ export async function GET(request: Request) {
         const userId = searchParams.get('userId');
         const projectId = searchParams.get('projectId');
 
-        let tasks = projectId ? await db.getTasks(projectId) : await db.getTasks();
-        const users = await db.getUsers();
-        const requester = userId ? await db.getUser(userId) : null;
+        const supabase = getSupabaseForRequest(request);
+        const { data: tasksData } = projectId ? await supabase.from('tasks').select('*').eq('project_id', projectId) : await supabase.from('tasks').select('*');
+        const tasks = (tasksData || []) as Task[];
+        const { data: usersData } = await supabase.from('users').select('*');
+        const users = (usersData || []) as { id: string; name: string }[];
+        const { data: requester } = userId ? await supabase.from('users').select('*').eq('id', userId).maybeSingle() : { data: null };
 
         if (userId && !requester) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
         if (requester && requester.role !== 'Admin') {
-            const userProjects = await db.getProjects(requester.id);
-            const projectIds = new Set(userProjects.map(p => p.id));
-            tasks = tasks.filter(t => projectIds.has(t.projectId));
+            const { data: userProjects } = await supabase.from('projects').select('*').eq('owner_id', requester.id);
+            const projectIds = new Set(((userProjects || []) as any[]).map((p: any) => p.id));
+            // filter tasks to only those in the requester's projects
+            const filtered = tasks.filter(t => projectIds.has((t as any).projectId));
+            // assign back to tasks variable used below
+            (tasks as any[]).length = 0; (tasks as any[]).push(...filtered);
         }
 
         // Determine dynamic thresholds based on Admin's companySize
         let companySize = 'Medium (11-50)';
-        const adminUser = users.find(u => u.role === 'Admin');
+        const adminUser = users.find(u => (u as any).role === 'Admin');
         if (adminUser && (adminUser as any).companySize) {
             companySize = (adminUser as any).companySize;
         }
@@ -352,8 +358,8 @@ export async function GET(request: Request) {
         // 3. Group by project if requester is logged in
         if (requester) {
             const now = new Date();
-            const projects = await db.getProjects(requester.role === 'Admin' ? undefined : requester.id);
-            const projectMap = new Map(projects.map(p => [p.id, p.name]));
+            const { data: projects } = await supabase.from('projects').select('*');
+            const projectMap = new Map(((projects || []) as any[]).map((p: any) => [p.id, p.name]));
 
             const grouped = new Map<string, {
                 projectId: string;
@@ -377,7 +383,7 @@ export async function GET(request: Request) {
 
             // Distribute bottlenecks to project groups (use projectId from tasks if available)
             for (const b of result.bottlenecks) {
-                const matchingProjectId = projectId || (projects.length === 1 ? projects[0].id : null);
+                const matchingProjectId = projectId || (projects && projects.length === 1 ? projects[0].id : null);
                 if (matchingProjectId) {
                     const group = ensureGroup(matchingProjectId);
                     group.bottlenecks.push(b);
@@ -422,3 +428,4 @@ export async function GET(request: Request) {
         );
     }
 }
+
