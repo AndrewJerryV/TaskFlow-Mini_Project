@@ -65,19 +65,19 @@ export function TaskFilters({
         <div className="flex items-center justify-between gap-3 flex-wrap bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 mb-4 w-full">
             {/* Search Input */}
             {onSearchChange && (
-                <div className="relative">
+                <div className="relative w-full sm:w-auto">
                     <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400" size={14} />
                     <input
                         type="text"
                         placeholder="Search tasks..."
                         value={searchQuery}
                         onChange={(e) => onSearchChange(e.target.value)}
-                        className="w-48 pl-8 pr-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        className="w-full sm:w-48 pl-8 pr-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     />
                 </div>
             )}
 
-            <div className="flex items-center gap-3 flex-wrap ml-auto">
+            <div className="flex items-center gap-3 flex-wrap w-full sm:w-auto sm:ml-auto">
                 <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mr-1">
                     <Filter size={14} />
                     <span className="font-medium whitespace-nowrap">Filters:</span>
@@ -87,7 +87,7 @@ export function TaskFilters({
                     options={statusOptions}
                     value={statusFilter}
                     onChange={(val) => onStatusChange(val as Status | 'all')}
-                    className="w-40"
+                    className="w-full sm:w-40"
                     searchable={false}
                 />
 
@@ -95,7 +95,7 @@ export function TaskFilters({
                     options={priorityOptions}
                     value={priorityFilter}
                     onChange={(val) => onPriorityChange(val as Priority | 'all')}
-                    className="w-40"
+                    className="w-full sm:w-40"
                     searchable={false}
                 />
 
@@ -103,7 +103,7 @@ export function TaskFilters({
                     options={assigneeOptions}
                     value={assigneeFilter}
                     onChange={onAssigneeChange}
-                    className="w-52"
+                    className="w-full sm:w-52"
                     placeholder="All Assignees"
                 />
 

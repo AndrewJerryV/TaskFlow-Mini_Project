@@ -24,6 +24,7 @@ import {
     Trash,
     Users,
     X,
+    Menu,
 } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 import { MiniCalendar } from '@/components/ui/MiniCalendar';
@@ -71,6 +72,7 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
     const [mentionCursorIndex, setMentionCursorIndex] = useState(-1);
     const [mentionSelectedIndex, setMentionSelectedIndex] = useState(0);
     const [collapsedPinned, setCollapsedPinned] = useState(false);
+    const [showMobileSidebar, setShowMobileSidebar] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const messageInputRef = useRef<HTMLInputElement>(null);
@@ -759,12 +761,17 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
                 </div>
             )}
 
-            <aside className="flex w-72 min-h-0 flex-col border-r border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(241,245,255,0.9)_100%)] p-4 backdrop-blur-xl dark:border-slate-800 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.96)_0%,rgba(17,24,39,0.92)_100%)]">
+            <aside className={`${showMobileSidebar ? 'absolute inset-0 z-50 flex w-full' : 'hidden'} md:relative md:flex md:w-72 min-h-0 flex-col border-r border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(241,245,255,0.9)_100%)] p-4 backdrop-blur-xl dark:border-slate-800 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.96)_0%,rgba(17,24,39,0.92)_100%)]`}>
+                {showMobileSidebar && (
+                    <button className="absolute right-4 top-4 md:hidden text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200" onClick={() => setShowMobileSidebar(false)}>
+                        <X size={20} />
+                    </button>
+                )}
                 <div className="flex min-h-0 flex-1 flex-col gap-5 mt-2">
                     <div>
                         <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Channels</div>
                         <button
-                            onClick={() => setActiveConversationId('project-room')}
+                            onClick={() => { setActiveConversationId('project-room'); setShowMobileSidebar(false); }}
                             className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium ${
                                 activeConversationId === 'project-room'
                                     ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20'
@@ -786,7 +793,7 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
                                     return (
                                         <button
                                             key={conversation.id}
-                                            onClick={() => setActiveConversationId(conversation.id)}
+                                            onClick={() => { setActiveConversationId(conversation.id); setShowMobileSidebar(false); }}
                                             className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm ${
                                                 activeConversationId === conversation.id
                                                     ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20'
@@ -815,14 +822,19 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
 
             <section className="relative flex min-w-0 flex-1 flex-col">
                 <div className="flex items-center justify-between border-b border-slate-200/80 bg-white/70 px-5 py-3 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/70">
-                    <div>
-                        <div className="text-sm font-bold text-gray-900 dark:text-white">
-                            {activeConversation?.type === 'dm' ? activeConversation.title : '# Project Room'}
-                        </div>
-                        <div className="text-xs text-gray-400">
-                            {activeConversation?.type === 'dm'
-                                ? 'Private conversation'
-                                : `${projectUsers.length} members - shared workspace chat`}
+                    <div className="flex items-center gap-3">
+                        <button className="md:hidden text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200" onClick={() => setShowMobileSidebar(true)}>
+                            <Menu size={20} />
+                        </button>
+                        <div>
+                            <div className="text-sm font-bold text-gray-900 dark:text-white">
+                                {activeConversation?.type === 'dm' ? activeConversation.title : '# Project Room'}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                                {activeConversation?.type === 'dm'
+                                    ? 'Private conversation'
+                                    : `${projectUsers.length} members - shared workspace chat`}
+                            </div>
                         </div>
                     </div>
                     <div className="flex items-center gap-1">

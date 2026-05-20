@@ -13,11 +13,39 @@ body {
   margin: 0;
   padding: 0;
   height: 100%;
+  width: 100%;
   overflow-x: hidden;
 }
 
 body {
   color: rgb(var(--foreground-rgb));
+}
+
+* {
+  box-sizing: border-box;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  max-width: 100%;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* Modern Thin Scrollbars */

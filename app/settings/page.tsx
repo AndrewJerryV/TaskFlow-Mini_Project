@@ -406,7 +406,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="p-4 md:p-8 mx-auto">
+    <div className="w-full max-w-[1440px] p-4 md:p-8 mx-auto">
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
         Workspace Settings
       </h1>
@@ -433,7 +433,7 @@ export default function SettingsPage() {
         </nav>
 
         {/* Content Area */}
-        <div className="flex-1 space-y-6">
+        <div className="flex-1 min-w-0 space-y-6">
           {/* General Settings */}
           {activeTab === "general" && (
             <div className="space-y-6">

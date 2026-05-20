@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState, useRef, ReactNode } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { NotificationBell } from '@/components/NotificationBell';
-import { LogOut, Search, Folder, CheckSquare, X, Users } from 'lucide-react';
+import { LogOut, Search, Folder, CheckSquare, X, Users, Menu } from 'lucide-react';
 import { getRoleColor } from '@/lib/utils';
 import { Project, Task, User } from '@/types';
 import { db } from '@/lib/db';
@@ -40,6 +40,7 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
     const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
     const [showResults, setShowResults] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -224,13 +225,21 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
                         </div>
                     )}
                     {/* Top Navbar */}
-                    <div className="h-12 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between px-4 flex-shrink-0">
-                        <div className="flex items-center space-x-4">
-                            <div className="flex items-center gap-2">
+                    <div className="min-h-12 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 px-3 sm:px-4 py-2 flex-shrink-0">
+                        <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+                            <button
+                                type="button"
+                                onClick={() => setSidebarOpen(true)}
+                                className="md:hidden p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+                                aria-label="Open sidebar"
+                            >
+                                <Menu size={18} />
+                            </button>
+                            <div className="flex items-center gap-2 min-w-0">
                                 <img src="/icon.svg" alt="TaskFlow" className="h-4 w-auto" />
-                                <h1 className="text-xl font-semibold text-gray-900 dark:text-white">TaskFlow</h1>
+                                <h1 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white truncate">TaskFlow</h1>
                             </div>
-                            <div className="relative" ref={searchRef}>
+                            <div className="relative hidden sm:block flex-1 max-w-md" ref={searchRef}>
                                 <input
                                     type="text"
                                     placeholder="Search . . ."
@@ -240,7 +249,7 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
                                         setShowResults(true);
                                     }}
                                     onFocus={() => setShowResults(true)}
-                                    className="w-full max-w-md p-1.5 pl-8 pr-8 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400"
+                                    className="w-full p-1.5 pl-8 pr-8 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400"
                                 />
                                 <Search className="absolute w-4 h-4 text-gray-400 left-2.5 top-1/2 transform -translate-y-1/2" />
                                 {searchQuery && (
@@ -300,10 +309,10 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
                                 )}
                             </div>
                         </div>
-                        <div className="flex items-center space-x-3">
+                        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
                             <TimerRunningIndicator />
                             <NotificationBell />
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 sm:gap-3">
                                 <span className={`hidden sm:inline-block px-2 py-1 text-xs font-medium rounded-full ${getRoleColor(currentUser.role)}`}>
                                     {currentUser.role}
                                 </span>
@@ -333,9 +342,17 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
                         </div>
                     </div>
 
-                    <div className="flex flex-1 overflow-hidden">
-                        <Sidebar />
-                        <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
+                    <div className="flex flex-1 overflow-hidden relative">
+                        {sidebarOpen && (
+                            <button
+                                type="button"
+                                className="fixed inset-0 z-30 bg-black/40 md:hidden"
+                                onClick={() => setSidebarOpen(false)}
+                                aria-label="Close sidebar overlay"
+                            />
+                        )}
+                        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+                        <main className="flex-1 min-w-0 overflow-y-auto bg-gray-50 dark:bg-gray-900">
                             {children}
                         </main>
                     </div>
