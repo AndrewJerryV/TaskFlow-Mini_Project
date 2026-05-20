@@ -19,8 +19,8 @@ export async function GET() {
 
         const challenge = await createChallenge({
             algorithm: 'PBKDF2/SHA-256',
-            cost: 5_000,
-            counter: randomInt(10_000, 5_000),
+            cost: 2_000,
+            counter: randomInt(200, 50),
             deriveKey,
             expiresAt: Math.floor(Date.now() / 1000) + 5 * 60,
             hmacSignatureSecret: hmacSecret,
