@@ -8,7 +8,9 @@ import { getSupabase, resetSupabaseClient } from '../../lib/supabase';
 import { getPendingFirstAdminSetup, pendingFirstAdminMatches } from '@/lib/first-admin-setup';
 import {
   hasClientSupabaseConfig,
+  getLocalDeviceEnvValues,
   resolveClientEnvValues,
+  saveLocalDeviceEnvValues,
   saveSessionDeviceEnvValues,
 } from '@/lib/device-env-vault';
 import { Modal } from '@/components/ui/Modal';
@@ -31,6 +33,7 @@ export default function LoginClient() {
   const [supabaseConfigNotice, setSupabaseConfigNotice] = useState('');
   const [supabaseConfigError, setSupabaseConfigError] = useState('');
   const [supabaseConfigSaving, setSupabaseConfigSaving] = useState(false);
+  const [rememberSupabaseConfig, setRememberSupabaseConfig] = useState(true);
   const [supabaseConfigValues, setSupabaseConfigValues] = useState({
     url: '',
     anonKey: '',
@@ -159,6 +162,7 @@ export default function LoginClient() {
     try {
       const vals = resolveClientEnvValues();
       const hasConfig = hasClientSupabaseConfig();
+      const storedLocal = getLocalDeviceEnvValues();
       const issue = searchParams.get('issue');
       console.debug('[Env] Supabase client config present:', {
         hasConfig,
@@ -169,6 +173,9 @@ export default function LoginClient() {
         url: vals.SUPABASE_URL ?? '',
         anonKey: vals.SUPABASE_ANON_KEY ?? '',
       });
+      if (storedLocal?.SUPABASE_URL && storedLocal?.SUPABASE_ANON_KEY) {
+        setRememberSupabaseConfig(true);
+      }
       if (issue === 'supabase') {
         setSupabaseConfigNotice('Supabase configuration is missing. Enter it to continue.');
       }
@@ -388,10 +395,16 @@ export default function LoginClient() {
     setSupabaseConfigError('');
 
     try {
-      saveSessionDeviceEnvValues({
+      const payload = {
         SUPABASE_URL: url,
         SUPABASE_ANON_KEY: anonKey,
-      });
+      };
+
+      if (rememberSupabaseConfig) {
+        saveLocalDeviceEnvValues(payload);
+      } else {
+        saveSessionDeviceEnvValues(payload);
+      }
       resetSupabaseClient();
       setSupabaseConfigNotice('');
       setSupabaseConfigModalOpen(false);
@@ -627,8 +640,17 @@ export default function LoginClient() {
             </div>
           )}
           <p className="text-sm text-gray-600">
-            Enter your Supabase URL and anon key to continue. This saves for this browser session only.
+            Enter your Supabase URL and anon key to continue. You can keep it for this session or store it on this device.
           </p>
+          <label className="flex items-center gap-2 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              checked={rememberSupabaseConfig}
+              onChange={(e) => setRememberSupabaseConfig(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            Remember on this device (stores in browser storage)
+          </label>
           <div className="space-y-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Supabase URL</label>

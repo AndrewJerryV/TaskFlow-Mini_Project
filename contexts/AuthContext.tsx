@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, ReactNod
 import { getSupabase } from '../lib/supabase';
 import { User } from '@/types';
 import { hasClientSupabaseConfig } from '@/lib/browser-supabase-config';
+import { db } from '@/lib/db';
 import {
   clearPendingFirstAdminSetup,
   getPendingFirstAdminSetup,
@@ -147,12 +148,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Fetch all users after load profile
         try {
           console.log('[SignIn] Fetching all users...');
-          const res = await fetch('/api/users');
-          if (res.ok) {
-            const allUsers = await res.json();
-            setUsers(allUsers);
-            console.log('[SignIn] All users loaded.');
-          }
+          const allUsers = await db.getUsers();
+          setUsers(allUsers);
+          console.log('[SignIn] All users loaded.');
         } catch (e) {
           console.error('Failed to fetch users in context', e);
         }

@@ -18,6 +18,7 @@ type StoredDeviceEnvVault = {
 
 const DEVICE_ENV_VAULT_STORAGE_KEY = 'taskflow.device.env.vault.v1';
 const DEVICE_ENV_SESSION_CACHE_KEY = 'taskflow.device.env.cache.v1';
+const DEVICE_ENV_LOCAL_STORAGE_KEY = 'taskflow.device.env.local.v1';
 
 const EMPTY_DEVICE_ENV_VALUES: DeviceEnvValues = {
   SUPABASE_URL: '',
@@ -140,6 +141,22 @@ export function getCachedDeviceEnvValues(): DeviceEnvValues | null {
   }
 }
 
+export function getLocalDeviceEnvValues(): DeviceEnvValues | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(DEVICE_ENV_LOCAL_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    return normalizeEnvValues(JSON.parse(raw) as Partial<DeviceEnvValues>);
+  } catch {
+    return null;
+  }
+}
+
 function setCachedDeviceEnvValues(values: DeviceEnvValues) {
   if (typeof window === 'undefined') {
     return;
@@ -157,6 +174,25 @@ export function clearCachedDeviceEnvValues() {
   }
 
   window.sessionStorage.removeItem(DEVICE_ENV_SESSION_CACHE_KEY);
+}
+
+export function saveLocalDeviceEnvValues(values: Partial<DeviceEnvValues>) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.localStorage.setItem(
+    DEVICE_ENV_LOCAL_STORAGE_KEY,
+    JSON.stringify(normalizeEnvValues(values))
+  );
+}
+
+export function clearLocalDeviceEnvValues() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.localStorage.removeItem(DEVICE_ENV_LOCAL_STORAGE_KEY);
 }
 
 export function getStoredDeviceEnvVault(): StoredDeviceEnvVault | null {
@@ -220,8 +256,10 @@ export function clearDeviceEnvVault() {
 
 export function resolveClientEnvValues(): DeviceEnvValues {
   const cachedValues = getCachedDeviceEnvValues();
+  const localValues = getLocalDeviceEnvValues();
   return normalizeEnvValues({
     ...getPublicEnvFallback(),
+    ...localValues,
     ...cachedValues,
   });
 }

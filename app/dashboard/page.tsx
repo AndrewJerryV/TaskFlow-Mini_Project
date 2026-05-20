@@ -46,20 +46,31 @@ export default function Home() {
       if (!currentUser?.id) return;
       try {
         setLoading(true);
-        const [projRes, taskRes] = await Promise.all([
-          fetch(`/api/projects?userId=${currentUser.id}`),
-          fetch(`/api/tasks?userId=${currentUser.id}`)
-        ]);
-        
-        const projData = await projRes.json();
-        if (Array.isArray(projData)) {
-          setProjects(projData);
-        }
+        const projects = await db.getProjects(currentUser.id);
+        const tasks = await db.getTasks();
 
-        const taskData = await taskRes.json();
-        if (Array.isArray(taskData)) {
-          setAllTasks(taskData);
-        }
+        const filteredTasks = currentUser.role === 'Member'
+          ? tasks.filter(t => !t.isPrivate || t.assigneeId === currentUser.id)
+          : tasks;
+
+        const projectsWithStats = projects.map(project => {
+          const projectTasks = filteredTasks.filter(t => t.projectId === project.id);
+          const doneCount = projectTasks.filter(t => t.status === 'Done').length;
+          const totalCount = projectTasks.length;
+          const progress = totalCount === 0 ? 0 : Math.round((doneCount / totalCount) * 100);
+
+          return {
+            ...project,
+            stats: {
+              totalTasks: totalCount,
+              doneTasks: doneCount,
+              progress,
+            }
+          };
+        });
+
+        setProjects(projectsWithStats);
+        setAllTasks(filteredTasks);
       } catch (err) {
         console.error(err);
       } finally {
