@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
 import { Attachment, Message, MessageReaction } from '@/types';
+import { getSupabaseForRequest } from '@/lib/server-supabase-helper';
 
 function toggleReaction(reactions: MessageReaction[] = [], emoji: string, userId: string): MessageReaction[] {
     const next = [...reactions];
@@ -35,9 +35,10 @@ export async function GET(request: Request) {
         const threadRootId = searchParams.get('threadRootId');
         const conversationType = searchParams.get('conversationType') || 'project';
 
+        const supabase = getSupabaseForRequest(request);
         if (threadRootId) {
-            const threadMessages = await db.getThreadMessages(threadRootId);
-            return NextResponse.json(threadMessages);
+            const { data: threadMessages } = await supabase.from('messages').select('*').eq('thread_root_id', threadRootId).order('created_at', { ascending: true });
+            return NextResponse.json(threadMessages || []);
         }
 
         if (conversationType === 'dm') {
@@ -45,16 +46,18 @@ export async function GET(request: Request) {
                 return NextResponse.json({ error: 'currentUserId, recipientId, and projectId are required for DMs' }, { status: 400 });
             }
 
-            const messages = await db.getDirectMessages(currentUserId, recipientId, projectId);
-            return NextResponse.json(messages);
+            const { data: messages } = await supabase.from('messages').select('*').or(
+                `and(user_id.eq.${currentUserId},recipient_id.eq.${recipientId}),and(user_id.eq.${recipientId},recipient_id.eq.${currentUserId})`
+            ).eq('project_id', projectId).order('created_at', { ascending: true });
+            return NextResponse.json(messages || []);
         }
 
         if (!projectId) {
             return NextResponse.json({ error: 'ProjectId required' }, { status: 400 });
         }
 
-        const messages = await db.getMessages(projectId);
-        return NextResponse.json(messages);
+        const { data: messages } = await supabase.from('messages').select('*').eq('project_id', projectId).order('created_at', { ascending: true });
+        return NextResponse.json(messages || []);
     } catch (error) {
         console.error('Error fetching messages:', error);
         return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed to fetch messages' }, { status: 500 });
@@ -97,34 +100,55 @@ export async function POST(request: Request) {
             reactions: [],
         };
 
-        await db.addMessage(newMessage);
+        const supabase2 = getSupabaseForRequest(request);
+        const { error: insertErr } = await supabase2.from('messages').insert({
+            id: newMessage.id,
+            project_id: newMessage.projectId || null,
+            user_id: newMessage.userId,
+            content: newMessage.content,
+            created_at: newMessage.timestamp,
+            attachment: newMessage.attachment || null,
+            conversation_type: newMessage.conversationType,
+            recipient_id: newMessage.recipientId || null,
+            thread_root_id: newMessage.threadRootId || null,
+            reactions: newMessage.reactions || []
+        });
 
-        const sender = await db.getUser(newMessage.userId);
+        if (insertErr) {
+            console.error('Error inserting message:', insertErr);
+            return NextResponse.json({ error: 'Failed to create message' }, { status: 500 });
+        }
+
+        const { data: sender } = await supabase2.from('users').select('id, name').eq('id', newMessage.userId).maybeSingle();
 
         if (newMessage.conversationType === 'dm' && newMessage.recipientId) {
-            await db.addNotification({
-                userId: newMessage.recipientId,
+            await supabase2.from('notifications').insert({
+                user_id: newMessage.recipientId,
                 type: 'new_message',
                 title: 'New Direct Message',
                 message: `${sender?.name || 'Someone'} sent you a direct message`,
                 link: body.projectId ? `/projects/${body.projectId}?tab=Chat` : '/dashboard',
-                entityId: newMessage.id,
-                projectId: body.projectId || undefined,
+                entity_id: newMessage.id,
+                project_id: body.projectId || null,
+                is_read: false,
+                created_at: new Date().toISOString()
             });
         } else if (newMessage.projectId) {
-            const projectMembers = await db.getProjectMembers(newMessage.projectId);
-            const membersToNotify = projectMembers.filter(memberId => memberId !== newMessage.userId);
-            const project = await db.getProject(newMessage.projectId);
+            const { data: projectMembers } = await supabase2.from('project_members').select('user_id').eq('project_id', newMessage.projectId);
+            const membersToNotify = (projectMembers || []).map((m: any) => m.user_id).filter((memberId: string) => memberId !== newMessage.userId);
+            const { data: project } = await supabase2.from('projects').select('*').eq('id', newMessage.projectId).maybeSingle();
 
             for (const memberId of membersToNotify) {
-                await db.addNotification({
-                    userId: memberId,
+                await supabase2.from('notifications').insert({
+                    user_id: memberId,
                     type: 'new_message',
                     title: newMessage.threadRootId ? 'New Thread Reply' : 'New Chat Message',
                     message: `${sender?.name || 'Someone'} sent a message in ${project?.name || 'a project'}`,
                     link: `/projects/${newMessage.projectId}?tab=Chat`,
-                    entityId: newMessage.id,
-                    projectId: newMessage.projectId,
+                    entity_id: newMessage.id,
+                    project_id: newMessage.projectId,
+                    is_read: false,
+                    created_at: new Date().toISOString()
                 });
             }
         }
@@ -140,6 +164,7 @@ export async function PATCH(request: Request) {
     try {
         const body = await request.json();
         const { messageId, userId, emoji, content, isPinned } = body;
+        const supabase = getSupabaseForRequest(request);
 
         if (!messageId) {
             return NextResponse.json({ error: 'messageId is required' }, { status: 400 });
@@ -147,8 +172,8 @@ export async function PATCH(request: Request) {
 
         // Handle content update
         if (content !== undefined) {
-            const updatedMessage = await db.updateMessageContent(messageId, content);
-            if (!updatedMessage) {
+            const { data: updatedMessage, error } = await supabase.from('messages').update({ content }).eq('id', messageId).select().maybeSingle();
+            if (error || !updatedMessage) {
                 return NextResponse.json({ error: 'Failed to update content' }, { status: 500 });
             }
             return NextResponse.json(updatedMessage);
@@ -156,25 +181,19 @@ export async function PATCH(request: Request) {
 
         // Handle pin toggle
         if (isPinned !== undefined) {
-            await db.toggleMessagePin(messageId, isPinned);
-            const updatedMessage = await db.getMessageById(messageId);
+            const { data: updatedMessage, error } = await supabase.from('messages').update({ is_pinned: isPinned }).eq('id', messageId).select().maybeSingle();
+            if (error) return NextResponse.json({ error: 'Failed to update pin' }, { status: 500 });
             return NextResponse.json(updatedMessage);
         }
 
         // Handle reaction toggle
         if (userId && emoji) {
-            const message = await db.getMessageById(messageId);
-            if (!message) {
-                return NextResponse.json({ error: 'Message not found' }, { status: 404 });
-            }
+            const { data: message } = await supabase.from('messages').select('reactions').eq('id', messageId).maybeSingle();
+            if (!message) return NextResponse.json({ error: 'Message not found' }, { status: 404 });
 
             const updatedReactions = toggleReaction(message.reactions || [], emoji, userId);
-            const updatedMessage = await db.updateMessageReactions(messageId, updatedReactions);
-
-            if (!updatedMessage) {
-                return NextResponse.json({ error: 'Failed to update reactions' }, { status: 500 });
-            }
-
+            const { data: updatedMessage, error } = await supabase.from('messages').update({ reactions: updatedReactions }).eq('id', messageId).select().maybeSingle();
+            if (error || !updatedMessage) return NextResponse.json({ error: 'Failed to update reactions' }, { status: 500 });
             return NextResponse.json(updatedMessage);
         }
 
@@ -194,11 +213,9 @@ export async function DELETE(request: Request) {
             return NextResponse.json({ error: 'messageId is required' }, { status: 400 });
         }
 
-        const success = await db.deleteMessage(messageId);
-        if (!success) {
-            return NextResponse.json({ error: 'Failed to delete message' }, { status: 500 });
-        }
-
+        const supabase = getSupabaseForRequest(request);
+        const { error } = await supabase.from('messages').delete().eq('id', messageId);
+        if (error) return NextResponse.json({ error: 'Failed to delete message' }, { status: 500 });
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Error deleting message:', error);

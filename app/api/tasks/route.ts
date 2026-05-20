@@ -1,7 +1,7 @@
-import { db } from '@/lib/db';
 import { Task } from '@/types';
 import { NextResponse } from 'next/server';
 import { sendTaskAssigned, sendTaskSwapped } from '@/lib/email';
+import { getSupabaseForRequest } from '@/lib/server-supabase-helper';
 
 export async function GET(request: Request) {
     try {
@@ -9,26 +9,40 @@ export async function GET(request: Request) {
         const projectId = searchParams.get('projectId');
         const userId = searchParams.get('userId'); // Needed for visibility checks
 
-        if (!userId) {
-            return NextResponse.json({ error: 'User ID is required' }, { status: 401 });
-        }
+        if (!userId) return NextResponse.json({ error: 'User ID is required' }, { status: 401 });
 
-        const user = await db.getUser(userId);
-        if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        const supabase = getSupabaseForRequest(request);
+        const { data: userData, error: userErr } = await supabase.from('users').select('id, name, role, email').eq('id', userId).maybeSingle();
+        if (userErr || !userData) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
         // Visibility check: If user is not Admin, check project membership
-        if (projectId && user.role !== 'Admin') {
-            const userProjects = await db.getProjects(userId);
-            const isMember = userProjects.some(p => p.id === projectId);
-            if (!isMember) {
-                return NextResponse.json({ error: 'Access denied: You are not a member of this project' }, { status: 403 });
-            }
+        if (projectId && userData.role !== 'Admin') {
+            const { data: membership } = await supabase.from('project_members').select('user_id').eq('project_id', projectId).eq('user_id', userId).maybeSingle();
+            if (!membership) return NextResponse.json({ error: 'Access denied: You are not a member of this project' }, { status: 403 });
         }
 
-        let tasks = await db.getTasks(projectId || undefined);
+        let tasks = [] as Task[];
+        const q = projectId ? await supabase.from('tasks').select('*').eq('project_id', projectId) : await supabase.from('tasks').select('*');
+        tasks = (q.data || []).map((t: any) => ({
+                id: t.id,
+                projectId: t.project_id,
+                title: t.title,
+                description: t.description,
+                status: t.status,
+                priority: t.priority,
+                assigneeId: t.assignee_id,
+                dueDate: t.due_date,
+                startDate: t.start_date,
+                createdAt: t.created_at,
+                updatedAt: t.updated_at,
+                tags: t.tags || [],
+                isPrivate: t.is_private,
+                dependencies: t.dependencies || [],
+            } as Task));
+        
 
         // RBAC: Members cannot see private tasks they aren't assigned to
-        if (user.role === 'Member') {
+        if (userData.role === 'Member') {
             tasks = tasks.filter((t: Task) => !t.isPrivate || t.assigneeId === userId);
         }
 
@@ -47,16 +61,17 @@ export async function POST(request: Request) {
 
         if (!requestUserId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-        const requestUser = await db.getUser(requestUserId);
-        if (!requestUser) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        const supabase = getSupabaseForRequest(request);
+        const { data: requestUserData } = await supabase.from('users').select('id, name, role, email').eq('id', requestUserId).maybeSingle();
+        if (!requestUserData) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
         if (!body.title || !body.projectId) {
             return NextResponse.json({ error: 'Title and Project ID are required' }, { status: 400 });
         }
 
         // RBAC: Members can only create tasks assigned to themselves or unassigned, and they cannot create private tasks
-        if (requestUser.role === 'Member') {
-            if (body.assigneeId && body.assigneeId !== requestUser.id) {
+        if (requestUserData.role === 'Member') {
+            if (body.assigneeId && body.assigneeId !== requestUserData.id) {
                 return NextResponse.json({ error: 'Members can only assign tasks to themselves' }, { status: 403 });
             }
             if (body.isPrivate) {
@@ -81,35 +96,54 @@ export async function POST(request: Request) {
             dependencies: body.dependencies || [],
         };
 
-        await db.addTask(newTask, requestUserId as string);
+        const { error: insertErr } = await supabase.from('tasks').insert({
+            id: newTask.id,
+            project_id: newTask.projectId,
+            title: newTask.title,
+            description: newTask.description,
+            status: newTask.status,
+            priority: newTask.priority,
+            assignee_id: newTask.assigneeId || null,
+            due_date: newTask.dueDate || null,
+            start_date: newTask.startDate || null,
+            created_at: newTask.createdAt,
+            updated_at: newTask.updatedAt,
+            tags: newTask.tags || [],
+            is_private: newTask.isPrivate || false,
+            dependencies: newTask.dependencies || []
+        });
+        if (insertErr) console.error('Error inserting task:', insertErr);
 
         // Auto-add assignee to project if not already a member
         if (body.assigneeId) {
-            const projectMembers = await db.getProjectMembers(body.projectId);
+            const { data: projectMembersData } = await supabase.from('project_members').select('user_id').eq('project_id', body.projectId);
+            const projectMembers = (projectMembersData || []).map((m: any) => m.user_id);
             if (!projectMembers.includes(body.assigneeId)) {
-                await db.addProjectMember(body.projectId, body.assigneeId, 'Member');
+                await supabase.from('project_members').insert({ project_id: body.projectId, user_id: body.assigneeId, role: 'Member' });
             }
 
             // Notify assignee if it's someone else
             if (body.assigneeId !== requestUserId) {
-                const project = await db.getProject(body.projectId);
-                await db.addNotification({
-                    userId: body.assigneeId,
+                const { data: project } = await supabase.from('projects').select('*').eq('id', body.projectId).maybeSingle();
+                await supabase.from('notifications').insert({
+                    user_id: body.assigneeId,
                     type: 'task_assigned',
                     title: 'New Task Assigned',
                     message: `You have been assigned to "${newTask.title}" in ${project?.name || 'a project'}`,
                     link: `/projects/${body.projectId}?task=${newTask.id}`,
-                    entityId: newTask.id,
-                    projectId: body.projectId,
+                    entity_id: newTask.id,
+                    project_id: body.projectId,
+                    is_read: false,
+                    created_at: new Date().toISOString()
                 });
                 // Send email notification (fire-and-forget)
-                const assigneeUser = await db.getUser(body.assigneeId);
+                const { data: assigneeUser } = await supabase.from('users').select('*').eq('id', body.assigneeId).maybeSingle();
                 if (assigneeUser?.email) {
                     sendTaskAssigned(
                         assigneeUser.email,
                         newTask.title,
                         project?.name || 'a project',
-                        requestUser.name,
+                        requestUserData.name,
                         `${process.env.NEXT_PUBLIC_APP_URL || ''}/projects/${body.projectId}?task=${newTask.id}`
                     ).catch(e => console.error('Task assigned email error:', e));
                 }
@@ -135,11 +169,20 @@ export async function PATCH(request: Request) {
             return NextResponse.json({ error: 'User ID is required' }, { status: 401 });
         }
 
-        const requestUser = await db.getUser(userId);
+        const supabase2 = getSupabaseForRequest(request);
+        const { data: requestUser } = await supabase2.from('users').select('id, role, name').eq('id', userId).maybeSingle();
         if (!requestUser) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-        const existingTask = await db.getTaskById(id);
-        if (!existingTask) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+        const { data: existingTaskRaw } = await supabase2.from('tasks').select('*').eq('id', id).maybeSingle();
+        if (!existingTaskRaw) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+        const existingTask = {
+            id: existingTaskRaw.id,
+            projectId: existingTaskRaw.project_id,
+            assigneeId: existingTaskRaw.assignee_id,
+            dependencies: existingTaskRaw.dependencies || [],
+            status: existingTaskRaw.status,
+            title: existingTaskRaw.title
+        } as any;
 
         if (requestUser.role === 'Member') {
             if (existingTask.assigneeId !== requestUser.id) {
@@ -170,8 +213,8 @@ export async function PATCH(request: Request) {
             // Dependency checks when moving to Done or Review
             if (updates.status === 'Review' || updates.status === 'Done') {
                 if (existingTask.dependencies && existingTask.dependencies.length > 0) {
-                    const tasks = await db.getTasks(existingTask.projectId); // Simplified, assume in same project
-                    const blockingTasks = tasks.filter(t => existingTask.dependencies!.includes(t.id) && t.status !== 'Done');
+                    const { data: tasks } = await supabase2.from('tasks').select('*').eq('project_id', existingTask.projectId);
+                    const blockingTasks = (tasks || []).filter(t => existingTask.dependencies!.includes(t.id) && t.status !== 'Done');
 
                     if (blockingTasks.length > 0) {
                         return NextResponse.json({ error: 'Cannot transition task because dependencies are not Done' }, { status: 400 });
@@ -180,7 +223,7 @@ export async function PATCH(request: Request) {
             }
         }
 
-        const updatedTask = await db.updateTask(id, { ...updates, updatedAt: new Date().toISOString() }, userId);
+        const { data: updatedTask } = await supabase2.from('tasks').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).select().maybeSingle();
 
         if (!updatedTask) {
             return NextResponse.json({ error: 'Failed to update task' }, { status: 500 });
@@ -188,26 +231,29 @@ export async function PATCH(request: Request) {
 
         // Auto-add assignee to project if updated to a non-member
         if (updates.assigneeId && updates.assigneeId !== existingTask.assigneeId) {
-            const projectMembers = await db.getProjectMembers(existingTask.projectId);
+            const { data: pmData } = await supabase2.from('project_members').select('user_id').eq('project_id', existingTask.projectId);
+            const projectMembers = (pmData || []).map((m: any) => m.user_id);
             if (!projectMembers.includes(updates.assigneeId)) {
-                await db.addProjectMember(existingTask.projectId, updates.assigneeId, 'Member');
+                await supabase2.from('project_members').insert({ project_id: existingTask.projectId, user_id: updates.assigneeId, role: 'Member' });
             }
 
             // Notify new assignee if it's someone else
             if (updates.assigneeId !== userId) {
-                const project = await db.getProject(existingTask.projectId);
+                const { data: project } = await supabase2.from('projects').select('*').eq('id', existingTask.projectId).maybeSingle();
                 const taskLink = `${process.env.NEXT_PUBLIC_APP_URL || ''}/projects/${existingTask.projectId}?task=${updatedTask.id}`;
-                await db.addNotification({
-                    userId: updates.assigneeId,
+                await supabase2.from('notifications').insert({
+                    user_id: updates.assigneeId,
                     type: 'task_assigned',
                     title: 'New Task Assigned',
                     message: `You have been assigned to "${updatedTask.title}" in ${project?.name || 'a project'}`,
                     link: `/projects/${existingTask.projectId}?task=${updatedTask.id}`,
-                    entityId: updatedTask.id,
-                    projectId: existingTask.projectId,
+                    entity_id: updatedTask.id,
+                    project_id: existingTask.projectId,
+                    is_read: false,
+                    created_at: new Date().toISOString()
                 });
                 // Send email to new assignee
-                const newAssigneeUser = await db.getUser(updates.assigneeId);
+                const { data: newAssigneeUser } = await supabase2.from('users').select('*').eq('id', updates.assigneeId).maybeSingle();
                 if (newAssigneeUser?.email) {
                     sendTaskAssigned(
                         newAssigneeUser.email,
@@ -219,8 +265,8 @@ export async function PATCH(request: Request) {
                 }
                 // If this is a swap, also notify the previous assignee
                 if (updates.isSwap && existingTask.assigneeId) {
-                    const prevAssigneeUser = await db.getUser(existingTask.assigneeId);
-                    if (prevAssigneeUser?.email) {
+                        const { data: prevAssigneeUser } = await supabase2.from('users').select('*').eq('id', existingTask.assigneeId).maybeSingle();
+                        if (prevAssigneeUser?.email) {
                         sendTaskSwapped(
                             prevAssigneeUser.email,
                             updatedTask.title,
@@ -236,12 +282,13 @@ export async function PATCH(request: Request) {
 
         // Notify managers/admins & assignee if status changes
         if (updates.status && updates.status !== existingTask.status) {
-            const allUsers = await db.getUsers();
+            const { data: allUsers } = await supabase2.from('users').select('*');
             const membersToNotify = new Set<string>();
 
             // Find all admins/managers in this project or broadly
-            const projectMembers = await db.getProjectMembers(existingTask.projectId);
-            allUsers.forEach(u => {
+            const { data: pmData } = await supabase2.from('project_members').select('user_id').eq('project_id', existingTask.projectId);
+            const projectMembers = (pmData || []).map((m: any) => m.user_id);
+            (allUsers || []).forEach(u => {
                 if ((u.role === 'Admin' || u.role === 'Manager') && projectMembers.includes(u.id)) {
                     membersToNotify.add(u.id);
                 }
@@ -255,17 +302,19 @@ export async function PATCH(request: Request) {
             // Don't notify the user who made the status change
             membersToNotify.delete(userId);
 
-            const project = await db.getProject(existingTask.projectId);
+            const { data: project } = await supabase2.from('projects').select('*').eq('id', existingTask.projectId).maybeSingle();
 
             for (const notifyUserId of membersToNotify) {
-                await db.addNotification({
-                    userId: notifyUserId,
+                await supabase2.from('notifications').insert({
+                    user_id: notifyUserId,
                     type: 'task_status_changed',
                     title: 'Task Status Updated',
                     message: `"${updatedTask.title}" status changed to ${updates.status} in ${project?.name || 'a project'}`,
                     link: `/projects/${existingTask.projectId}?task=${updatedTask.id}`,
-                    entityId: updatedTask.id,
-                    projectId: existingTask.projectId,
+                    entity_id: updatedTask.id,
+                    project_id: existingTask.projectId,
+                    is_read: false,
+                    created_at: new Date().toISOString()
                 });
             }
         }
@@ -287,16 +336,12 @@ export async function DELETE(request: Request) {
             return NextResponse.json({ error: 'Task ID and User ID are required' }, { status: 400 });
         }
 
-        const requestUser = await db.getUser(userId);
-        if (!requestUser || requestUser.role === 'Member') {
-            return NextResponse.json({ error: 'Only Admins and Managers can delete tasks' }, { status: 403 });
-        }
+        const supabase3 = getSupabaseForRequest(request);
+        const { data: requestUser3 } = await supabase3.from('users').select('id, role').eq('id', userId).maybeSingle();
+        if (!requestUser3 || requestUser3.role === 'Member') return NextResponse.json({ error: 'Only Admins and Managers can delete tasks' }, { status: 403 });
 
-        const success = await db.deleteTask(id, userId);
-
-        if (!success) {
-            return NextResponse.json({ error: 'Task not found' }, { status: 404 });
-        }
+        const { error: delErr } = await supabase3.from('tasks').delete().eq('id', id);
+        if (delErr) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
 
         return NextResponse.json({ success: true });
     } catch (error) {

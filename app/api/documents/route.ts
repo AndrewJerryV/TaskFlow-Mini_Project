@@ -1,6 +1,5 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { getSupabaseForRequest } from '@/lib/server-supabase-helper';
 
 export async function GET(request: NextRequest) {
@@ -57,7 +56,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Missing metadata' }, { status: 400 });
         }
 
-        if (type === 'file') {
+        const supabase = getSupabaseForRequest(request);        if (type === 'file') {
             const file = formData.get('file') as File;
             if (!file) {
                 return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
@@ -77,19 +76,42 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json({ error: `Upload failed: ${uploadError.message}` }, { status: 500 });
             }
 
-            // Create DB Entry
-            const newDoc = await db.createDocument({
-                id: crypto.randomUUID(),
-                projectId,
-                title: file.name,
-                type: 'file',
-                filePath: uploadData.path,
-                fileType: file.type,
-                size: file.size,
-                createdBy: userId,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-            });
+            // Create DB Entry in `documents` table
+            const { data: inserted, error: insertErr } = await supabase
+                .from('documents')
+                .insert({
+                    id: crypto.randomUUID(),
+                    project_id: projectId,
+                    title: file.name,
+                    type: 'file',
+                    file_path: uploadData.path,
+                    file_type: file.type,
+                    size: file.size,
+                    created_by: userId,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                })
+                .select()
+                .maybeSingle();
+
+            if (insertErr) {
+                console.error('Error inserting document record:', insertErr);
+                return NextResponse.json({ error: 'Failed to create document record' }, { status: 500 });
+            }
+
+            const newDoc = inserted && {
+                id: inserted.id,
+                projectId: inserted.project_id,
+                title: inserted.title,
+                type: inserted.type,
+                content: inserted.content,
+                filePath: inserted.file_path,
+                fileType: inserted.file_type,
+                size: inserted.size,
+                createdBy: inserted.created_by,
+                createdAt: inserted.created_at,
+                updatedAt: inserted.updated_at,
+            };
 
             return NextResponse.json(newDoc);
 
@@ -97,16 +119,40 @@ export async function POST(request: NextRequest) {
             const title = formData.get('title') as string;
             const content = formData.get('content') as string;
 
-            const newDoc = await db.createDocument({
-                id: crypto.randomUUID(),
-                projectId,
-                title,
-                type: 'page',
-                content,
-                createdBy: userId,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-            });
+            const { data: inserted, error: insertErr } = await supabase
+                .from('documents')
+                .insert({
+                    id: crypto.randomUUID(),
+                    project_id: projectId,
+                    title,
+                    type: 'page',
+                    content,
+                    created_by: userId,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                })
+                .select()
+                .maybeSingle();
+
+            if (insertErr) {
+                console.error('Error inserting page document:', insertErr);
+                return NextResponse.json({ error: 'Failed to create document' }, { status: 500 });
+            }
+
+            const newDoc = inserted && {
+                id: inserted.id,
+                projectId: inserted.project_id,
+                title: inserted.title,
+                type: inserted.type,
+                content: inserted.content,
+                filePath: inserted.file_path,
+                fileType: inserted.file_type,
+                size: inserted.size,
+                createdBy: inserted.created_by,
+                createdAt: inserted.created_at,
+                updatedAt: inserted.updated_at,
+            };
+
             return NextResponse.json(newDoc);
         }
 

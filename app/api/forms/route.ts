@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
 import { Form } from '@/types';
+import { getSupabaseForRequest } from '@/lib/server-supabase-helper';
 
 const getErrorMessage = (error: unknown) =>
     error instanceof Error ? error.message : 'Unknown error';
@@ -14,8 +14,9 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'projectId is required' }, { status: 400 });
     }
 
-    const forms = await db.getForms(projectId);
-    return NextResponse.json(forms);
+    const supabase = getSupabaseForRequest(request);
+    const { data: forms } = await supabase.from('forms').select('*').eq('project_id', projectId).order('created_at', { ascending: false });
+    return NextResponse.json(forms || []);
 }
 
 // POST /api/forms - Create a new form
@@ -35,23 +36,41 @@ export async function POST(request: NextRequest) {
             updatedAt: body.updatedAt || new Date().toISOString(),
         };
 
-        await db.addForm(form);
+        const supabase = getSupabaseForRequest(request);
+        const { error: insertErr } = await supabase.from('forms').insert({
+            id: form.id,
+            project_id: form.projectId,
+            title: form.title,
+            description: form.description,
+            fields: form.fields || [],
+            status: form.status,
+            created_by: form.createdBy,
+            created_at: form.createdAt,
+            updated_at: form.updatedAt
+        });
+
+        if (insertErr) {
+            console.error('Error inserting form:', insertErr);
+            return NextResponse.json({ error: 'Failed to create form' }, { status: 500 });
+        }
 
         if (form.status === 'active') {
-            const projectMembers = await db.getProjectMembers(form.projectId);
-            const creator = await db.getUser(form.createdBy);
-            const project = await db.getProject(form.projectId);
-            const membersToNotify = projectMembers.filter(memberId => memberId !== form.createdBy);
+            const { data: projectMembers } = await supabase.from('project_members').select('user_id').eq('project_id', form.projectId);
+            const { data: creator } = await supabase.from('users').select('id, name').eq('id', form.createdBy).maybeSingle();
+            const { data: project } = await supabase.from('projects').select('*').eq('id', form.projectId).maybeSingle();
+            const membersToNotify = (projectMembers || []).map((m: any) => m.user_id).filter((id: string) => id !== form.createdBy);
 
             for (const memberId of membersToNotify) {
-                await db.addNotification({
-                    userId: memberId,
+                await supabase.from('notifications').insert({
+                    user_id: memberId,
                     type: 'new_form',
                     title: 'New Form Activated',
                     message: `${creator?.name || 'Someone'} published form "${form.title}" in ${project?.name || 'a project'}`,
                     link: `/projects/${form.projectId}?tab=forms`,
-                    entityId: form.id,
-                    projectId: form.projectId,
+                    entity_id: form.id,
+                    project_id: form.projectId,
+                    is_read: false,
+                    created_at: new Date().toISOString()
                 });
             }
         }
@@ -73,11 +92,9 @@ export async function PATCH(request: NextRequest) {
             return NextResponse.json({ error: 'Form id is required' }, { status: 400 });
         }
 
-        const updatedForm = await db.updateForm(id, updates);
-        if (!updatedForm) {
-            return NextResponse.json({ error: 'Form not found' }, { status: 404 });
-        }
-
+        const supabase2 = getSupabaseForRequest(request);
+        const { data: updatedForm, error: updateErr } = await supabase2.from('forms').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).select().maybeSingle();
+        if (updateErr || !updatedForm) return NextResponse.json({ error: 'Form not found' }, { status: 404 });
         return NextResponse.json(updatedForm);
     } catch (error) {
         console.error('Error updating form:', error);
@@ -94,10 +111,8 @@ export async function DELETE(request: NextRequest) {
         return NextResponse.json({ error: 'Form id is required' }, { status: 400 });
     }
 
-    const success = await db.deleteForm(id);
-    if (!success) {
-        return NextResponse.json({ error: 'Failed to delete form' }, { status: 500 });
-    }
-
+    const supabase3 = getSupabaseForRequest(request);
+    const { error: deleteErr } = await supabase3.from('forms').delete().eq('id', id);
+    if (deleteErr) return NextResponse.json({ error: 'Failed to delete form' }, { status: 500 });
     return NextResponse.json({ success: true });
 }
