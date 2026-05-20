@@ -54,6 +54,15 @@ export async function POST(request: Request) {
             });
 
             if (!result.verified) {
+                // Log the verification result for debugging on deployed environments.
+                // Do NOT log secrets. This helps identify mismatched payloads, expiry,
+                // or algorithm/cost mismatches when running on Vercel.
+                console.error('ALTCHA verification failed - result:', {
+                    verified: result.verified,
+                    reason: (result as any).reason || null,
+                    challenge: !!parsedPayload.challenge,
+                });
+
                 return NextResponse.json(
                     { success: false, error: 'ALTCHA verification failed.' },
                     { status: 400 }
