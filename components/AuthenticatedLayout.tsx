@@ -8,6 +8,7 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { LogOut, Search, Folder, CheckSquare, X, Users } from 'lucide-react';
 import { getRoleColor } from '@/lib/utils';
 import { Project, Task, User } from '@/types';
+import { db } from '@/lib/db';
 import { TimerRunningIndicator } from '@/components/TimerRunningIndicator';
 import { TimerProvider } from '@/contexts/TimerContext';
 import { hasClientSupabaseConfig } from '@/lib/browser-supabase-config';
@@ -28,7 +29,7 @@ const PUBLIC_PATHS = ['/login', '/', '/setup', '/landing'];
 const ALWAYS_PUBLIC_PATHS = ['/', '/setup', '/landing'];
 
 export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
-    const { currentUser, isLoading, logout, authError, setAuthError, isLoggingOut } = useAuth();
+    const { currentUser, users, isLoading, logout, authError, setAuthError, isLoggingOut } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
     const requiresSupabaseConfig = pathname !== '/' && pathname !== '/setup' && pathname !== '/landing';
@@ -78,66 +79,64 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
                 const query = searchQuery.toLowerCase();
                 const results: SearchResult[] = [];
 
-                // Fetch projects
-                const projectsRes = await fetch('/api/projects');
-                if (projectsRes.ok) {
-                    const projects: (Project & { stats?: any })[] = await projectsRes.json();
-                    projects
-                        .filter(p => p.name.toLowerCase().includes(query) || p.description?.toLowerCase().includes(query))
-                        .slice(0, 5)
-                        .forEach(p => {
-                            results.push({
-                                type: 'project',
-                                id: p.id,
-                                title: p.name,
-                                subtitle: p.description
-                            });
-                        });
-                }
+                const [projectData, taskData, userData] = await Promise.all([
+                    db.getProjects(currentUser?.id),
+                    db.getTasks(),
+                    users.length ? Promise.resolve(users) : db.getUsers(),
+                ]);
 
-                // Fetch teams/users
-                const teamRes = await fetch(`/api/team?userId=${currentUser?.id}`);
-                if (teamRes.ok) {
-                    const users: any[] = await teamRes.json();
-                    users
-                        .filter(u =>
-                            u.name.toLowerCase().includes(query) ||
-                            u.email.toLowerCase().includes(query) ||
-                            u.role.toLowerCase().includes(query) ||
-                            (u.skills && u.skills.some((s: string) => s.toLowerCase().includes(query)))
-                        )
-                        .slice(0, 5)
-                        .forEach(u => {
-                            results.push({
-                                type: 'user',
-                                id: u.id,
-                                title: u.name,
-                                subtitle: `${u.role} • ${u.skills?.slice(0, 2).join(', ')}${u.skills?.length > 2 ? '...' : ''}`
-                            });
+                const projects = Array.isArray(projectData) ? projectData : [];
+                projects
+                    .filter(p => p.name.toLowerCase().includes(query) || p.description?.toLowerCase().includes(query))
+                    .slice(0, 5)
+                    .forEach(p => {
+                        results.push({
+                            type: 'project',
+                            id: p.id,
+                            title: p.name,
+                            subtitle: p.description
                         });
-                }
+                    });
 
-                // Fetch tasks
-                const tasksRes = await fetch('/api/tasks');
-                if (tasksRes.ok) {
-                    const tasks: Task[] = await tasksRes.json();
-                    tasks
-                        .filter(t =>
-                            t.title.toLowerCase().includes(query) ||
-                            t.description?.toLowerCase().includes(query) ||
-                            (t.tags && t.tags.some(tag => tag.toLowerCase().includes(query)))
-                        )
-                        .slice(0, 5)
-                        .forEach(t => {
-                            results.push({
-                                type: 'task',
-                                id: t.id,
-                                title: t.title,
-                                subtitle: `${t.status} • ${t.priority}${t.tags?.length ? ` • ${t.tags.join(', ')}` : ''}`,
-                                projectId: t.projectId
-                            });
+                const resolvedUsers = Array.isArray(userData) ? userData : [];
+                resolvedUsers
+                    .filter(u =>
+                        u.name.toLowerCase().includes(query) ||
+                        u.email.toLowerCase().includes(query) ||
+                        u.role.toLowerCase().includes(query) ||
+                        (u.skills && u.skills.some((s: string) => s.toLowerCase().includes(query)))
+                    )
+                    .slice(0, 5)
+                    .forEach(u => {
+                        results.push({
+                            type: 'user',
+                            id: u.id,
+                            title: u.name,
+                            subtitle: `${u.role} • ${u.skills?.slice(0, 2).join(', ')}${u.skills?.length > 2 ? '...' : ''}`
                         });
-                }
+                    });
+
+                const allTasks = Array.isArray(taskData) ? taskData : [];
+                const filteredTasks = currentUser?.role === 'Member'
+                    ? allTasks.filter(t => !t.isPrivate || t.assigneeId === currentUser.id)
+                    : allTasks;
+
+                filteredTasks
+                    .filter(t =>
+                        t.title.toLowerCase().includes(query) ||
+                        t.description?.toLowerCase().includes(query) ||
+                        (t.tags && t.tags.some(tag => tag.toLowerCase().includes(query)))
+                    )
+                    .slice(0, 5)
+                    .forEach(t => {
+                        results.push({
+                            type: 'task',
+                            id: t.id,
+                            title: t.title,
+                            subtitle: `${t.status} • ${t.priority}${t.tags?.length ? ` • ${t.tags.join(', ')}` : ''}`,
+                            projectId: t.projectId
+                        });
+                    });
 
                 setSearchResults(results);
             } catch (error) {
@@ -149,7 +148,7 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
 
         const debounce = setTimeout(searchData, 300);
         return () => clearTimeout(debounce);
-    }, [searchQuery]);
+    }, [currentUser?.id, currentUser?.role, searchQuery, users]);
 
     const handleResultClick = (result: SearchResult) => {
         if (result.type === 'project') {

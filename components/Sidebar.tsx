@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 import { LayoutGrid, Plus, Settings, Users } from 'lucide-react';
 import { CreateProjectDialog } from '@/components/forms/CreateProjectDialog';
 import { useAuth } from '@/contexts/AuthContext';
+import { db } from '@/lib/db';
 
 export function Sidebar() {
     const { currentUser } = useAuth();
@@ -16,14 +17,38 @@ export function Sidebar() {
 
     useEffect(() => {
         if (!currentUser?.id) return;
-        fetch(`/api/projects?userId=${currentUser.id}`)
-            .then(res => res.json())
-            .then(setProjects);
+        let isActive = true;
+        const loadProjects = async () => {
+            try {
+                const data = await db.getProjects(currentUser.id);
+                if (isActive) {
+                    setProjects(Array.isArray(data) ? data : []);
+                }
+            } catch (err) {
+                console.error('Failed to load projects:', err);
+                if (isActive) {
+                    setProjects([]);
+                }
+            }
+        };
+        loadProjects();
+        return () => {
+            isActive = false;
+        };
     }, [currentUser?.id]);
 
     return (
         <aside className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full">
-            <CreateProjectDialog isOpen={isCreateOpen} onClose={() => { setIsCreateOpen(false); fetch('/api/projects').then(res => res.json()).then(setProjects); }} />
+            <CreateProjectDialog
+                isOpen={isCreateOpen}
+                onClose={() => {
+                    setIsCreateOpen(false);
+                    if (!currentUser?.id) return;
+                    db.getProjects(currentUser.id)
+                        .then(data => setProjects(Array.isArray(data) ? data : []))
+                        .catch(err => console.error('Failed to refresh projects:', err));
+                }}
+            />
 
             <div className="p-4 flex-1 overflow-y-auto">
                 <div className="mb-6">
