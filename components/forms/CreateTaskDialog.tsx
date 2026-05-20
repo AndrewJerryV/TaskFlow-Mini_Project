@@ -8,6 +8,7 @@ import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { Sparkles } from 'lucide-react';
 import { CustomSelect, SelectOption } from '@/components/ui/CustomSelect';
 import { analyzeTaskDraftInBrowser } from '@/lib/ml-browser';
+import { apiFetch } from '@/lib/api/fetchWithSupabase';
 
 interface CreateTaskDialogProps {
     isOpen: boolean;
@@ -54,10 +55,10 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
         if (isOpen) {
             setLoadingUsers(true);
             Promise.all([
-                fetch('/api/users').then(res => res.json()),
-                fetch(`/api/projects/${currentProjectId}/members`).then(res => res.json()),
-                fetch('/api/autocomplete').then(res => res.json()),
-                fetch(`/api/tasks?projectId=${currentProjectId}`).then(res => res.json())
+                apiFetch('/api/users').then(res => res.json()),
+                apiFetch(`/api/projects/${currentProjectId}/members`).then(res => res.json()),
+                apiFetch('/api/autocomplete').then(res => res.json()),
+                apiFetch(`/api/tasks?projectId=${currentProjectId}`).then(res => res.json())
             ])
                 .then(([allUsers, memberIds, autoData, tasksData]) => {
                     setUsers(allUsers);
@@ -112,7 +113,7 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
         setAiUnavailable(false);
 
         try {
-            const res = await fetch('/api/ai/assign', {
+            const res = await apiFetch('/api/ai/assign', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ title, description, priority, projectId: currentProjectId })

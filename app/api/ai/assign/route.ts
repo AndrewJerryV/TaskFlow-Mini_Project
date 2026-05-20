@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { User, Task } from '@/types';
+import { getSupabaseForRequest } from '@/lib/server-supabase-helper';
 import { analyzeAndAssignTask, type CandidateInput } from '@/lib/ml-transformers';
 
 // Force Node.js runtime (required for @xenova/transformers ONNX)
@@ -19,8 +20,40 @@ export async function POST(request: Request) {
         const body: AssignRequest = await request.json();
         const { title, description } = body;
 
-        const users = await db.getUsers();
-        const allTasks = await db.getTasks();
+        const supabase = getSupabaseForRequest(request);
+        const { data: usersData } = await supabase.from('users').select('id, name, role, skills, skill_experience, wellness_score');
+        const { data: tasksData } = await supabase.from('tasks').select('*');
+
+        const users: User[] = (usersData || []).map((u: any) => ({
+            id: u.id,
+            name: u.name,
+            email: u.email || '',
+            avatarUrl: u.avatar_url,
+            role: u.role,
+            createdAt: u.created_at,
+            dob: u.dob,
+            skillExperience: typeof u.skill_experience === 'string' ? JSON.parse(u.skill_experience) : (u.skill_experience || {}),
+            skills: u.skills || [],
+            wellnessScore: u.wellness_score ?? 85,
+            maxWorkload: u.max_workload ?? 5,
+            burnoutRisk: 'Low'
+        } as User));
+
+        const allTasks: Task[] = (tasksData || []).map((t: any) => ({
+            id: t.id,
+            projectId: t.project_id,
+            title: t.title,
+            description: t.description,
+            status: t.status,
+            priority: t.priority,
+            assigneeId: t.assignee_id,
+            dueDate: t.due_date,
+            startDate: t.start_date,
+            createdAt: t.created_at,
+            updatedAt: t.updated_at,
+            tags: t.tags || [],
+            dependencies: t.dependencies || [],
+        } as Task));
 
         const taskText = `${title} ${description || ''}`.trim();
 

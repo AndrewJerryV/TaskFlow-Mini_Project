@@ -6,6 +6,7 @@ import { AlertCircle, Brain, Coffee, Heart, Sparkles, TrendingDown, Check, Loade
 import { Modal } from './ui/Modal';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/db';
+import { apiFetch } from '@/lib/api/fetchWithSupabase';
 
 interface WellnessAlertsProps {
   tasks: Task[];
@@ -35,7 +36,7 @@ export function WellnessAlerts({ tasks, users }: WellnessAlertsProps) {
   const handleSuggestBreak = async (user: User) => {
     setIsSuggesting(user.id);
     try {
-      await fetch('/api/notifications', {
+      await apiFetch('/api/notifications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -74,7 +75,7 @@ export function WellnessAlerts({ tasks, users }: WellnessAlertsProps) {
       const allOptions: SwapOption[] = [];
 
       for (const burnoutTask of burnoutTasks) {
-        const res = await fetch('/api/ai/assign', {
+        const res = await apiFetch('/api/ai/assign', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -170,7 +171,7 @@ export function WellnessAlerts({ tasks, users }: WellnessAlertsProps) {
       }
 
       // 3. Notifications
-      await fetch('/api/notifications', {
+      await apiFetch('/api/notifications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -183,7 +184,7 @@ export function WellnessAlerts({ tasks, users }: WellnessAlertsProps) {
         })
       });
 
-      await fetch('/api/notifications', {
+      await apiFetch('/api/notifications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -213,7 +214,7 @@ export function WellnessAlerts({ tasks, users }: WellnessAlertsProps) {
     try {
       await patchTaskAssignee(task.id, null);
 
-      await fetch('/api/notifications', {
+      await apiFetch('/api/notifications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

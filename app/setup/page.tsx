@@ -30,6 +30,7 @@ import {
   unlockDeviceEnvVault,
   type DeviceEnvValues,
 } from '@/lib/device-env-vault';
+import { apiFetch } from '@/lib/api/fetchWithSupabase';
 import { savePendingFirstAdminSetup, type FirstAdminProvider } from '@/lib/first-admin-setup';
 import { resetSupabaseClient } from '@/lib/supabase';
 
@@ -259,7 +260,7 @@ export default function SetupPage() {
       }
 
       setSchemaStepIndex(2);
-      const schemaResponse = await fetch('/api/setup/schema', {
+      const schemaResponse = await apiFetch('/api/setup/schema', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -336,7 +337,7 @@ export default function SetupPage() {
       savePendingAdmin();
 
       if (adminProvider === 'email') {
-        const createAdminResponse = await fetch('/api/setup/create-admin', {
+        const createAdminResponse = await apiFetch('/api/setup/create-admin', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

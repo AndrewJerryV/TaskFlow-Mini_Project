@@ -5,6 +5,7 @@ import { X, Plus, Trash2 } from 'lucide-react';
 import { User } from '@/types';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { db } from '@/lib/db';
+import { apiFetch } from '@/lib/api/fetchWithSupabase';
 
 interface EditSkillsDialogProps {
     isOpen: boolean;
@@ -21,7 +22,7 @@ export function EditSkillsDialog({ isOpen, onClose, onSuccess, user }: EditSkill
 
     useEffect(() => {
         if (isOpen) {
-            fetch('/api/autocomplete')
+                apiFetch('/api/autocomplete')
                 .then(res => res.json())
                 .then(data => setSuggestions(data.skills || []))
                 .catch(console.error);

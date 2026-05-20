@@ -15,6 +15,7 @@ import {
 } from '@/lib/device-env-vault';
 import { Modal } from '@/components/ui/Modal';
 import 'altcha';
+import { apiFetch } from '@/lib/api/fetchWithSupabase';
 
 export default function LoginClient() {
   const { currentUser, isLoading, authError, setAuthError } = useAuth();
@@ -246,7 +247,7 @@ export default function LoginClient() {
       return false;
     }
 
-    const verifyRes = await fetch('/api/altcha/verify', {
+    const verifyRes = await apiFetch('/api/altcha/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ payload })
@@ -287,7 +288,7 @@ export default function LoginClient() {
       return false;
     }
 
-    const confirmResponse = await fetch('/api/setup/confirm-admin', {
+    const confirmResponse = await apiFetch('/api/setup/confirm-admin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

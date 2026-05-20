@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 import { useEffect } from 'react';
+import { apiFetch } from '@/lib/api/fetchWithSupabase';
 
 interface AddUserDialogProps {
     isOpen: boolean;
@@ -26,7 +27,7 @@ export function AddUserDialog({ isOpen, onClose, onSuccess }: AddUserDialogProps
 
     useEffect(() => {
         if (isOpen) {
-            fetch('/api/autocomplete')
+            apiFetch('/api/autocomplete')
                 .then(res => res.json())
                 .then(data => setSuggestions(data.skills || []))
                 .catch(console.error);
@@ -49,7 +50,7 @@ export function AddUserDialog({ isOpen, onClose, onSuccess }: AddUserDialogProps
                 }
             });
 
-            const res = await fetch('/api/users', {
+            const res = await apiFetch('/api/users', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

@@ -6,6 +6,7 @@ import { Form, FormField, FormFieldType, FormResponse, User } from '@/types';
 import { Plus, FileText, Trash2, Edit3, BarChart3, ClipboardList, ChevronLeft, Send, CheckCircle2, Copy, X, Calendar, Users, AlertCircle, Inbox } from 'lucide-react';
 import { CustomSelect } from './ui/CustomSelect';
 import { db } from '@/lib/db';
+import { apiFetch } from '@/lib/api/fetchWithSupabase';
 
 interface FormsViewProps { projectId: string; }
 
@@ -57,7 +58,7 @@ export default function FormsView({ projectId }: FormsViewProps) {
     const fetchForms = useCallback(async () => {
         try {
             setLoading(true);
-            const res = await fetch(`/api/forms?projectId=${projectId}`);
+            const res = await apiFetch(`/api/forms?projectId=${projectId}`);
             if (res.ok) {
                 const fetchedForms: Form[] = await res.json();
                 setForms(fetchedForms);
@@ -67,7 +68,7 @@ export default function FormsView({ projectId }: FormsViewProps) {
                     const counts: Record<string, number> = {};
                     await Promise.all(fetchedForms.map(async f => {
                         try {
-                            const r = await fetch(`/api/forms/responses?formId=${f.id}`);
+                            const r = await apiFetch(`/api/forms/responses?formId=${f.id}`);
                             if (r.ok) {
                                 const allResp: FormResponse[] = await r.json();
                                 // Count unique respondents
@@ -83,7 +84,7 @@ export default function FormsView({ projectId }: FormsViewProps) {
             }
 
             if (currentUser?.id) {
-                const userRes = await fetch(`/api/forms/responses?projectId=${projectId}&respondentId=${currentUser.id}`);
+                const userRes = await apiFetch(`/api/forms/responses?projectId=${projectId}&respondentId=${currentUser.id}`);
                 if (userRes.ok) {
                     const responsesData: FormResponse[] = await userRes.json();
                     const responseMap = responsesData.reduce((acc, r) => ({ ...acc, [r.formId]: r }), {});
@@ -264,8 +265,8 @@ export default function FormsView({ projectId }: FormsViewProps) {
         setViewMode('results');
         try {
             const [res, usersRes] = await Promise.all([
-                fetch(`/api/forms/responses?formId=${form.id}`),
-                fetch('/api/users')
+                apiFetch(`/api/forms/responses?formId=${form.id}`),
+                apiFetch('/api/users')
             ]);
 
             if (res.ok) {

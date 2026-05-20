@@ -5,6 +5,7 @@ import { FileText, BarChart3, Plus, X, Edit3, Calendar, User, ArrowLeft, Save, T
 import { useAuth } from '@/contexts/AuthContext';
 import { resolveClientSupabaseConfig } from '@/lib/browser-supabase-config';
 import { db } from '@/lib/db';
+import { apiFetch } from '@/lib/api/fetchWithSupabase';
 
 interface Page {
     id: string;
@@ -149,7 +150,7 @@ export default function PagesView({ projectId }: PagesViewProps) {
     const fetchDocuments = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/documents?projectId=${projectId}`);
+            const res = await apiFetch(`/api/documents?projectId=${projectId}`);
             if (res.ok) {
                 const data = await res.json();
                 setPages(data);
@@ -300,7 +301,7 @@ export default function PagesView({ projectId }: PagesViewProps) {
         formData.append('file', file);
 
         try {
-            const res = await fetch('/api/documents', {
+            const res = await apiFetch('/api/documents', {
                 method: 'POST',
                 body: formData
             });
