@@ -351,15 +351,30 @@ export default function LoginPage() {
     if (!altchaValid) return;
     const supabase = getSupabase();
     console.debug('[Auth] calling supabase.auth.signInWithOAuth google', { redirectTo: loginRedirectUrl });
-    const { data, error: signInError } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: loginRedirectUrl
+    try {
+      const { data, error: signInError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: loginRedirectUrl
+        }
+      });
+      console.debug('[Auth] signInWithOAuth result', { data, error: signInError });
+
+      if (signInError) {
+        setError(signInError.message);
+        resetAltcha();
+        return;
       }
-    });
-    console.debug('[Auth] signInWithOAuth result', { data, error: signInError });
-    if (signInError) {
-      setError(signInError.message);
+
+      // Some Supabase client versions return a `data.url` instead of performing
+      // the redirect automatically. If present, navigate the browser.
+      if (data?.url) {
+        console.debug('[Auth] redirecting to provider URL', data.url);
+        window.location.assign(data.url);
+      }
+    } catch (e) {
+      console.error('[Auth] signInWithOAuth google error', e);
+      setError('Unable to start Google OAuth.');
       resetAltcha();
     }
   };
@@ -373,15 +388,28 @@ export default function LoginPage() {
     if (!altchaValid) return;
     const supabase = getSupabase();
     console.debug('[Auth] calling supabase.auth.signInWithOAuth github', { redirectTo: loginRedirectUrl });
-    const { data, error: signInError } = await supabase.auth.signInWithOAuth({
-      provider: 'github',
-      options: {
-        redirectTo: loginRedirectUrl
+    try {
+      const { data, error: signInError } = await supabase.auth.signInWithOAuth({
+        provider: 'github',
+        options: {
+          redirectTo: loginRedirectUrl
+        }
+      });
+      console.debug('[Auth] signInWithOAuth result', { data, error: signInError });
+
+      if (signInError) {
+        setError(signInError.message);
+        resetAltcha();
+        return;
       }
-    });
-    console.debug('[Auth] signInWithOAuth result', { data, error: signInError });
-    if (signInError) {
-      setError(signInError.message);
+
+      if (data?.url) {
+        console.debug('[Auth] redirecting to provider URL', data.url);
+        window.location.assign(data.url);
+      }
+    } catch (e) {
+      console.error('[Auth] signInWithOAuth github error', e);
+      setError('Unable to start GitHub OAuth.');
       resetAltcha();
     }
   };
