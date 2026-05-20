@@ -8,6 +8,7 @@ import { getSupabase } from '../../lib/supabase';
 import { getPendingFirstAdminSetup, pendingFirstAdminMatches } from '@/lib/first-admin-setup';
 import { resolveClientEnvValues } from '@/lib/device-env-vault';
 import 'altcha';
+import { hasClientSupabaseConfig, resolveClientEnvValues as resolveClientEnv } from '@/lib/device-env-vault';
 
 export default function LoginPage() {
   const { currentUser, isLoading, authError, setAuthError } = useAuth();
@@ -141,6 +142,18 @@ export default function LoginPage() {
   }, []);
 
   useEffect(() => {
+    // Log whether Supabase client config is available on the client.
+    try {
+      const vals = resolveClientEnv();
+      console.debug('[Env] Supabase client config present:', {
+        hasConfig: hasClientSupabaseConfig(),
+        url: vals.SUPABASE_URL ? '<present>' : '<missing>',
+        anonKeyPresent: vals.SUPABASE_ANON_KEY ? true : false,
+      });
+    } catch (e) {
+      console.debug('[Env] Error checking Supabase client config', e);
+    }
+
     if (!isLoading && currentUser) {
       router.replace('/dashboard');
     }
