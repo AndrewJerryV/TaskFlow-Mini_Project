@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getSupabaseForRequest } from '@/lib/server-supabase-helper';
 
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const projectId = searchParams.get('projectId');
 
     if (!projectId) return NextResponse.json({ error: 'projectId is required' }, { status: 400 });
-    return NextResponse.json(await db.getShortcuts(projectId));
+    const supabase = getSupabaseForRequest(request);
+    const { data } = await supabase.from('shortcuts').select('*').eq('project_id', projectId);
+    return NextResponse.json(data || []);
 }
 
 export async function POST(request: NextRequest) {
@@ -14,14 +16,16 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         if (!body.project_id || !body.name || !body.url)
             return NextResponse.json({ error: 'project_id, name, and url are required' }, { status: 400 });
-        const shortcut = await db.addShortcut({
+        const supabase = getSupabaseForRequest(request);
+        const newShortcut = {
             id: body.id || crypto.randomUUID(),
             project_id: body.project_id,
             name: body.name,
             url: body.url,
             type: body.type || 'link',
-        });
-        if (!shortcut)
+        };
+        const { data: shortcut, error } = await supabase.from('shortcuts').insert(newShortcut).select().maybeSingle();
+        if (error || !shortcut)
             return NextResponse.json({ error: 'Failed to create shortcut' }, { status: 500 });
         return NextResponse.json(shortcut, { status: 201 });
     } catch (error) {
@@ -35,7 +39,8 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get('id');
 
     if (!id) return NextResponse.json({ error: 'Shortcut id is required' }, { status: 400 });
-    const success = await db.deleteShortcut(id);
-    if (!success) return NextResponse.json({ error: 'Failed to delete shortcut' }, { status: 500 });
+    const supabase = getSupabaseForRequest(request);
+    const { error } = await supabase.from('shortcuts').delete().eq('id', id);
+    if (error) return NextResponse.json({ error: 'Failed to delete shortcut' }, { status: 500 });
     return NextResponse.json({ success: true });
 }

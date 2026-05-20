@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getSupabaseForRequest } from '@/lib/server-supabase-helper';
 
 export async function DELETE(
     request: NextRequest,
@@ -12,7 +12,9 @@ export async function DELETE(
             return NextResponse.json({ error: 'Missing document ID' }, { status: 400 });
         }
 
-        const success = await db.deleteDocument(docId);
+        const supabase = getSupabaseForRequest(request);
+        const { error } = await supabase.from('documents').delete().eq('id', docId);
+        const success = !error;
 
         if (success) {
             return NextResponse.json({ success: true });
@@ -42,7 +44,9 @@ export async function PATCH(
             return NextResponse.json({ error: 'Missing title or content' }, { status: 400 });
         }
 
-        const success = await db.updateDocument(docId, { title, content });
+        const supabase = getSupabaseForRequest(request);
+        const { error } = await supabase.from('documents').update({ title, content }).eq('id', docId);
+        const success = !error;
 
         if (success) {
             return NextResponse.json({ success: true });

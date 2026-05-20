@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getSupabaseForRequest } from '@/lib/server-supabase-helper';
 import { analyzeWellness } from '@/lib/ml-engine';
 
 export async function GET(request: Request) {
@@ -7,29 +7,64 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url);
         const userId = searchParams.get('userId');
 
-        let users = await db.getUsers();
+        const supabase = getSupabaseForRequest(request);
+
+        const { data: usersData } = await supabase.from('users').select('*');
+        let users = (usersData || []).map((u: any) => ({
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            avatarUrl: u.avatar_url,
+            role: u.role,
+            createdAt: u.created_at,
+            dob: u.dob,
+            skillExperience: typeof u.skill_experience === 'string' ? JSON.parse(u.skill_experience) : u.skill_experience,
+            skills: u.skills || [],
+            wellnessScore: u.wellness_score ?? 85,
+            maxWorkload: u.max_workload ?? 5,
+            burnoutSensitivity: u.burnout_sensitivity,
+        }));
 
         if (userId) {
-            const currentUser = await db.getUser(userId);
+            const { data: currentUser } = await supabase.from('users').select('id, role').eq('id', userId).maybeSingle();
 
             if (currentUser && currentUser.role !== 'Admin') {
-                // Get all projects this manager is part of
-                const userProjects = await db.getProjects(userId);
-                const projectIds = userProjects.map(p => p.id);
+                const { data: userProjects } = await supabase
+                    .from('project_members')
+                    .select('project_id')
+                    .eq('user_id', userId);
 
-                // Get all members of those projects
+                const projectIds = (userProjects || []).map((p: any) => p.project_id);
+
                 const allowedMemberIds = new Set<string>();
                 for (const pid of projectIds) {
-                    const members = await db.getProjectMembers(pid);
-                    members.forEach(m => allowedMemberIds.add(m));
+                    const { data: members } = await supabase
+                        .from('project_members')
+                        .select('user_id')
+                        .eq('project_id', pid);
+                    (members || []).forEach((m: any) => allowedMemberIds.add(m.user_id));
                 }
 
-                // Filter users to only those in the allowed set
-                users = users.filter(u => allowedMemberIds.has(u.id));
+                users = users.filter((u: any) => allowedMemberIds.has(u.id));
             }
         }
 
-        const allTasks = await db.getTasks();
+        const { data: allTasksData } = await supabase.from('tasks').select('*');
+        const allTasks = (allTasksData || []).map((dbTask: any) => ({
+            id: dbTask.id,
+            projectId: dbTask.project_id,
+            title: dbTask.title,
+            description: dbTask.description,
+            status: dbTask.status,
+            priority: dbTask.priority,
+            assigneeId: dbTask.assignee_id,
+            dueDate: dbTask.due_date,
+            startDate: dbTask.start_date,
+            createdAt: dbTask.created_at,
+            updatedAt: dbTask.updated_at,
+            tags: dbTask.tags || [],
+            dependencies: dbTask.dependencies || [],
+        }));
 
         const teamStats = await Promise.all(users.map(async user => {
             const activeUserTasks = allTasks.filter(t =>

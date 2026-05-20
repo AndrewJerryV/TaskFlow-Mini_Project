@@ -1,5 +1,6 @@
-import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { getSupabaseForRequest } from '@/lib/server-supabase-helper';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { sendProjectMemberRemoved } from '@/lib/email';
 
 export async function DELETE(
@@ -16,28 +17,29 @@ export async function DELETE(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const requestUser = await db.getUser(requestUserId);
+        const supabase = getSupabaseForRequest(request);
+        const { data: requestUser } = await supabase.from('users').select('id, name, role').eq('id', requestUserId).maybeSingle();
         if (!requestUser || (requestUser.role !== 'Admin' && requestUser.role !== 'Manager')) {
             return NextResponse.json({ error: 'Forbidden. Only Admins and Managers can remove members.' }, { status: 403 });
         }
 
-        const project = await db.getProject(projectId);
+        const { data: project } = await supabase.from('projects').select('*').eq('id', projectId).maybeSingle();
         if (!project) {
             return NextResponse.json({ error: 'Project not found' }, { status: 404 });
         }
 
-        if (userId === project.ownerId) {
+        if (userId === project.owner_id) {
             return NextResponse.json({ error: 'Cannot remove the project owner.' }, { status: 400 });
         }
 
-        await db.removeProjectMember(projectId, userId);
+        await supabase.from('project_members').delete().eq('project_id', projectId).eq('user_id', userId);
 
         try {
-            const user = await db.getUser(userId);
-            const project = await db.getProject(projectId);
-            if (user && user.email && project) {
-                const remover = requestUser?.name || 'Someone';
-                await sendProjectMemberRemoved(user.email, project.name, remover).catch(e => console.error('Email error (remove single):', e));
+            const { data: user } = await supabase.from('users').select('id, name, email').eq('id', userId).maybeSingle();
+            const { data: proj } = await supabase.from('projects').select('id, name').eq('id', projectId).maybeSingle();
+            if (user && user.email && proj) {
+                const remover = (requestUser as any)?.name || 'Someone';
+                await sendProjectMemberRemoved(user.email, proj.name, remover).catch(e => console.error('Email error (remove single):', e));
             }
         } catch (err) {
             console.error('Error sending removal email:', err);

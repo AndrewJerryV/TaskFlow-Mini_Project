@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getSupabaseForRequest } from '@/lib/server-supabase-helper';
 import { Task } from '@/types';
 import { batchPriorityCheck, clusterTasksWithEngine } from '@/lib/ml-engine';
 
@@ -173,9 +173,9 @@ async function getTaskClusters(tasks: Task[]): Promise<TaskCluster[]> {
     }
 }
 
-async function getTaskOfTheDay(userId: string) {
-    const allTasks = await db.getTasks();
-    const userTasks = allTasks.filter((t: Task) => t.assigneeId === userId && t.status !== 'Done');
+async function getTaskOfTheDay(userId: string, supabaseClient: any) {
+    const { data: allTasks = [] } = await supabaseClient.from('tasks').select('*');
+    const userTasks = (allTasks as Task[]).filter((t: Task) => t.assigneeId === userId && t.status !== 'Done');
 
     if (userTasks.length === 0) {
         return {
@@ -302,14 +302,17 @@ export async function GET(request: Request) {
         const userId = searchParams.get('userId');
         const filterByUserId = searchParams.get('filterByUserId') === 'true';
 
+        const supabase = getSupabaseForRequest(request);
+
         if (mode === 'task-of-the-day') {
             if (!userId) {
                 return NextResponse.json({ error: 'userId is required' }, { status: 400 });
             }
-            return NextResponse.json(await getTaskOfTheDay(userId));
+            return NextResponse.json(await getTaskOfTheDay(userId, supabase));
         }
 
-        let tasks = projectId ? await db.getTasks(projectId) : await db.getTasks();
+        const tasksResp = projectId ? await supabase.from('tasks').select('*').eq('project_id', projectId) : await supabase.from('tasks').select('*');
+        let tasks = (tasksResp.data || []) as Task[];
 
         if (filterByUserId && userId) {
             tasks = tasks.filter(t => t.assigneeId === userId);

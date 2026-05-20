@@ -1,5 +1,5 @@
-import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { getSupabaseForRequest } from '@/lib/server-supabase-helper';
 
 export async function GET(request: Request) {
     try {
@@ -7,13 +7,14 @@ export async function GET(request: Request) {
         const taskId = searchParams.get('taskId');
         const userId = searchParams.get('userId');
 
+        const supabase = getSupabaseForRequest(request);
         if (taskId) {
-            const entries = await db.getTimeEntries(taskId);
+            const { data: entries = [] } = await supabase.from('time_entries').select('*').eq('task_id', taskId);
             return NextResponse.json(entries);
         }
 
         if (userId) {
-            const active = await db.getActiveTimer(userId);
+            const { data: active = [] } = await supabase.from('time_entries').select('*').eq('user_id', userId).eq('stopped', false);
             return NextResponse.json(active);
         }
 
@@ -33,8 +34,9 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'taskId and userId are required' }, { status: 400 });
         }
 
-        const newEntry = await db.startTimeEntry(taskId, userId, projectId);
-        if (!newEntry) {
+        const supabase = getSupabaseForRequest(request);
+        const { data: newEntry, error } = await supabase.from('time_entries').insert({ task_id: taskId, user_id: userId, project_id: projectId, started_at: new Date().toISOString(), stopped: false }).select().maybeSingle();
+        if (error || !newEntry) {
             return NextResponse.json({ error: 'Failed to start timer' }, { status: 500 });
         }
 
@@ -55,25 +57,29 @@ export async function PATCH(request: Request) {
         }
 
         if (userId) {
+            const supabase = getSupabaseForRequest(request);
             const stopNote = note || 'Logged via TaskFlow Timer';
-            const stoppedEntries = await db.stopActiveTimersForUser(userId, taskId, stopNote);
+            const { data: stoppedEntries = [], error: stopError } = await supabase.from('time_entries').update({ stopped: true, note: stopNote, stopped_at: new Date().toISOString() }).eq('user_id', userId).eq('stopped', false).select();
+
+            const stoppedEntriesArr = stoppedEntries || [];
 
             // Fallback for stale/mismatched filters: if a direct id was provided, attempt it too.
-            if (stoppedEntries.length === 0 && id) {
-                const updatedEntry = await db.stopTimeEntry(id, stopNote);
+            if (stoppedEntriesArr.length === 0 && id) {
+                const { data: updatedEntry } = await supabase.from('time_entries').update({ stopped: true, note: stopNote, stopped_at: new Date().toISOString() }).eq('id', id).select().maybeSingle();
                 if (updatedEntry) {
                     return NextResponse.json(updatedEntry);
                 }
             }
 
             return NextResponse.json({
-                stoppedCount: stoppedEntries.length,
-                entries: stoppedEntries,
+                stoppedCount: stoppedEntriesArr.length,
+                entries: stoppedEntriesArr,
             });
         }
 
-        const updatedEntry = await db.stopTimeEntry(id, note);
-        if (!updatedEntry) {
+        const supabase = getSupabaseForRequest(request);
+        const { data: updatedEntry, error: finalError } = await supabase.from('time_entries').update({ stopped: true, note, stopped_at: new Date().toISOString() }).eq('id', id).select().maybeSingle();
+        if (finalError || !updatedEntry) {
             return NextResponse.json({ error: 'Failed to stop timer' }, { status: 500 });
         }
 

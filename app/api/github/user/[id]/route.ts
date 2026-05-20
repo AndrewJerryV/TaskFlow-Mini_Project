@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getSupabaseForRequest } from '@/lib/server-supabase-helper';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -7,12 +7,32 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     if (!userId) return NextResponse.json({ error: 'userId is required' }, { status: 400 });
 
-    const user = await db.getUser(userId);
-    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    const supabase = getSupabaseForRequest(request);
 
-    // Get all repos across all projects the user has access to
-    const projects = await db.getProjects(userId);
-    const projectIds = projects.map(p => p.id);
+    const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('id, name, email, role')
+        .eq('id', userId)
+        .maybeSingle();
+
+    if (userError || !user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    // Get all projects the user has access to
+    let projectQuery = supabase.from('projects').select('id');
+    if (userId && user.role !== 'Admin') {
+        const { data: membershipData } = await supabase
+            .from('project_members')
+            .select('project_id')
+            .eq('user_id', userId);
+
+        const projectIdsFromMembership = (membershipData || []).map((m: any) => m.project_id);
+        const ownerFilter = `owner_id.eq.${userId}`;
+        const membershipFilter = projectIdsFromMembership.length > 0 ? `,id.in.(${projectIdsFromMembership.join(',')})` : '';
+        projectQuery = projectQuery.or(`${ownerFilter}${membershipFilter}`);
+    }
+
+    const { data: projects } = await projectQuery;
+    const projectIds = (projects || []).map((p: any) => p.id);
 
     if (projectIds.length === 0) {
         return NextResponse.json({ issues: 0, prs: 0, actions: 0, reposAnalyzed: 0 });

@@ -1,5 +1,6 @@
-import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { getSupabaseForRequest } from '@/lib/server-supabase-helper';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { sendProjectMemberAdded, sendProjectMemberRemoved } from '@/lib/email';
 
 export async function GET(
@@ -8,8 +9,9 @@ export async function GET(
 ) {
     try {
         const projectId = (await params).id;
-        const members = await db.getProjectMembers(projectId);
-        return NextResponse.json(members);
+        const supabase = getSupabaseForRequest(request);
+        const { data: membership } = await supabase.from('project_members').select('user_id').eq('project_id', projectId);
+        return NextResponse.json((membership || []).map((m: any) => m.user_id));
     } catch (error) {
         console.error('Error fetching project members:', error);
         return NextResponse.json({ error: 'Failed to fetch members' }, { status: 500 });
@@ -23,6 +25,7 @@ export async function POST(
     try {
         const projectId = (await params).id;
         const { userIds, requestUserId } = await request.json();
+        const supabase = getSupabaseForRequest(request);
 
         console.log(`Updating members for project ${projectId}. New list:`, userIds);
 
@@ -30,7 +33,7 @@ export async function POST(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const requestUser = await db.getUser(requestUserId);
+        const { data: requestUser } = await supabase.from('users').select('id, name, role').eq('id', requestUserId).maybeSingle();
         if (!requestUser || (requestUser.role !== 'Admin' && requestUser.role !== 'Manager')) {
             return NextResponse.json({ error: 'Forbidden. Only Admins and Managers can add members.' }, { status: 403 });
         }
@@ -40,27 +43,28 @@ export async function POST(
         }
 
         // Get current members
-        const currentMembers = await db.getProjectMembers(projectId);
+        const { data: currentMembersData } = await supabase.from('project_members').select('user_id').eq('project_id', projectId);
+        const currentMembers = (currentMembersData || []).map((m: any) => m.user_id as string);
         console.log(`Current members for project ${projectId}:`, currentMembers);
 
         // Get project to check owner
-        const project = await db.getProject(projectId);
+        const { data: project } = await supabase.from('projects').select('*').eq('id', projectId).maybeSingle();
         if (!project) {
             console.error(`Project ${projectId} not found during member update`);
             return NextResponse.json({ error: 'Project not found' }, { status: 404 });
         }
-        const ownerId = project.ownerId;
+        const ownerId = project.owner_id;
         console.log(`Project owner for ${projectId}: ${ownerId}`);
 
         // 1. Members to add (those in userIds but not in currentMembers)
         const toAdd = userIds.filter((id: string) => !currentMembers.includes(id));
         for (const userId of toAdd) {
             console.log(`Adding member ${userId} to project ${projectId}`);
-            await db.addProjectMember(projectId, userId);
+            await supabase.from('project_members').insert({ project_id: projectId, user_id: userId }).single();
             try {
-                const user = await db.getUser(userId);
+                const { data: user } = await supabase.from('users').select('id, name, email').eq('id', userId).maybeSingle();
                 if (user && user.email) {
-                    const addedByName = requestUser?.name || 'Someone';
+                    const addedByName = (requestUser as any)?.name || 'Someone';
                     const projectLink = `/projects/${projectId}`;
                     await sendProjectMemberAdded(user.email, project.name, addedByName, projectLink).catch(e => console.error('Email error (add):', e));
                 }
@@ -73,22 +77,23 @@ export async function POST(
         const toRemove = currentMembers.filter((id: string) => !userIds.includes(id) && id !== ownerId);
         for (const userId of toRemove) {
             console.log(`Removing member ${userId} from project ${projectId}`);
-            await db.removeProjectMember(projectId, userId);
-            
+            await supabase.from('project_members').delete().eq('project_id', projectId).eq('user_id', userId);
+
             // Unassign tasks and notify admins/managers
             try {
-                const unassignedCount = await db.unassignUserTasks(projectId, userId);
+                const { data: unassigned } = await supabase.from('tasks').update({ assignee_id: null }).eq('project_id', projectId).eq('assignee_id', userId).select();
+                const unassignedCount = (unassigned || []).length;
                 if (unassignedCount > 0) {
-                    const adminsAndManagers = await db.getProjectAdminsAndManagers(projectId);
-                    const removedUser = await db.getUser(userId);
-                    
-                    for (const admin of adminsAndManagers) {
-                        await db.addNotification({
-                            userId: admin.id,
+                    const { data: adminsAndManagers } = await getSupabaseAdmin().from('project_members').select('user_id, role').eq('project_id', projectId);
+                    const { data: removedUser } = await supabase.from('users').select('id, name').eq('id', userId).maybeSingle();
+
+                    for (const admin of (adminsAndManagers || [])) {
+                        await supabase.from('notifications').insert({
+                            user_id: admin.user_id,
                             type: 'general',
                             title: 'Tasks Unassigned',
                             message: `${unassignedCount} tasks were unassigned because ${removedUser?.name || 'a member'} was removed from ${project.name}.`,
-                            projectId: projectId,
+                            project_id: projectId,
                             link: `/projects/${projectId}`
                         });
                     }
@@ -98,9 +103,9 @@ export async function POST(
             }
 
             try {
-                const user = await db.getUser(userId);
+                const { data: user } = await supabase.from('users').select('id, name, email').eq('id', userId).maybeSingle();
                 if (user && user.email) {
-                    const removedByName = requestUser?.name || 'Someone';
+                    const removedByName = (requestUser as any)?.name || 'Someone';
                     await sendProjectMemberRemoved(user.email, project.name, removedByName).catch(e => console.error('Email error (remove):', e));
                 }
             } catch (err) {
@@ -111,11 +116,12 @@ export async function POST(
         // 3. Ensure owner is always in project_members (safety check)
         if (!currentMembers.includes(ownerId) && !userIds.includes(ownerId)) {
             console.log(`Ensuring owner ${ownerId} is added back to project ${projectId}`);
-            await db.addProjectMember(projectId, ownerId, 'Owner');
+            await supabase.from('project_members').insert({ project_id: projectId, user_id: ownerId, role: 'Owner' }).single();
         }
 
         // Return the fresh list
-        const updatedMembers = await db.getProjectMembers(projectId);
+        const { data: updatedMembersData } = await supabase.from('project_members').select('user_id').eq('project_id', projectId);
+        const updatedMembers = (updatedMembersData || []).map((m: any) => m.user_id);
         console.log(`Updated members for project ${projectId}:`, updatedMembers);
         return NextResponse.json(updatedMembers);
     } catch (error) {

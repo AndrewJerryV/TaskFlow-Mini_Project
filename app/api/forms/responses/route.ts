@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getSupabaseForRequest } from '@/lib/server-supabase-helper';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { FormResponse } from '@/types';
 
@@ -15,17 +15,22 @@ export async function GET(request: NextRequest) {
     const projectId = searchParams.get('projectId');
     const respondentId = searchParams.get('respondentId');
 
+    const supabase = getSupabaseForRequest(request);
     if (projectId && respondentId) {
-        const responses = await db.getFormResponsesByRespondent(projectId, respondentId);
-        return NextResponse.json(responses);
+        const { data: responses } = await supabase
+            .from('form_responses')
+            .select('*')
+            .eq('project_id', projectId)
+            .eq('respondent_id', respondentId);
+        return NextResponse.json(responses || []);
     }
 
     if (!formId) {
         return NextResponse.json({ error: 'formId is required' }, { status: 400 });
     }
 
-    const responses = await db.getFormResponses(formId);
-    return NextResponse.json(responses);
+    const { data: responses } = await supabase.from('form_responses').select('*').eq('form_id', formId);
+    return NextResponse.json(responses || []);
 }
 
 // POST /api/forms/responses - Submit or update a form response
@@ -45,51 +50,63 @@ export async function POST(request: NextRequest) {
             submittedAt: body.submittedAt || new Date().toISOString(),
         };
 
-        const result = await db.upsertFormResponse(response);
-        if (!result) {
+        const supabase = getSupabaseForRequest(request);
+        const { data: upsertData, error: upsertError } = await supabase
+            .from('form_responses')
+            .upsert({
+                id: response.id,
+                form_id: response.formId,
+                respondent_id: response.respondentId,
+                answers: response.answers,
+                submitted_at: response.submittedAt,
+            })
+            .select();
+
+        if (upsertError) {
+            console.error('Upsert error', upsertError);
             return NextResponse.json({ error: 'Failed to save response' }, { status: 500 });
         }
 
         // Trigger notification
         try {
-            const form = await db.getFormById(body.formId);
+            const { data: form } = await supabase.from('forms').select('*').eq('id', body.formId).maybeSingle();
             if (form) {
-                const respondent = await db.getUser(body.respondentId);
+                const { data: respondent } = await supabase.from('users').select('id, name').eq('id', body.respondentId).maybeSingle();
                 const respondentName = respondent ? respondent.name : 'A user';
 
                 const notificationTitle = 'New Form Response';
                 const notificationMessage = `${respondentName} submitted a response to "${form.title}"`;
-                const notificationLink = `/projects/${form.projectId}?tab=Forms`;
+                const notificationLink = `/projects/${form.project_id}?tab=Forms`;
 
                 // Notify form creator
-                await db.addNotification({
-                    userId: form.createdBy,
+                await supabase.from('notifications').insert({
+                    user_id: form.created_by,
                     type: 'new_form',
                     title: notificationTitle,
                     message: notificationMessage,
                     link: notificationLink,
-                    entityId: form.id,
-                    projectId: form.projectId,
+                    entity_id: form.id,
+                    project_id: form.project_id,
                 });
 
                 // Also notify managers/admins in the project
                 const { data: members } = await getSupabaseAdmin()
                     .from('project_members')
                     .select('user_id, role')
-                    .eq('project_id', form.projectId);
+                    .eq('project_id', form.project_id);
 
                 const memberRows = (members || []) as ProjectMemberRow[];
                 if (memberRows.length > 0) {
                     for (const member of memberRows) {
-                        if ((member.role === 'Manager' || member.role === 'Admin') && member.user_id !== form.createdBy) {
-                            await db.addNotification({
-                                userId: member.user_id,
+                        if ((member.role === 'Manager' || member.role === 'Admin') && member.user_id !== form.created_by) {
+                            await supabase.from('notifications').insert({
+                                user_id: member.user_id,
                                 type: 'new_form',
                                 title: notificationTitle,
                                 message: notificationMessage,
                                 link: notificationLink,
-                                entityId: form.id,
-                                projectId: form.projectId,
+                                entity_id: form.id,
+                                project_id: form.project_id,
                             });
                         }
                     }
@@ -100,6 +117,7 @@ export async function POST(request: NextRequest) {
             // Don't fail the response if notification fails
         }
 
+        const result = upsertData || [];
         return NextResponse.json(result, { status: 201 });
     } catch (error) {
         console.error('Error submitting form response:', error);

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getSupabaseForRequest } from '@/lib/server-supabase-helper';
 
 export async function PATCH(
     request: Request,
@@ -13,7 +13,8 @@ export async function PATCH(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const requestUser = await db.getUser(requestUserId);
+        const supabase = getSupabaseForRequest(request);
+        const { data: requestUser } = await supabase.from('users').select('id, role').eq('id', requestUserId).maybeSingle();
         if (!requestUser || requestUser.role !== 'Admin') {
             return NextResponse.json({ error: 'Forbidden. Only Admins can change roles.' }, { status: 403 });
         }
@@ -26,22 +27,22 @@ export async function PATCH(
         }
 
         const resolvedParams = await params;
-        const targetUser = await db.getUser(resolvedParams.id);
+        const { data: targetUser } = await supabase.from('users').select('id, role').eq('id', resolvedParams.id).maybeSingle();
         if (!targetUser) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
         // Prevent admin from removing their own admin status if they are the only admin
         if (targetUser.id === requestUserId && role !== 'Admin') {
-            const allUsers = await db.getUsers();
-            const adminCount = allUsers.filter((u: any) => u.role === 'Admin').length;
+            const { data: admins } = await supabase.from('users').select('id').eq('role', 'Admin');
+            const adminCount = (admins || []).length;
             if (adminCount <= 1) {
                 return NextResponse.json({ error: 'Cannot demote the last remaining Admin' }, { status: 400 });
             }
         }
 
-        const success = await db.updateUserRole(resolvedParams.id, role);
-        if (!success) {
+        const { error: updateError } = await supabase.from('users').update({ role }).eq('id', resolvedParams.id);
+        if (updateError) {
             return NextResponse.json({ error: 'Database update failed' }, { status: 500 });
         }
 

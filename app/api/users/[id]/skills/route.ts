@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getSupabaseForRequest } from '@/lib/server-supabase-helper';
 
 export async function POST(
     request: Request,
@@ -14,9 +14,13 @@ export async function POST(
             return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
         }
 
-        const { success, error } = await db.updateUserSkills(id, skills, skillExperience);
+        const supabase = getSupabaseForRequest(request);
+        const { error } = await supabase
+            .from('users')
+            .update({ skills, skill_experience: skillExperience })
+            .eq('id', id);
 
-        if (!success) {
+        if (error) {
             return NextResponse.json({ error: 'Failed to update skills', details: error }, { status: 500 });
         }
 
