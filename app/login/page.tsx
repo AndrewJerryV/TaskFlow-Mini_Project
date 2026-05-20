@@ -333,15 +333,18 @@ export default function LoginPage() {
     setError('');
     setSuccess('');
     setAuthError('');
+    console.debug('[Auth] signInWithGoogle clicked');
     const altchaValid = await verifyAltcha();
     if (!altchaValid) return;
     const supabase = getSupabase();
-    const { error: signInError } = await supabase.auth.signInWithOAuth({
+    console.debug('[Auth] calling supabase.auth.signInWithOAuth google', { redirectTo: loginRedirectUrl });
+    const { data, error: signInError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: loginRedirectUrl
       }
     });
+    console.debug('[Auth] signInWithOAuth result', { data, error: signInError });
     if (signInError) {
       setError(signInError.message);
       resetAltcha();
@@ -352,15 +355,18 @@ export default function LoginPage() {
     setError('');
     setSuccess('');
     setAuthError('');
+    console.debug('[Auth] signInWithGithub clicked');
     const altchaValid = await verifyAltcha();
     if (!altchaValid) return;
     const supabase = getSupabase();
-    const { error: signInError } = await supabase.auth.signInWithOAuth({
+    console.debug('[Auth] calling supabase.auth.signInWithOAuth github', { redirectTo: loginRedirectUrl });
+    const { data, error: signInError } = await supabase.auth.signInWithOAuth({
       provider: 'github',
       options: {
         redirectTo: loginRedirectUrl
       }
     });
+    console.debug('[Auth] signInWithOAuth result', { data, error: signInError });
     if (signInError) {
       setError(signInError.message);
       resetAltcha();
