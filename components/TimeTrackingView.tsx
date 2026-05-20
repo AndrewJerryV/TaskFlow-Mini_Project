@@ -429,7 +429,7 @@ export default function TimeTrackingView({ projectId, tasks: propTasks }: TimeTr
                     <button
                         key={tab.key}
                         onClick={() => setActiveSection(tab.key)}
-                        className={`group relative overflow-hidden flex-1 min-w-[120px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 ${activeSection === tab.key
+                        className={`group relative overflow-hidden shrink-0 whitespace-nowrap sm:flex-1 min-w-[120px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 ${activeSection === tab.key
                                 ? 'text-white shadow-md'
                                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-gray-700/50 hover:shadow-sm'
                             }`}
