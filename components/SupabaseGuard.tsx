@@ -18,9 +18,13 @@ export function SupabaseGuard({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Bypass for public marketing page
+  const isLanding = typeof window !== 'undefined' && window.location.pathname === '/landing';
+
   useEffect(() => {
+    if (isLanding) { setState('ready'); return; }
     setState(hasClientSupabaseConfig() ? 'ready' : 'missing');
-  }, []);
+  }, [isLanding]);
 
   const handleConnect = async () => {
     const trimmedUrl = url.trim();
