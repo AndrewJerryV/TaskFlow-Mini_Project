@@ -1,55 +1,35 @@
 /**
  * ML Transformers Service — real HuggingFace models via Inference API.
  *
- * Embeddings: BAAI/bge-small-en-v1.5  (384-dim, fast)
- * Zero-shot:  facebook/bart-large-mnli (priority classification)
+ * Skill matching:   sentence-transformers/all-MiniLM-L6-v2 (sentence-similarity)
+ * Priority:         facebook/bart-large-mnli               (zero-shot classification)
  *
- * Requires HUGGINGFACE_API_KEY or HF_API_KEY environment variable.
- * Falls back to deterministic engine when API is unreachable.
+ * Falls back to deterministic TF-IDF engine when HF API is unreachable.
+ * Requires HUGGINGFACE_API_KEY or HF_API_KEY env var.
  */
 
 const HF_BASE = 'https://router.huggingface.co/hf-inference/models';
-const HF_EMBEDDING_MODEL = 'BAAI/bge-small-en-v1.5';
 const HF_CLASSIFIER_MODEL = 'facebook/bart-large-mnli';
 
 function getApiKey(): string | undefined {
     return process.env.HUGGINGFACE_API_KEY || process.env.HF_API_KEY;
 }
 
-/* ---------- helpers ---------- */
-function cosineSimilarity(a: number[], b: number[]): number {
-    let dot = 0, normA = 0, normB = 0;
-    for (let i = 0; i < a.length; i++) {
-        dot += a[i] * b[i];
-        normA += a[i] * a[i];
-        normB += b[i] * b[i];
-    }
-    return dot / (Math.sqrt(normA) * Math.sqrt(normB) || 1);
-}
-
-function tokenize(text: string): string[] {
-    return text.toLowerCase()
-        .replace(/[^a-z0-9\s#+.-]/g, ' ')
-        .split(/\s+/)
-        .filter(t => t.length > 1);
-}
-
-/* ────────────────────────────────────────────────────────────────
-   HuggingFace API call
-   ──────────────────────────────────────────────────────────────── */
+/* ---------- generic HF inference ---------- */
 async function hfInfer<T>(model: string, body: unknown): Promise<T | null> {
     const apiKey = getApiKey();
     if (!apiKey) return null;
 
     try {
-        const res = await fetch(`${HF_BASE}/${model}`, {
+        const url = `${HF_BASE}/${model}?wait_for_model=true`;
+        const res = await fetch(url, {
             method: 'POST',
             headers: {
                 Authorization: `Bearer ${apiKey}`,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(body),
-            signal: AbortSignal.timeout(15000),
+            signal: AbortSignal.timeout(20000),
         });
 
         if (!res.ok) {
@@ -58,39 +38,58 @@ async function hfInfer<T>(model: string, body: unknown): Promise<T | null> {
             return null;
         }
 
-        return (await res.json()) as T;
+        const data: T = await res.json();
+        return data;
     } catch (err) {
         console.error(`[HF] fetch failed for ${model}:`, err);
         return null;
     }
 }
 
-/* ---------- deterministic fallbacks ---------- */
+/* ---------- deterministic fallback helpers ---------- */
 const SKILL_SYNONYMS: Record<string, string[]> = {
     html5:        ['html', 'html5', 'markup', 'web', 'frontend'],
-    react:        ['react', 'reactjs', 'frontend', 'ui', 'jsx', 'component'],
-    'next.js':    ['next', 'nextjs', 'react', 'ssr', 'frontend'],
+    react:        ['react', 'reactjs', 'frontend', 'ui', 'jsx', 'component', 'hook'],
+    'next.js':    ['next', 'nextjs', 'react', 'ssr', 'vercel', 'frontend'],
     vue:          ['vue', 'vuejs', 'frontend', 'component'],
     angular:      ['angular', 'frontend', 'typescript'],
-    javascript:   ['javascript', 'js', 'ecmascript', 'es6'],
+    javascript:   ['javascript', 'js', 'ecmascript', 'es6', 'frontend'],
     typescript:   ['typescript', 'ts', 'typed'],
-    css:          ['css', 'stylesheet', 'style', 'layout'],
+    css:          ['css', 'stylesheet', 'style', 'layout', 'responsive', 'frontend'],
     'tailwind css': ['tailwind', 'tailwindcss', 'css', 'utility', 'styling'],
-    figma:        ['figma', 'design', 'ui', 'ux', 'prototype'],
-    mongodb:      ['mongodb', 'mongo', 'nosql', 'database'],
-    postgresql:   ['postgresql', 'postgres', 'sql', 'database'],
-    sql:          ['sql', 'query', 'database', 'relational'],
-    prisma:       ['prisma', 'orm', 'database', 'query'],
+    figma:        ['figma', 'design', 'ui', 'ux', 'prototype', 'wireframe'],
+    'framer motion': ['framer', 'framer motion', 'animation', 'react', 'motion'],
+    mongodb:      ['mongodb', 'mongo', 'nosql', 'database', 'document'],
+    postgresql:   ['postgresql', 'postgres', 'sql', 'database', 'relational'],
+    sql:          ['sql', 'query', 'database', 'relational', 'postgresql'],
+    prisma:       ['prisma', 'orm', 'database', 'query', 'postgresql'],
     mongoose:     ['mongoose', 'mongodb', 'orm', 'database'],
-    supabase:     ['supabase', 'postgresql', 'realtime', 'auth', 'database'],
-    firebase:     ['firebase', 'auth', 'database', 'realtime'],
+    supabase:     ['supabase', 'postgresql', 'realtime', 'auth', 'database', 'storage'],
+    firebase:     ['firebase', 'auth', 'database', 'realtime', 'google'],
+    'next-auth':  ['nextauth', 'next-auth', 'auth', 'authentication', 'oauth', 'jwt'],
+    jwt:          ['jwt', 'json web token', 'auth', 'token', 'authentication'],
+    python:       ['python', 'py', 'django', 'flask', 'script', 'backend'],
+    node:         ['node', 'nodejs', 'backend', 'server', 'runtime', 'javascript'],
+    api:          ['api', 'rest', 'graphql', 'endpoint', 'backend', 'service', 'microservice'],
+    docker:       ['docker', 'container', 'devops', 'deployment'],
+    git:          ['git', 'github', 'version control', 'vcs', 'repository'],
+    aws:          ['aws', 'amazon', 'cloud', 'ec2', 'lambda', 's3', 'serverless'],
+    testing:      ['testing', 'test', 'jest', 'vitest', 'unit test', 'integration', 'qa'],
+    deployment:   ['deploy', 'deployment', 'ci', 'cd', 'release', 'pipeline', 'devops'],
 };
 
-function expandSkillTerms(skill: string): string[] {
-    const sl = skill.toLowerCase();
-    const direct = SKILL_SYNONYMS[sl];
-    if (direct) return direct;
-    return [sl, ...sl.split(/[\s_-]+/).filter(t => t.length > 1)];
+function expandSkill(name: string): string {
+    const lower = name.toLowerCase();
+    const syns = SKILL_SYNONYMS[lower];
+    if (syns) return `${name} — ${syns.join(', ')}`;
+    return name;
+}
+
+function tokenize(text: string): string[] {
+    return text.toLowerCase()
+        .replace(/[^a-z0-9\s#+.-]/g, ' ')
+        .split(/\s+/)
+        .filter(t => t.length > 1);
 }
 
 function termVec(text: string): Map<string, number> {
@@ -101,10 +100,36 @@ function termVec(text: string): Map<string, number> {
 }
 
 function mapCosine(a: Map<string, number>, b: Map<string, number>): number {
-    let dot = 0, normA = 0, normB = 0;
-    for (const [k, v] of a) { dot += v * (b.get(k) || 0); normA += v * v; }
-    for (const v of b.values()) normB += v * v;
-    return dot / (Math.sqrt(normA) * Math.sqrt(normB) || 1);
+    let dot = 0, nA = 0, nB = 0;
+    for (const [k, v] of a) { dot += v * (b.get(k) || 0); nA += v * v; }
+    for (const v of b.values()) nB += v * v;
+    return dot / (Math.sqrt(nA) * Math.sqrt(nB) || 1);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   1. Semantic Skill Matching
+   ──────────────────────────────────────────────────────────────── */
+export interface SkillScore {
+    skill: string;
+    score: number;
+}
+
+/** Direct sentence-similarity via all-MiniLM-L6-v2 */
+async function hfSkillSimilarity(
+    taskText: string,
+    allSkills: string[],
+): Promise<number[] | null> {
+    const expanded = allSkills.map(s => expandSkill(s));
+    const body = {
+        inputs: {
+            source_sentence: taskText,
+            sentences: expanded,
+        },
+    };
+
+    const model = 'sentence-transformers/all-MiniLM-L6-v2';
+    const result = await hfInfer<number[]>(model, body);
+    return result; // null or array of scores matching sentences order
 }
 
 function deterministicSkillMatch(
@@ -112,21 +137,21 @@ function deterministicSkillMatch(
     allSkills: string[],
     maxSkills: number,
     minGap: number,
-): { requiredSkills: string[]; scores: { skill: string; score: number }[] } {
-    const taskVec = termVec(taskText);
+): { requiredSkills: string[]; scores: SkillScore[] } {
+    const tVec = termVec(taskText);
 
     const scores = allSkills.map(skill => {
-        const expanded = expandSkillTerms(skill);
-        const skillVec = termVec(expanded.join(' '));
+        const expanded = expandSkill(skill);
+        const sVec = termVec(expanded);
 
-        let score = mapCosine(taskVec, skillVec);
+        let score = mapCosine(tVec, sVec);
 
-        const skillLower = skill.toLowerCase();
-        if (taskText.toLowerCase().includes(skillLower)) score += 0.3;
+        const lower = skill.toLowerCase();
+        if (taskText.toLowerCase().includes(lower)) score += 0.3;
 
-        const skillParts = skillLower.split(/[\s_-]+/).filter(t => t.length > 2);
-        const matched = skillParts.filter(p => taskText.toLowerCase().includes(p));
-        if (skillParts.length > 0) score += (matched.length / skillParts.length) * 0.2;
+        const parts = lower.split(/[\s_-]+/).filter(t => t.length > 2);
+        const matched = parts.filter(p => taskText.toLowerCase().includes(p));
+        if (parts.length > 0) score += (matched.length / parts.length) * 0.2;
 
         return { skill, score: Math.min(1.5, score) };
     });
@@ -146,50 +171,6 @@ function deterministicSkillMatch(
     return { requiredSkills, scores };
 }
 
-function deterministicPriority(_taskText: string): { priority: string; confidence: number } {
-    const lower = _taskText.toLowerCase();
-    const tokens = tokenize(_taskText);
-
-    const URGENT_WORDS = ['urgent', 'critical', 'immediately', 'asap', 'emergency', 'blocker', 'deadline', 'overdue', 'today', 'tomorrow', 'production', 'outage', 'down', 'broken', 'crash', 'security', 'bug', 'fix', 'hotfix'];
-    const IMPORTANT_WORDS = ['important', 'high priority', 'key', 'major', 'significant', 'required', 'blocking', 'essential', 'crucial', 'vital', 'mandatory'];
-    const MINOR_WORDS = ['minor', 'low priority', 'cosmetic', 'nice to have', 'optional', 'trivial', 'small', 'enhancement', 'suggestion', 'polish'];
-
-    let urgentScore = 0, importantScore = 0, minorScore = 0;
-    for (const w of URGENT_WORDS) { if (lower.includes(w)) urgentScore += 0.25; }
-    for (const w of IMPORTANT_WORDS) { if (lower.includes(w)) importantScore += 0.2; }
-    for (const w of MINOR_WORDS) { if (lower.includes(w)) minorScore += 0.2; }
-
-    urgentScore += (_taskText.match(/!/g) || []).length * 0.1;
-    if (tokens.length < 8 && urgentScore > 0) urgentScore += 0.15;
-
-    let priority: string;
-    let confidence: number;
-
-    if (urgentScore > importantScore && urgentScore > minorScore && urgentScore >= 0.2) {
-        priority = urgentScore >= 0.5 ? 'Critical' : 'High';
-        confidence = Math.min(1, urgentScore);
-    } else if (importantScore > minorScore && importantScore >= 0.15) {
-        priority = 'High';
-        confidence = Math.min(1, importantScore + 0.2);
-    } else if (minorScore >= 0.15) {
-        priority = 'Low';
-        confidence = Math.min(1, minorScore + 0.3);
-    } else {
-        priority = 'Medium';
-        confidence = 0.5 + (tokens.length > 5 ? 0.2 : 0);
-    }
-
-    return { priority, confidence };
-}
-
-/* ────────────────────────────────────────────────────────────────
-   1. Semantic Skill Matching — HF embeddings with deterministic fallback
-   ──────────────────────────────────────────────────────────────── */
-export interface SkillScore {
-    skill: string;
-    score: number;
-}
-
 export async function semanticSkillMatch(
     taskText: string,
     allSkills: string[],
@@ -198,41 +179,40 @@ export async function semanticSkillMatch(
 ): Promise<{ requiredSkills: string[]; scores: SkillScore[] }> {
     if (allSkills.length === 0) return { requiredSkills: [], scores: [] };
 
-    // Try HF embeddings
-    const inputs = [taskText, ...allSkills];
-    const vectors = await hfInfer<number[][]>(HF_EMBEDDING_MODEL, { inputs });
+    // Try HF sentence-similarity
+    const hfScores = await hfSkillSimilarity(taskText, allSkills);
 
-    if (vectors && vectors.length === inputs.length) {
-        const taskVec = vectors[0];
-        const skillVecs = vectors.slice(1);
+    if (hfScores && hfScores.length === allSkills.length) {
+        // Keyword boost on top of semantic scores
+        const boosted: SkillScore[] = allSkills.map((skill, i) => {
+            let score = hfScores[i];
 
-        const scores: SkillScore[] = skillVecs.map((sv, i) => ({
-            skill: allSkills[i],
-            score: cosineSimilarity(taskVec, sv),
-        }));
+            const lower = skill.toLowerCase();
+            const taskLower = taskText.toLowerCase();
 
-        scores.sort((a, b) => b.score - a.score);
+            if (taskLower.includes(lower)) score += 0.2;
+            const parts = lower.split(/[\s_-]+/).filter(t => t.length > 2);
+            const matched = parts.filter(p => taskLower.includes(p));
+            if (parts.length > 0) score += (matched.length / parts.length) * 0.15;
 
-        const top = scores.slice(0, maxSkills * 2);
-        let bestCut = top.length;
-        let maxDrop = 0;
+            return { skill, score: Math.min(1.5, score) };
+        });
+
+        boosted.sort((a, b) => b.score - a.score);
+
+        const top = boosted.slice(0, maxSkills * 2);
+        let bestCut = top.length, maxDrop = 0;
         for (let i = 1; i < top.length; i++) {
             const drop = top[i - 1].score - top[i].score;
-            if (drop > maxDrop && drop >= minGap) {
-                maxDrop = drop;
-                bestCut = i;
-            }
+            if (drop > maxDrop && drop >= minGap) { maxDrop = drop; bestCut = i; }
         }
 
         let requiredSkills = top.slice(0, bestCut).map(t => t.skill).slice(0, maxSkills);
-        if (requiredSkills.length === 0) {
-            requiredSkills = scores.slice(0, 3).map(t => t.skill);
-        }
+        if (requiredSkills.length === 0) requiredSkills = boosted.slice(0, 3).map(t => t.skill);
 
-        return { requiredSkills, scores };
+        return { requiredSkills, scores: boosted };
     }
 
-    // Fallback to deterministic
     return deterministicSkillMatch(taskText, allSkills, maxSkills, minGap);
 }
 
@@ -267,7 +247,34 @@ export async function predictPriorityML(
         };
     }
 
-    return deterministicPriority(taskText);
+    // Fallback
+    const lower = taskText.toLowerCase();
+    const tokens = tokenize(taskText);
+    const URGENT = ['urgent', 'critical', 'immediately', 'asap', 'emergency', 'blocker', 'deadline', 'overdue', 'today', 'tomorrow', 'production', 'outage', 'down', 'broken', 'crash', 'security', 'bug', 'fix', 'hotfix'];
+    const IMPORT = ['important', 'high priority', 'key', 'major', 'significant', 'required', 'blocking', 'essential', 'crucial', 'vital', 'mandatory'];
+    const MINOR = ['minor', 'low priority', 'cosmetic', 'nice to have', 'optional', 'trivial', 'small', 'enhancement', 'suggestion', 'polish'];
+    let uS = 0, iS = 0, mS = 0;
+    for (const w of URGENT) { if (lower.includes(w)) uS += 0.25; }
+    for (const w of IMPORT) { if (lower.includes(w)) iS += 0.2; }
+    for (const w of MINOR) { if (lower.includes(w)) mS += 0.2; }
+    uS += (taskText.match(/!/g) || []).length * 0.1;
+    if (tokens.length < 8 && uS > 0) uS += 0.15;
+
+    let priority: string, confidence: number;
+    if (uS > iS && uS > mS && uS >= 0.2) {
+        priority = uS >= 0.5 ? 'Critical' : 'High';
+        confidence = Math.min(1, uS);
+    } else if (iS > mS && iS >= 0.15) {
+        priority = 'High';
+        confidence = Math.min(1, iS + 0.2);
+    } else if (mS >= 0.15) {
+        priority = 'Low';
+        confidence = Math.min(1, mS + 0.3);
+    } else {
+        priority = 'Medium';
+        confidence = 0.5 + (tokens.length > 5 ? 0.2 : 0);
+    }
+    return { priority, confidence };
 }
 
 /* ────────────────────────────────────────────────────────────────
