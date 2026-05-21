@@ -1,50 +1,35 @@
 /**
  * ML Transformers Service — runs the real all-MiniLM-L6-v2 sentence-transformer
- * model via @xenova/transformers (ONNX Runtime) for semantic skill matching and
- * zero-shot priority classification.  No Python required.
+ * model via HuggingFace Inference API for semantic skill matching and
+ * zero-shot priority classification. Same models as the Python backend.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-// Disable local model loading; always pull from HuggingFace Hub / cache
-let transformersModule: any = null;
+import { HfInference } from '@huggingface/inference';
 
-async function getTransformers() {
-    if (!transformersModule) {
-        transformersModule = await import('@xenova/transformers');
-        transformersModule.env.allowLocalModels = false;
-    }
-    return transformersModule;
-}
+const hf = new HfInference(process.env.HF_API_KEY);
 
 /* ---------- singletons (lazy init) ---------- */
-let embeddingPipeline: any = null;
-let classifierPipeline: any = null;
 
-async function getEmbeddingPipeline() {
-    if (!embeddingPipeline) {
-        const { pipeline } = await getTransformers();
-        console.log('[ML] Loading all-MiniLM-L6-v2 embedding model…');
-        embeddingPipeline = await pipeline(
-            'feature-extraction',
-            'Xenova/all-MiniLM-L6-v2',
-        );
-        console.log('[ML] Embedding model ready.');
-    }
-    return embeddingPipeline;
+async function hfEmbed(text: string): Promise<number[]> {
+    const result = await hf.featureExtraction({
+        model: 'sentence-transformers/all-MiniLM-L6-v2',
+        inputs: text,
+    });
+    // result is number[][] for single input or number[][][] for batched
+    const data = result as number[];
+    return Array.isArray(data[0]) ? (result as number[][])[0] : data;
 }
 
-async function getClassifierPipeline() {
-    if (!classifierPipeline) {
-        const { pipeline } = await getTransformers();
-        console.log('[ML] Loading zero-shot classification model…');
-        classifierPipeline = await pipeline(
-            'zero-shot-classification',
-            'Xenova/mobilebert-uncased-mnli',
-        );
-        console.log('[ML] Classifier model ready.');
-    }
-    return classifierPipeline;
+async function hfClassify(text: string, labels: string[]): Promise<{ labels: string[]; scores: number[] }> {
+    const result = await hf.zeroShotClassification({
+        model: 'facebook/bart-large-mnli',
+        inputs: text,
+        parameters: { candidate_labels: labels },
+    });
+    const single = Array.isArray(result) ? result[0] : result;
+    return { labels: single.labels as string[], scores: single.scores as number[] };
 }
 
 /* ---------- helpers ---------- */
@@ -83,17 +68,14 @@ export async function semanticSkillMatch(
 ): Promise<{ requiredSkills: string[]; scores: { skill: string; score: number }[] }> {
     if (allSkills.length === 0) return { requiredSkills: [], scores: [] };
 
-    const extractor = await getEmbeddingPipeline();
-
     // Encode task text
-    const taskEmb = await extractor(taskText, { pooling: 'mean', normalize: true });
-    const taskVec: number[] = Array.from(taskEmb.data as Float32Array);
+    const taskVec = await hfEmbed(taskText);
 
     // Encode each skill
     const skillVecs: number[][] = [];
     for (const skill of allSkills) {
-        const emb = await extractor(skill, { pooling: 'mean', normalize: true });
-        skillVecs.push(Array.from(emb.data as Float32Array));
+        const emb = await hfEmbed(skill);
+        skillVecs.push(emb);
     }
 
     // Semantic similarity
@@ -159,9 +141,7 @@ export async function semanticSkillMatch(
 export async function predictPriorityML(
     taskText: string,
 ): Promise<{ priority: string; confidence: number }> {
-    const classifier = await getClassifierPipeline();
-
-    const result = await classifier(taskText, [
+    const result = await hfClassify(taskText, [
         'critical urgent priority task',
         'high priority important task',
         'medium priority normal task',
