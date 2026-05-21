@@ -3,6 +3,16 @@ import { getSupabaseForRequest } from '@/lib/server-supabase-helper';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { FormResponse } from '@/types';
 
+function sanitizeResponse(row: Record<string, unknown>): Record<string, unknown> {
+    return {
+        id: row.id,
+        formId: row.form_id,
+        respondentId: row.respondent_id,
+        answers: row.answers || {},
+        submittedAt: row.submitted_at,
+    };
+}
+
 type ProjectMemberRow = {
     user_id: string;
     role: string;
@@ -22,7 +32,7 @@ export async function GET(request: NextRequest) {
             .select('*')
             .eq('project_id', projectId)
             .eq('respondent_id', respondentId);
-        return NextResponse.json(responses || []);
+        return NextResponse.json((responses || []).map(sanitizeResponse));
     }
 
     if (!formId) {
@@ -30,7 +40,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { data: responses } = await supabase.from('form_responses').select('*').eq('form_id', formId);
-    return NextResponse.json(responses || []);
+    return NextResponse.json((responses || []).map(sanitizeResponse));
 }
 
 // POST /api/forms/responses - Submit or update a form response
@@ -117,7 +127,7 @@ export async function POST(request: NextRequest) {
             // Don't fail the response if notification fails
         }
 
-        const result = upsertData || [];
+        const result = (upsertData || []).map(sanitizeResponse);
         return NextResponse.json(result, { status: 201 });
     } catch (error) {
         console.error('Error submitting form response:', error);

@@ -2,6 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Form } from '@/types';
 import { getSupabaseForRequest } from '@/lib/server-supabase-helper';
 
+function sanitizeForm(row: Record<string, unknown>): Record<string, unknown> {
+    return {
+        id: row.id,
+        projectId: row.project_id,
+        title: row.title,
+        description: row.description || '',
+        fields: row.fields || [],
+        status: row.status,
+        createdBy: row.created_by,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+    };
+}
+
 const getErrorMessage = (error: unknown) =>
     error instanceof Error ? error.message : 'Unknown error';
 
@@ -16,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     const supabase = getSupabaseForRequest(request);
     const { data: forms } = await supabase.from('forms').select('*').eq('project_id', projectId).order('created_at', { ascending: false });
-    return NextResponse.json(forms || []);
+    return NextResponse.json((forms || []).map(sanitizeForm));
 }
 
 // POST /api/forms - Create a new form
@@ -95,7 +109,7 @@ export async function PATCH(request: NextRequest) {
         const supabase2 = getSupabaseForRequest(request);
         const { data: updatedForm, error: updateErr } = await supabase2.from('forms').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).select().maybeSingle();
         if (updateErr || !updatedForm) return NextResponse.json({ error: 'Form not found' }, { status: 404 });
-        return NextResponse.json(updatedForm);
+        return NextResponse.json(sanitizeForm(updatedForm));
     } catch (error) {
         console.error('Error updating form:', error);
         return NextResponse.json({ error: 'Failed to update form' }, { status: 500 });
