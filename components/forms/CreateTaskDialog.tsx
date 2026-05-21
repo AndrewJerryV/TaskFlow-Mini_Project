@@ -7,7 +7,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { Sparkles } from 'lucide-react';
 import { CustomSelect, SelectOption } from '@/components/ui/CustomSelect';
-import { analyzeTaskDraftInBrowser } from '@/lib/ml-browser';
 import { apiFetch } from '@/lib/api/fetchWithSupabase';
 
 interface CreateTaskDialogProps {
@@ -43,7 +42,6 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [aiRisk, setAiRisk] = useState<'Low' | 'Medium' | 'High'>('Low');
     const dataRef = React.useRef<any>(null); // Store full response for debug
-    const [browserInsight, setBrowserInsight] = useState<ReturnType<typeof analyzeTaskDraftInBrowser>>(null);
     const [suggestions, setSuggestions] = useState<{ skills: string[], tags: string[], titles: string[] }>({
         skills: [],
         tags: [],
@@ -79,11 +77,6 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
                 .finally(() => setLoadingUsers(false));
         }
     }, [isOpen]);
-
-    useEffect(() => {
-        if (!isOpen) return;
-        setBrowserInsight(analyzeTaskDraftInBrowser({ title, description, users }));
-    }, [isOpen, title, description, users]);
 
     const handleAddTag = (e?: React.KeyboardEvent<HTMLInputElement>) => {
         if (e && e.key !== 'Enter') return;
@@ -326,30 +319,6 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
                             )}
                         </div>
                     </div>
-
-                    {browserInsight && !dataRef.current && (
-                        <div className="mb-3 rounded-md border border-blue-200/80 dark:border-blue-800 bg-white/70 dark:bg-slate-900/40 px-3 py-2 text-[11px] text-blue-900 dark:text-blue-100">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <span className="font-semibold">Browser Analysis</span>
-                                <span className="rounded bg-blue-100 dark:bg-blue-900/40 px-1.5 py-0.5 text-[10px]">
-                                    {browserInsight.predictedPriority} priority
-                                </span>
-                                <span className="text-blue-700 dark:text-blue-300">
-                                    {Math.round(browserInsight.confidence * 100)}% confidence
-                                </span>
-                                {browserInsight.topCandidateName && (
-                                    <span className="text-blue-700 dark:text-blue-300">
-                                        Best fit: {browserInsight.topCandidateName}
-                                    </span>
-                                )}
-                            </div>
-                            {browserInsight.detectedSkills.length > 0 && (
-                                <div className="mt-1 text-blue-700 dark:text-blue-300">
-                                    Detected skills: {browserInsight.detectedSkills.join(', ')}
-                                </div>
-                            )}
-                        </div>
-                    )}
 
                     <CustomSelect
                         options={assigneeOptions}
