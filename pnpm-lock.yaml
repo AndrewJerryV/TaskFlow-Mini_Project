@@ -20,9 +20,6 @@ importers:
       '@dnd-kit/utilities':
         specifier: ^3.2.2
         version: 3.2.2(react@19.2.1)
-      '@huggingface/inference':
-        specifier: ^4.13.17
-        version: 4.13.17
       '@supabase/supabase-js':
         specifier: ^2.91.1
         version: 2.104.0
@@ -291,17 +288,6 @@ packages:
   '@eslint/plugin-kit@0.4.1':
     resolution: {integrity: sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
-  '@huggingface/inference@4.13.17':
-    resolution: {integrity: sha512-+qA6wrGjh2L6FfFkE2nJmiA7XcJJV5/9+WEwYzA/Y2kibPypGecvVSgsXTATeb9CmkCP8v+uhtDGVHJTuaAXOg==}
-    engines: {node: '>=18'}
-
-  '@huggingface/jinja@0.5.9':
-    resolution: {integrity: sha512-uWTG+l3VJRsl7EXxYizuL3P+cCPoc3cRqbWWRcQN0FhejRfbdq0RNhCmbY/YDtnTcz9icdLYuLDjsnz4d8JMuw==}
-    engines: {node: '>=18'}
-
-  '@huggingface/tasks@0.21.1':
-    resolution: {integrity: sha512-EGy9VE8h9d39JgyKY5+Nwl0mcGQOK3el8rlR9Y09KVCZOHsLHAsOP1e7D9M7P781dSObZW9lokdfT+Sm26Iv3g==}
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -3150,15 +3136,6 @@ snapshots:
     dependencies:
       '@eslint/core': 0.17.0
       levn: 0.4.1
-
-  '@huggingface/inference@4.13.17':
-    dependencies:
-      '@huggingface/jinja': 0.5.9
-      '@huggingface/tasks': 0.21.1
-
-  '@huggingface/jinja@0.5.9': {}
-
-  '@huggingface/tasks@0.21.1': {}
 
   '@humanfs/core@0.19.2':
     dependencies:

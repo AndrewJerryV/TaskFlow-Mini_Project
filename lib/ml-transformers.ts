@@ -6,29 +6,48 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { HfInference } from '@huggingface/inference';
+const HF_BASE = 'https://api-inference.huggingface.co/models';
 
-const hf = new HfInference(process.env.HF_API_KEY);
+function hfHeaders(): Record<string, string> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const key = process.env.HF_API_KEY;
+    if (key) headers['Authorization'] = `Bearer ${key}`;
+    return headers;
+}
 
-/* ---------- singletons (lazy init) ---------- */
+async function hfFetch(url: string, body: unknown): Promise<Response> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000);
+    try {
+        return await fetch(`${url}?wait_for_model=true`, {
+            method: 'POST',
+            headers: hfHeaders(),
+            body: JSON.stringify(body),
+            signal: controller.signal,
+        });
+    } finally {
+        clearTimeout(timeout);
+    }
+}
 
 async function hfEmbed(text: string): Promise<number[]> {
-    const result = await hf.featureExtraction({
-        model: 'sentence-transformers/all-MiniLM-L6-v2',
-        inputs: text,
-    });
-    // result is number[][] for single input or number[][][] for batched
-    const data = result as number[];
-    return Array.isArray(data[0]) ? (result as number[][])[0] : data;
+    const res = await hfFetch(`${HF_BASE}/sentence-transformers/all-MiniLM-L6-v2`, { inputs: text });
+    if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`HF Embedding API (${res.status}): ${body.slice(0, 200)}`);
+    }
+    const data: number[][] = await res.json();
+    return data[0];
 }
 
 async function hfClassify(text: string, labels: string[]): Promise<{ labels: string[]; scores: number[] }> {
-    const result = await hf.zeroShotClassification({
-        model: 'facebook/bart-large-mnli',
-        inputs: text,
-        parameters: { candidate_labels: labels },
-    });
-    const single = Array.isArray(result) ? result[0] : result;
+    const res = await hfFetch(`${HF_BASE}/facebook/bart-large-mnli`, { inputs: text, parameters: { candidate_labels: labels } });
+    if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`HF Classifier API (${res.status}): ${body.slice(0, 200)}`);
+    }
+    const data = await res.json();
+    const single = Array.isArray(data) ? data[0] : data;
     return { labels: single.labels as string[], scores: single.scores as number[] };
 }
 

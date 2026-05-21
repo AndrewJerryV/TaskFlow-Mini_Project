@@ -102,8 +102,9 @@ export async function POST(request: Request) {
             });
         } catch (mlError) {
             console.error('ML Assignment failed:', mlError);
+            const msg = mlError instanceof Error ? mlError.message : 'Unknown ML error';
             return NextResponse.json(
-                { error: 'AI Assignment service is currently unavailable. Please try again later or assign manually.', status: 'unavailable' },
+                { error: `AI Assignment service is currently unavailable: ${msg}`, status: 'unavailable' },
                 { status: 503 },
             );
         }
