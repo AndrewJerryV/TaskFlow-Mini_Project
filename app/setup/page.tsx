@@ -286,7 +286,11 @@ export default function SetupPage() {
       setActiveStep(2);
       setSchemaStepIndex(4);
       setStatus('success');
-      setStatusMessage('Database tables created and keys saved in this browser vault.');
+      setStatusMessage(
+        schemaResult.skipped
+          ? 'Tables already exist. Keys saved in this browser vault.'
+          : 'Database tables created and keys saved in this browser vault.'
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Connection failed. Check your keys and try again.';
       setStatus('error');

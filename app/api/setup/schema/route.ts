@@ -284,9 +284,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Safety check: if the users table already has rows, abort to avoid accidental data loss.
-    // Some management operations can be destructive on poorly-scoped SQL; never run schema creation
-    // that might alter or recreate tables when there is existing user data.
+    // Check if the users table already exists. If it does, skip schema creation entirely
+    // so existing data is never touched or recreated.
     const checkResponse = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
       method: 'POST',
       headers: {
@@ -294,20 +293,20 @@ export async function POST(request: Request) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        query: `select count(*)::int as cnt from public.users;`,
+        query: `select case when exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'users') then 1 else 0 end as table_exists;`,
         read_only: true,
       }),
     });
 
     const checkResult = await checkResponse.json().catch(() => null);
 
-    if (checkResponse.ok && Array.isArray(checkResult?.result) && checkResult.result[0] && typeof checkResult.result[0].cnt === 'number') {
-      const existing = checkResult.result[0].cnt as number;
-      if (existing > 0) {
+    if (checkResponse.ok && Array.isArray(checkResult?.result) && checkResult.result[0]) {
+      const tableExists = Number(checkResult.result[0].table_exists);
+      if (tableExists === 1) {
         return NextResponse.json({
           ok: true,
           skipped: true,
-          message: 'Schema application skipped: public.users already contains rows. No destructive changes performed.'
+          message: 'Schema application skipped: public.users table already exists. No changes made.'
         });
       }
     }
