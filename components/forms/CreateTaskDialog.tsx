@@ -118,6 +118,15 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ title, description, priority, projectId: currentProjectId })
             });
+
+            const contentType = res.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                const text = await res.text();
+                console.error('[SmartAssign] Non-JSON response:', text.slice(0, 500));
+                setAiUnavailable(true);
+                throw new Error('AI Service is temporarily unavailable (received unexpected response). Please try again.');
+            }
+
             const data = await res.json();
 
             if (res.status === 503 || data.status === 'unavailable') {

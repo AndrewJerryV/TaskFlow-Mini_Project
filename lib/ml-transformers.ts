@@ -1,45 +1,19 @@
 /**
- * ML Transformers Service — runs all-MiniLM-L6-v2 sentence-transformer and
- * mobilebert-uncased-mnli zero-shot classification via @xenova/transformers
- * (ONNX Runtime).  Same models as the Python backend.
+ * ML Transformers Service — real HuggingFace models via Inference API.
+ *
+ * Embeddings: BAAI/bge-small-en-v1.5  (384-dim, fast)
+ * Zero-shot:  facebook/bart-large-mnli (priority classification)
+ *
+ * Requires HUGGINGFACE_API_KEY or HF_API_KEY environment variable.
+ * Falls back to deterministic engine when API is unreachable.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+const HF_BASE = 'https://router.huggingface.co/hf-inference/models';
+const HF_EMBEDDING_MODEL = 'BAAI/bge-small-en-v1.5';
+const HF_CLASSIFIER_MODEL = 'facebook/bart-large-mnli';
 
-import { pipeline, env } from '@xenova/transformers';
-
-// Cache models in /tmp so they persist between Vercel warm starts
-env.allowLocalModels = false;
-env.cacheDir = '/tmp/.cache';
-
-/* ---------- singletons (lazy init) ---------- */
-let embeddingPipeline: any = null;
-let classifierPipeline: any = null;
-
-async function getEmbeddingPipeline() {
-    if (!embeddingPipeline) {
-        console.log('[ML] Loading all-MiniLM-L6-v2 embedding model…');
-        embeddingPipeline = await pipeline(
-            'feature-extraction',
-            'Xenova/all-MiniLM-L6-v2',
-            { quantized: true },
-        );
-        console.log('[ML] Embedding model ready.');
-    }
-    return embeddingPipeline;
-}
-
-async function getClassifierPipeline() {
-    if (!classifierPipeline) {
-        console.log('[ML] Loading zero-shot classification model…');
-        classifierPipeline = await pipeline(
-            'zero-shot-classification',
-            'Xenova/mobilebert-uncased-mnli',
-            { quantized: true },
-        );
-        console.log('[ML] Classifier model ready.');
-    }
-    return classifierPipeline;
+function getApiKey(): string | undefined {
+    return process.env.HUGGINGFACE_API_KEY || process.env.HF_API_KEY;
 }
 
 /* ---------- helpers ---------- */
@@ -53,134 +27,251 @@ function cosineSimilarity(a: number[], b: number[]): number {
     return dot / (Math.sqrt(normA) * Math.sqrt(normB) || 1);
 }
 
-/* ────────────────────────────────────────────────────────────────
-   Keyword aliases — identical to the Python models.py version
-   ──────────────────────────────────────────────────────────────── */
-const SKILL_ALIASES: Record<string, string[]> = {
-    website: ['html5', 'react', 'next.js', 'frontend', 'javascript', 'vue', 'angular'],
-    ui:      ['react', 'frontend', 'figma', 'tailwind css', 'framer motion', 'css'],
-    color:   ['tailwind css', 'css', 'frontend', 'framer motion'],
-    style:   ['tailwind css', 'css', 'frontend'],
-    button:  ['react', 'frontend', 'tailwind css', 'html5'],
-    database:['mongodb', 'postgresql', 'sql', 'prisma', 'mongoose', 'supabase'],
-    auth:    ['firebase', 'supabase', 'next-auth', 'jwt'],
-    login:   ['firebase', 'supabase', 'next-auth', 'jwt', 'react'],
-};
+function tokenize(text: string): string[] {
+    return text.toLowerCase()
+        .replace(/[^a-z0-9\s#+.-]/g, ' ')
+        .split(/\s+/)
+        .filter(t => t.length > 1);
+}
 
 /* ────────────────────────────────────────────────────────────────
-   1. Semantic Skill Matching  (mirrors Python TaskAssigner)
+   HuggingFace API call
    ──────────────────────────────────────────────────────────────── */
+async function hfInfer<T>(model: string, body: unknown): Promise<T | null> {
+    const apiKey = getApiKey();
+    if (!apiKey) return null;
+
+    try {
+        const res = await fetch(`${HF_BASE}/${model}`, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body),
+            signal: AbortSignal.timeout(15000),
+        });
+
+        if (!res.ok) {
+            const text = await res.text().catch(() => '');
+            console.error(`[HF] ${res.status} on ${model}: ${text.slice(0, 300)}`);
+            return null;
+        }
+
+        return (await res.json()) as T;
+    } catch (err) {
+        console.error(`[HF] fetch failed for ${model}:`, err);
+        return null;
+    }
+}
+
+/* ---------- deterministic fallbacks ---------- */
+const SKILL_SYNONYMS: Record<string, string[]> = {
+    html5:        ['html', 'html5', 'markup', 'web', 'frontend'],
+    react:        ['react', 'reactjs', 'frontend', 'ui', 'jsx', 'component'],
+    'next.js':    ['next', 'nextjs', 'react', 'ssr', 'frontend'],
+    vue:          ['vue', 'vuejs', 'frontend', 'component'],
+    angular:      ['angular', 'frontend', 'typescript'],
+    javascript:   ['javascript', 'js', 'ecmascript', 'es6'],
+    typescript:   ['typescript', 'ts', 'typed'],
+    css:          ['css', 'stylesheet', 'style', 'layout'],
+    'tailwind css': ['tailwind', 'tailwindcss', 'css', 'utility', 'styling'],
+    figma:        ['figma', 'design', 'ui', 'ux', 'prototype'],
+    mongodb:      ['mongodb', 'mongo', 'nosql', 'database'],
+    postgresql:   ['postgresql', 'postgres', 'sql', 'database'],
+    sql:          ['sql', 'query', 'database', 'relational'],
+    prisma:       ['prisma', 'orm', 'database', 'query'],
+    mongoose:     ['mongoose', 'mongodb', 'orm', 'database'],
+    supabase:     ['supabase', 'postgresql', 'realtime', 'auth', 'database'],
+    firebase:     ['firebase', 'auth', 'database', 'realtime'],
+};
+
+function expandSkillTerms(skill: string): string[] {
+    const sl = skill.toLowerCase();
+    const direct = SKILL_SYNONYMS[sl];
+    if (direct) return direct;
+    return [sl, ...sl.split(/[\s_-]+/).filter(t => t.length > 1)];
+}
+
+function termVec(text: string): Map<string, number> {
+    const tokens = tokenize(text);
+    const m = new Map<string, number>();
+    for (const t of tokens) m.set(t, (m.get(t) || 0) + 1);
+    return m;
+}
+
+function mapCosine(a: Map<string, number>, b: Map<string, number>): number {
+    let dot = 0, normA = 0, normB = 0;
+    for (const [k, v] of a) { dot += v * (b.get(k) || 0); normA += v * v; }
+    for (const v of b.values()) normB += v * v;
+    return dot / (Math.sqrt(normA) * Math.sqrt(normB) || 1);
+}
+
+function deterministicSkillMatch(
+    taskText: string,
+    allSkills: string[],
+    maxSkills: number,
+    minGap: number,
+): { requiredSkills: string[]; scores: { skill: string; score: number }[] } {
+    const taskVec = termVec(taskText);
+
+    const scores = allSkills.map(skill => {
+        const expanded = expandSkillTerms(skill);
+        const skillVec = termVec(expanded.join(' '));
+
+        let score = mapCosine(taskVec, skillVec);
+
+        const skillLower = skill.toLowerCase();
+        if (taskText.toLowerCase().includes(skillLower)) score += 0.3;
+
+        const skillParts = skillLower.split(/[\s_-]+/).filter(t => t.length > 2);
+        const matched = skillParts.filter(p => taskText.toLowerCase().includes(p));
+        if (skillParts.length > 0) score += (matched.length / skillParts.length) * 0.2;
+
+        return { skill, score: Math.min(1.5, score) };
+    });
+
+    scores.sort((a, b) => b.score - a.score);
+
+    const top = scores.slice(0, maxSkills * 2);
+    let bestCut = top.length, maxDrop = 0;
+    for (let i = 1; i < top.length; i++) {
+        const drop = top[i - 1].score - top[i].score;
+        if (drop > maxDrop && drop >= minGap) { maxDrop = drop; bestCut = i; }
+    }
+
+    let requiredSkills = top.slice(0, bestCut).map(t => t.skill).slice(0, maxSkills);
+    if (requiredSkills.length === 0) requiredSkills = scores.slice(0, 3).map(t => t.skill);
+
+    return { requiredSkills, scores };
+}
+
+function deterministicPriority(_taskText: string): { priority: string; confidence: number } {
+    const lower = _taskText.toLowerCase();
+    const tokens = tokenize(_taskText);
+
+    const URGENT_WORDS = ['urgent', 'critical', 'immediately', 'asap', 'emergency', 'blocker', 'deadline', 'overdue', 'today', 'tomorrow', 'production', 'outage', 'down', 'broken', 'crash', 'security', 'bug', 'fix', 'hotfix'];
+    const IMPORTANT_WORDS = ['important', 'high priority', 'key', 'major', 'significant', 'required', 'blocking', 'essential', 'crucial', 'vital', 'mandatory'];
+    const MINOR_WORDS = ['minor', 'low priority', 'cosmetic', 'nice to have', 'optional', 'trivial', 'small', 'enhancement', 'suggestion', 'polish'];
+
+    let urgentScore = 0, importantScore = 0, minorScore = 0;
+    for (const w of URGENT_WORDS) { if (lower.includes(w)) urgentScore += 0.25; }
+    for (const w of IMPORTANT_WORDS) { if (lower.includes(w)) importantScore += 0.2; }
+    for (const w of MINOR_WORDS) { if (lower.includes(w)) minorScore += 0.2; }
+
+    urgentScore += (_taskText.match(/!/g) || []).length * 0.1;
+    if (tokens.length < 8 && urgentScore > 0) urgentScore += 0.15;
+
+    let priority: string;
+    let confidence: number;
+
+    if (urgentScore > importantScore && urgentScore > minorScore && urgentScore >= 0.2) {
+        priority = urgentScore >= 0.5 ? 'Critical' : 'High';
+        confidence = Math.min(1, urgentScore);
+    } else if (importantScore > minorScore && importantScore >= 0.15) {
+        priority = 'High';
+        confidence = Math.min(1, importantScore + 0.2);
+    } else if (minorScore >= 0.15) {
+        priority = 'Low';
+        confidence = Math.min(1, minorScore + 0.3);
+    } else {
+        priority = 'Medium';
+        confidence = 0.5 + (tokens.length > 5 ? 0.2 : 0);
+    }
+
+    return { priority, confidence };
+}
+
+/* ────────────────────────────────────────────────────────────────
+   1. Semantic Skill Matching — HF embeddings with deterministic fallback
+   ──────────────────────────────────────────────────────────────── */
+export interface SkillScore {
+    skill: string;
+    score: number;
+}
+
 export async function semanticSkillMatch(
     taskText: string,
     allSkills: string[],
     maxSkills = 5,
     minGap = 0.10,
-): Promise<{ requiredSkills: string[]; scores: { skill: string; score: number }[] }> {
+): Promise<{ requiredSkills: string[]; scores: SkillScore[] }> {
     if (allSkills.length === 0) return { requiredSkills: [], scores: [] };
 
-    const extractor = await getEmbeddingPipeline();
+    // Try HF embeddings
+    const inputs = [taskText, ...allSkills];
+    const vectors = await hfInfer<number[][]>(HF_EMBEDDING_MODEL, { inputs });
 
-    // Encode task text
-    const taskEmb = await extractor(taskText, { pooling: 'mean', normalize: true });
-    const taskVec: number[] = Array.from(taskEmb.data as Float32Array);
+    if (vectors && vectors.length === inputs.length) {
+        const taskVec = vectors[0];
+        const skillVecs = vectors.slice(1);
 
-    // Encode each skill
-    const skillVecs: number[][] = [];
-    for (const skill of allSkills) {
-        const emb = await extractor(skill, { pooling: 'mean', normalize: true });
-        skillVecs.push(Array.from(emb.data as Float32Array));
-    }
+        const scores: SkillScore[] = skillVecs.map((sv, i) => ({
+            skill: allSkills[i],
+            score: cosineSimilarity(taskVec, sv),
+        }));
 
-    // Semantic similarity
-    const semanticScores = skillVecs.map(sv => cosineSimilarity(taskVec, sv));
+        scores.sort((a, b) => b.score - a.score);
 
-    // Keyword boosting (matches Python logic)
-    const taskLower = taskText.toLowerCase();
-    const keywordScores = allSkills.map(skill => {
-        const sl = skill.toLowerCase();
-        let score = 0;
-
-        // Direct match
-        if (taskLower.includes(sl)) {
-            score = 1.0;
-        } else if (sl.includes(' ')) {
-            const parts = sl.split(' ');
-            if (parts.some(p => p.length > 2 && taskLower.includes(p))) {
-                score = 0.5;
+        const top = scores.slice(0, maxSkills * 2);
+        let bestCut = top.length;
+        let maxDrop = 0;
+        for (let i = 1; i < top.length; i++) {
+            const drop = top[i - 1].score - top[i].score;
+            if (drop > maxDrop && drop >= minGap) {
+                maxDrop = drop;
+                bestCut = i;
             }
         }
 
-        // Alias match
-        for (const [word, aliasList] of Object.entries(SKILL_ALIASES)) {
-            if (taskLower.includes(word) && aliasList.map(a => a.toLowerCase()).includes(sl)) {
-                score = Math.max(score, 0.8);
-            }
+        let requiredSkills = top.slice(0, bestCut).map(t => t.skill).slice(0, maxSkills);
+        if (requiredSkills.length === 0) {
+            requiredSkills = scores.slice(0, 3).map(t => t.skill);
         }
-        return score;
-    });
 
-    // Combined: semantic + keyword boost (same formula as Python)
-    const finalScores = semanticScores.map((s, i) => ({
-        skill: allSkills[i],
-        score: s + keywordScores[i] * 0.6,
-    }));
-
-    // Sort descending
-    finalScores.sort((a, b) => b.score - a.score);
-
-    // Natural-gap cutoff (same algorithm as Python)
-    const top = finalScores.slice(0, maxSkills * 2);
-    let bestCut = top.length;
-    let maxDrop = 0;
-    for (let i = 1; i < top.length; i++) {
-        const drop = top[i - 1].score - top[i].score;
-        if (drop > maxDrop && drop >= minGap) {
-            maxDrop = drop;
-            bestCut = i;
-        }
+        return { requiredSkills, scores };
     }
 
-    let requiredSkills = top.slice(0, bestCut).map(t => t.skill).slice(0, maxSkills);
-    if (requiredSkills.length === 0) {
-        requiredSkills = finalScores.slice(0, 3).map(t => t.skill);
-    }
-
-    return { requiredSkills, scores: finalScores };
+    // Fallback to deterministic
+    return deterministicSkillMatch(taskText, allSkills, maxSkills, minGap);
 }
 
 /* ────────────────────────────────────────────────────────────────
-   2. Priority Prediction (zero-shot classification)
+   2. Priority Prediction — HF zero-shot with deterministic fallback
    ──────────────────────────────────────────────────────────────── */
 export async function predictPriorityML(
     taskText: string,
 ): Promise<{ priority: string; confidence: number }> {
-    const classifier = await getClassifierPipeline();
+    const result = await hfInfer<{ label: string; score: number }[]>(HF_CLASSIFIER_MODEL, {
+        inputs: taskText,
+        parameters: {
+            candidate_labels: [
+                'critical urgent priority task',
+                'high priority important task',
+                'medium priority normal task',
+                'low priority minor task',
+            ],
+        },
+    });
 
-    const result = await classifier(taskText, [
-        'critical urgent priority task',
-        'high priority important task',
-        'medium priority normal task',
-        'low priority minor task',
-    ]);
+    if (result && result.length > 0) {
+        const labelMap: Record<string, string> = {
+            'critical urgent priority task': 'Critical',
+            'high priority important task': 'High',
+            'medium priority normal task': 'Medium',
+            'low priority minor task': 'Low',
+        };
+        return {
+            priority: labelMap[result[0].label] || 'Medium',
+            confidence: result[0].score,
+        };
+    }
 
-    const labelMap: Record<string, string> = {
-        'critical urgent priority task': 'Critical',
-        'high priority important task': 'High',
-        'medium priority normal task': 'Medium',
-        'low priority minor task': 'Low',
-    };
-
-    const topLabel = result.labels[0] as string;
-    const topScore = result.scores[0] as number;
-
-    return {
-        priority: labelMap[topLabel] || 'Medium',
-        confidence: topScore,
-    };
+    return deterministicPriority(taskText);
 }
 
 /* ────────────────────────────────────────────────────────────────
-   3. Wellness Model (exact port of Python WellnessModel)
+   3. Wellness Model
    ──────────────────────────────────────────────────────────────── */
 const COMFORTABLE_LOAD = 4;
 const PENALTY_PER_EXTRA_TASK = 5;
@@ -212,7 +303,7 @@ export function wellnessStatus(score: number): string {
 }
 
 /* ────────────────────────────────────────────────────────────────
-   4. Full Assignment Pipeline  (mirrors Python /analyze_task)
+   4. Full Assignment Pipeline
    ──────────────────────────────────────────────────────────────── */
 export interface CandidateInput {
     id: string;
@@ -255,10 +346,8 @@ export async function analyzeAndAssignTask(
     daysSinceUpdate: number,
     candidates: CandidateInput[],
 ): Promise<AssignmentResult> {
-    // 1. Predict priority via zero-shot classification
     const { priority, confidence } = await predictPriorityML(taskText);
 
-    // 2. Urgency scoring (same formula as Python UrgencyModel)
     const PRIORITY_SCORES: Record<string, number> = { High: 40, Medium: 20, Low: 10, Critical: 55 };
     const STATUS_MULTIPLIERS: Record<string, number> = { 'To Do': 1.2, 'In Progress': 1.0, 'In Review': 0.5, Done: 0.0 };
     let urgencyScore = PRIORITY_SCORES[priority] ?? 10;
@@ -273,12 +362,10 @@ export async function analyzeAndAssignTask(
         : urgencyScore >= 30 ? 'Moderate'
         : 'Low';
 
-    // 3. Semantic skill matching
     const allSkills = [...new Set(candidates.flatMap(c => c.skills))];
     const { requiredSkills } = await semanticSkillMatch(taskText, allSkills);
     const reqSet = new Set(requiredSkills);
 
-    // 4. Score each candidate (same formula as Python)
     const results: RankedCandidate[] = candidates.map(p => {
         const ps = new Set(p.skills);
         const matched = [...ps].filter(s => reqSet.has(s));
@@ -287,13 +374,9 @@ export async function analyzeAndAssignTask(
         const wd = p.wellness_data || { active_tasks: 0, high_priority_count: 0, critical_urgency_count: 0 };
         const wScore = calculateWellness(wd.active_tasks, wd.high_priority_count, wd.critical_urgency_count);
 
-        // Combined: skills (60%) + wellness (40%)
         let combined = skillMatch * 0.6 + wScore * 0.4;
-
-        // Penalty if no matching skills at all
         if (reqSet.size > 0 && matched.length === 0) combined *= 0.10;
 
-        // Role adjustments
         if (p.role === 'Manager') combined *= 0.90;
         else if (p.role === 'Admin') combined *= 0.80;
         else combined *= 1.10;
@@ -312,7 +395,6 @@ export async function analyzeAndAssignTask(
         };
     });
 
-    // Sort by combined score descending
     results.sort((a, b) => b.combined_ranking_score - a.combined_ranking_score);
 
     return {

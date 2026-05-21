@@ -3,9 +3,6 @@ import { User, Task } from '@/types';
 import { getSupabaseForRequest } from '@/lib/server-supabase-helper';
 import { analyzeAndAssignTask, type CandidateInput } from '@/lib/ml-transformers';
 
-// Force Node.js runtime (required for @xenova/transformers ONNX)
-export const runtime = 'nodejs';
-
 interface AssignRequest {
     title: string;
     description: string;
