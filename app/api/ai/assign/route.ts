@@ -3,6 +3,9 @@ import { User, Task } from '@/types';
 import { getSupabaseForRequest } from '@/lib/server-supabase-helper';
 import { analyzeAndAssignTask, type CandidateInput } from '@/lib/ml-transformers';
 
+// Force Node.js runtime (required for @xenova/transformers ONNX)
+export const runtime = 'nodejs';
+
 interface AssignRequest {
     title: string;
     description: string;
@@ -102,9 +105,8 @@ export async function POST(request: Request) {
             });
         } catch (mlError) {
             console.error('ML Assignment failed:', mlError);
-            const msg = mlError instanceof Error ? mlError.message : 'Unknown ML error';
             return NextResponse.json(
-                { error: `AI Assignment service is currently unavailable: ${msg}`, status: 'unavailable' },
+                { error: 'AI Assignment service is currently unavailable. Please try again later or assign manually.', status: 'unavailable' },
                 { status: 503 },
             );
         }

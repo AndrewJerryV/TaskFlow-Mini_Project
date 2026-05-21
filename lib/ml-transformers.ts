@@ -1,54 +1,45 @@
 /**
- * ML Transformers Service — runs the real all-MiniLM-L6-v2 sentence-transformer
- * model via HuggingFace Inference API for semantic skill matching and
- * zero-shot priority classification. Same models as the Python backend.
+ * ML Transformers Service — runs all-MiniLM-L6-v2 sentence-transformer and
+ * mobilebert-uncased-mnli zero-shot classification via @xenova/transformers
+ * (ONNX Runtime).  Same models as the Python backend.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-const HF_BASE = 'https://api-inference.huggingface.co/models';
+import { pipeline, env } from '@xenova/transformers';
 
-function hfHeaders(): Record<string, string> {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    const key = process.env.HF_API_KEY;
-    if (key) headers['Authorization'] = `Bearer ${key}`;
-    return headers;
+// Cache models in /tmp so they persist between Vercel warm starts
+env.allowLocalModels = false;
+env.cacheDir = '/tmp/.cache';
+
+/* ---------- singletons (lazy init) ---------- */
+let embeddingPipeline: any = null;
+let classifierPipeline: any = null;
+
+async function getEmbeddingPipeline() {
+    if (!embeddingPipeline) {
+        console.log('[ML] Loading all-MiniLM-L6-v2 embedding model…');
+        embeddingPipeline = await pipeline(
+            'feature-extraction',
+            'Xenova/all-MiniLM-L6-v2',
+            { quantized: true },
+        );
+        console.log('[ML] Embedding model ready.');
+    }
+    return embeddingPipeline;
 }
 
-async function hfFetch(url: string, body: unknown): Promise<Response> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 25000);
-    try {
-        return await fetch(`${url}?wait_for_model=true`, {
-            method: 'POST',
-            headers: hfHeaders(),
-            body: JSON.stringify(body),
-            signal: controller.signal,
-        });
-    } finally {
-        clearTimeout(timeout);
+async function getClassifierPipeline() {
+    if (!classifierPipeline) {
+        console.log('[ML] Loading zero-shot classification model…');
+        classifierPipeline = await pipeline(
+            'zero-shot-classification',
+            'Xenova/mobilebert-uncased-mnli',
+            { quantized: true },
+        );
+        console.log('[ML] Classifier model ready.');
     }
-}
-
-async function hfEmbed(text: string): Promise<number[]> {
-    const res = await hfFetch(`${HF_BASE}/sentence-transformers/all-MiniLM-L6-v2`, { inputs: text });
-    if (!res.ok) {
-        const body = await res.text();
-        throw new Error(`HF Embedding API (${res.status}): ${body.slice(0, 200)}`);
-    }
-    const data: number[][] = await res.json();
-    return data[0];
-}
-
-async function hfClassify(text: string, labels: string[]): Promise<{ labels: string[]; scores: number[] }> {
-    const res = await hfFetch(`${HF_BASE}/facebook/bart-large-mnli`, { inputs: text, parameters: { candidate_labels: labels } });
-    if (!res.ok) {
-        const body = await res.text();
-        throw new Error(`HF Classifier API (${res.status}): ${body.slice(0, 200)}`);
-    }
-    const data = await res.json();
-    const single = Array.isArray(data) ? data[0] : data;
-    return { labels: single.labels as string[], scores: single.scores as number[] };
+    return classifierPipeline;
 }
 
 /* ---------- helpers ---------- */
@@ -87,14 +78,17 @@ export async function semanticSkillMatch(
 ): Promise<{ requiredSkills: string[]; scores: { skill: string; score: number }[] }> {
     if (allSkills.length === 0) return { requiredSkills: [], scores: [] };
 
+    const extractor = await getEmbeddingPipeline();
+
     // Encode task text
-    const taskVec = await hfEmbed(taskText);
+    const taskEmb = await extractor(taskText, { pooling: 'mean', normalize: true });
+    const taskVec: number[] = Array.from(taskEmb.data as Float32Array);
 
     // Encode each skill
     const skillVecs: number[][] = [];
     for (const skill of allSkills) {
-        const emb = await hfEmbed(skill);
-        skillVecs.push(emb);
+        const emb = await extractor(skill, { pooling: 'mean', normalize: true });
+        skillVecs.push(Array.from(emb.data as Float32Array));
     }
 
     // Semantic similarity
@@ -160,7 +154,9 @@ export async function semanticSkillMatch(
 export async function predictPriorityML(
     taskText: string,
 ): Promise<{ priority: string; confidence: number }> {
-    const result = await hfClassify(taskText, [
+    const classifier = await getClassifierPipeline();
+
+    const result = await classifier(taskText, [
         'critical urgent priority task',
         'high priority important task',
         'medium priority normal task',
