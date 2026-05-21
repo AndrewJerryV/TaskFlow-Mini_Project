@@ -7,6 +7,7 @@ import { getActionDisplay } from '@/lib/utils';
 import { Calendar, CheckCircle2, Clock, History, PieChart as PieIcon, Phone, Building, Shield, HeartPulse, Pencil, Mail, Trash2, Loader2, AlertTriangle } from 'lucide-react';
 import { PieChart, TaskTimeline } from '@/components/ui/Charts';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiFetch } from '@/lib/api/fetchWithSupabase';
 
 interface UserHistoryModalProps {
     isOpen: boolean;
@@ -38,7 +39,7 @@ export function UserHistoryModal({ isOpen, onClose, user, onEditSkills, onUserDe
         setIsSendingOtp(true);
         setDeleteError(null);
         try {
-            const res = await fetch(`/api/users/${user.id}/delete/otp`, {
+            const res = await apiFetch(`/api/users/${user.id}/delete/otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ adminEmail: currentUser.email })
@@ -61,7 +62,7 @@ export function UserHistoryModal({ isOpen, onClose, user, onEditSkills, onUserDe
         setIsDeleting(true);
         setDeleteError(null);
         try {
-            const res = await fetch(`/api/users/${user.id}/delete/verify`, {
+            const res = await apiFetch(`/api/users/${user.id}/delete/verify`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -86,7 +87,7 @@ export function UserHistoryModal({ isOpen, onClose, user, onEditSkills, onUserDe
     useEffect(() => {
         if (isOpen && user) {
             setLoading(true);
-            fetch(`/api/users/${user.id}/history`)
+            apiFetch(`/api/users/${user.id}/history`)
                 .then(res => res.json())
                 .then(data => {
                     setTasks(data.tasks || []);

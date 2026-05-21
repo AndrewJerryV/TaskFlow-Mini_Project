@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { User } from '@/types';
 import { db } from '@/lib/db';
+import { apiFetch } from '@/lib/api/fetchWithSupabase';
 
 interface CreateProjectDialogProps {
     isOpen: boolean;
@@ -46,7 +47,7 @@ export function CreateProjectDialog({ isOpen, onClose }: CreateProjectDialogProp
     useEffect(() => {
         if (!isOpen) return;
         setWellnessLoading(true);
-        fetch(`/api/team${currentUser?.id ? `?userId=${currentUser.id}` : ''}`)
+        apiFetch(`/api/team${currentUser?.id ? `?userId=${currentUser.id}` : ''}`)
             .then(r => r.ok ? r.json() : null)
             .then((data: LiveUser[] | null) => {
                 if (data) setLiveUsers(data);

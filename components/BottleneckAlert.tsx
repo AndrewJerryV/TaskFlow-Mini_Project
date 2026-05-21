@@ -5,6 +5,7 @@ import { Task, User } from '@/types';
 import { AlertTriangle, Activity, Users, CheckCircle2, Loader2, ArrowRight, Sparkles, Heart } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { db } from '@/lib/db';
+import { apiFetch } from '@/lib/api/fetchWithSupabase';
 
 interface BottleneckAlertProps {
     tasks?: Task[];
@@ -85,7 +86,7 @@ export function BottleneckAlert({ tasks = [], users = [], currentUser = null, pr
                 const params = new URLSearchParams();
                 if (currentUser?.id) params.set('userId', currentUser.id);
                 if (projectId) params.set('projectId', projectId);
-                const res = await fetch(`/api/analytics/bottlenecks?${params.toString()}`);
+                const res = await apiFetch(`/api/analytics/bottlenecks?${params.toString()}`);
                 const data = await res.json();
 
                 setBottlenecks(data.bottlenecks || []);

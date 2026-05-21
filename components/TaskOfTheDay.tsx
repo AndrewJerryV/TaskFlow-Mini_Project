@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Sparkles, Clock, ArrowRight, AlertTriangle, CheckCircle, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Task } from '@/types';
 import { useTimer } from '@/contexts/TimerContext';
+import { apiFetch } from '@/lib/api/fetchWithSupabase';
 
 interface RecommendationData {
     taskOfTheDay: Task | null;
@@ -29,7 +30,7 @@ export function TaskOfTheDay({ userId, onTaskClick }: TaskOfTheDayProps) {
     useEffect(() => {
         if (!userId) return;
 
-        fetch(`/api/ml/recommendations?mode=task-of-the-day&userId=${userId}`)
+        apiFetch(`/api/ml/recommendations?mode=task-of-the-day&userId=${userId}`)
             .then(res => res.json())
             .then(setData)
             .catch(console.error)

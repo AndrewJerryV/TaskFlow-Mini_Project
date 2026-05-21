@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Video, ExternalLink, X, Copy, Check, Users, Settings, Save, Trash2 } from 'lucide-react';
 import { db } from '@/lib/db';
+import { apiFetch } from '@/lib/api/fetchWithSupabase';
 
 interface VideoRoomProps {
     projectId: string;
@@ -24,7 +25,7 @@ export default function VideoRoom({ projectId, onLeave }: VideoRoomProps) {
     useEffect(() => {
         async function fetchMeetingUrl() {
             try {
-                const res = await fetch(`/api/meeting?projectId=${projectId}`);
+                const res = await apiFetch(`/api/meeting?projectId=${projectId}`);
                 if (res.ok) {
                     const data = await res.json();
                     setMeetingUrl(data.meetingUrl);

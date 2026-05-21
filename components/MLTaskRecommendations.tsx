@@ -7,6 +7,7 @@ import { Sparkles, ArrowRight, BrainCircuit, TrendingUp, Calendar, AlertCircle, 
 import { BottleneckAlert } from '@/components/BottleneckAlert';
 import { Modal } from '@/components/ui/Modal';
 import { useTimer } from '@/contexts/TimerContext';
+import { apiFetch } from '@/lib/api/fetchWithSupabase';
 
 interface Recommendation {
   id: string;
@@ -65,7 +66,7 @@ export default function MLTaskRecommendations({ tasks, projectId, users, current
           params.set('userId', currentUser.id);
         }
 
-        const res = await fetch(`/api/ml/recommendations?${params.toString()}`);
+        const res = await apiFetch(`/api/ml/recommendations?${params.toString()}`);
         const data = await res.json();
 
         if (!res.ok) throw new Error('Failed to fetch recommendations');

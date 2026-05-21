@@ -31,6 +31,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { formatFileSize } from '@/lib/utils';
 import { getSupabase } from '@/lib/supabase';
 import { db } from '@/lib/db';
+import { apiFetch } from '@/lib/api/fetchWithSupabase';
 
 interface ChatViewProps {
     projectId: string;
@@ -185,7 +186,7 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
                 params.set('projectId', projectId);
             }
 
-            const response = await fetch(`/api/messages?${params.toString()}`);
+            const response = await apiFetch(`/api/messages?${params.toString()}`);
             if (!response.ok) throw new Error('Failed to fetch messages');
 
             const data = await response.json();

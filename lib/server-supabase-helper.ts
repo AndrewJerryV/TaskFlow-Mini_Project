@@ -16,18 +16,40 @@ function getHeader(req: ReqLike, name: string): string | null {
   }
 }
 
+function getCookie(req: ReqLike, name: string): string | null {
+  const cookieHeader = getHeader(req, 'cookie');
+  if (!cookieHeader) return null;
+  for (const part of cookieHeader.split(';')) {
+    const entry = part.trim();
+    const idx = entry.indexOf('=');
+    if (idx === -1) continue;
+    const key = entry.slice(0, idx).trim();
+    if (key === name) {
+      return decodeURIComponent(entry.slice(idx + 1).trim());
+    }
+  }
+  return null;
+}
+
 export function getSupabaseForRequest(req?: ReqLike): SupabaseClient {
   // Prefer admin client when server service role is available
   if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return getSupabaseAdmin();
   }
 
-  // Look for per-request headers supplied by client vault
-  const url = getHeader(req, 'x-supabase-url') || getHeader(req, 'x-supabase-url'.toLowerCase());
-  const anon = getHeader(req, 'x-supabase-anon-key') || getHeader(req, 'x-supabase-anon-key'.toLowerCase());
+  // Look for per-request headers supplied by client vault (via apiFetch)
+  const headerUrl = getHeader(req, 'x-supabase-url') || getHeader(req, 'x-supabase-url'.toLowerCase());
+  const headerAnon = getHeader(req, 'x-supabase-anon-key') || getHeader(req, 'x-supabase-anon-key'.toLowerCase());
 
-  if (url && anon) {
-    return createClient(url, anon);
+  if (headerUrl && headerAnon) {
+    return createClient(headerUrl, headerAnon);
+  }
+
+  // Fallback to cookies set by the browser vault (for direct requests without apiFetch)
+  const cookieUrl = getCookie(req, 'sb_url');
+  const cookieAnon = getCookie(req, 'sb_anon_key');
+  if (cookieUrl && cookieAnon) {
+    return createClient(cookieUrl, cookieAnon);
   }
 
   // Fallback to environment public keys if present

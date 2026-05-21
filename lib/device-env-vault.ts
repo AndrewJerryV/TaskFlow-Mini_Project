@@ -176,6 +176,20 @@ export function clearCachedDeviceEnvValues() {
   window.sessionStorage.removeItem(DEVICE_ENV_SESSION_CACHE_KEY);
 }
 
+function setSupabaseCookies(values: Partial<DeviceEnvValues>, persist: boolean) {
+  if (typeof window === 'undefined') return;
+
+  const url = values.SUPABASE_URL?.trim();
+  const anonKey = values.SUPABASE_ANON_KEY?.trim();
+  if (!url || !anonKey) return;
+
+  const maxAge = persist ? '; maxAge=2592000; path=/; sameSite=lax' : '; path=/; sameSite=lax';
+  const secure = window.location.protocol === 'https:' ? '; secure' : '';
+
+  document.cookie = `sb_url=${encodeURIComponent(url)}${maxAge}${secure}`;
+  document.cookie = `sb_anon_key=${encodeURIComponent(anonKey)}${maxAge}${secure}`;
+}
+
 export function saveLocalDeviceEnvValues(values: Partial<DeviceEnvValues>) {
   if (typeof window === 'undefined') {
     return;
@@ -185,6 +199,8 @@ export function saveLocalDeviceEnvValues(values: Partial<DeviceEnvValues>) {
     DEVICE_ENV_LOCAL_STORAGE_KEY,
     JSON.stringify(normalizeEnvValues(values))
   );
+
+  setSupabaseCookies(values, true);
 }
 
 export function clearLocalDeviceEnvValues() {
@@ -242,6 +258,7 @@ export async function unlockDeviceEnvVault(secret: string) {
 
   const values = await decryptVault(secret, storedVault);
   setCachedDeviceEnvValues(values);
+  setSupabaseCookies(values, true);
   return values;
 }
 
@@ -265,7 +282,9 @@ export function resolveClientEnvValues(): DeviceEnvValues {
 }
 
 export function saveSessionDeviceEnvValues(values: Partial<DeviceEnvValues>) {
-  setCachedDeviceEnvValues(normalizeEnvValues(values));
+  const normalized = normalizeEnvValues(values);
+  setCachedDeviceEnvValues(normalized);
+  setSupabaseCookies(normalized, false);
 }
 
 export function hasClientSupabaseConfig(): boolean {

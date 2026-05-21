@@ -5,6 +5,7 @@ import { Rocket, Plus, Activity, Server, CheckCircle2, XCircle, Clock } from 'lu
 import { Deployment } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { CreateDeploymentDialog } from './forms/CreateDeploymentDialog';
+import { apiFetch } from '@/lib/api/fetchWithSupabase';
 
 interface DeploymentsViewProps {
     projectId: string;
@@ -19,7 +20,7 @@ export default function DeploymentsView({ projectId }: DeploymentsViewProps) {
     const fetchDeployments = async () => {
         try {
             setLoading(true);
-            const res = await fetch(`/api/deployments?projectId=${projectId}`);
+            const res = await apiFetch(`/api/deployments?projectId=${projectId}`);
             if (res.ok) {
                 const data = await res.json();
                 setDeployments(data);

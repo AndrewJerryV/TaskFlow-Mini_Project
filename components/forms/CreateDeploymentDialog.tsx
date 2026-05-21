@@ -6,6 +6,7 @@ import { Deployment, Task } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 import { db } from '@/lib/db';
+import { apiFetch } from '@/lib/api/fetchWithSupabase';
 
 interface CreateDeploymentDialogProps {
     isOpen: boolean;
@@ -28,7 +29,7 @@ export function CreateDeploymentDialog({ isOpen, onClose, currentProjectId, onDe
     useEffect(() => {
         if (isOpen && currentProjectId && currentUser) {
             // Fetch tasks for the project to display as linkable options
-            fetch(`/api/tasks?projectId=${currentProjectId}&userId=${currentUser.id}`)
+            apiFetch(`/api/tasks?projectId=${currentProjectId}&userId=${currentUser.id}`)
                 .then(res => res.json())
                 .then(data => {
                     if (Array.isArray(data)) {
