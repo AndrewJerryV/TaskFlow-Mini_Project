@@ -7,6 +7,7 @@ import { UserStatsCard } from '@/components/UserStatsCard';
 import { ShieldAlert, Plus } from 'lucide-react';
 import { UserHistoryModal } from '@/components/UserHistoryModal';
 import { AddUserDialog } from '@/components/forms/AddUserDialog';
+import { apiFetch } from '@/lib/api/fetchWithSupabase';
 import { User } from '@/types';
 import { EditSkillsDialog } from '@/components/forms/EditSkillsDialog';
 import { WellnessAlerts } from '@/components/WellnessAlerts';
@@ -25,8 +26,8 @@ export default function TeamPage() {
         setLoading(true);
         if (currentUser?.role === 'Admin' || currentUser?.role === 'Manager') {
             Promise.all([
-                fetch(`/api/team?userId=${currentUser.id}`).then(res => res.json()),
-                fetch(`/api/tasks?userId=${currentUser.id}`).then(res => res.json())
+                apiFetch(`/api/team?userId=${currentUser.id}`).then(res => res.json()),
+                apiFetch(`/api/tasks?userId=${currentUser.id}`).then(res => res.json())
             ])
                 .then(([userData, taskData]) => {
                     if (currentUser) {

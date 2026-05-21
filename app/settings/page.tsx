@@ -1,6 +1,7 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
+import { apiFetch } from '@/lib/api/fetchWithSupabase';
 import { useTheme } from "@/contexts/ThemeContext";
 import {
   Sun,
@@ -255,7 +256,7 @@ export default function SettingsPage() {
     setIsSaving(true);
     setSaveMessage(null);
     try {
-      const res = await fetch(`/api/users/${currentUser.id}/settings`, {
+      const res = await apiFetch(`/api/users/${currentUser.id}/settings`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
 import { User, Task } from '@/types';
 import { getSupabaseForRequest } from '@/lib/server-supabase-helper';
 import { analyzeAndAssignTask, type CandidateInput } from '@/lib/ml-transformers';
