@@ -970,7 +970,7 @@ class Database {
                 conversation_type: message.conversationType || 'project',
                 recipient_id: message.recipientId || null,
                 thread_root_id: message.threadRootId || null,
-                reactions: JSON.stringify(message.reactions || []),
+                reactions: message.reactions || [],
             });
 
         if (!fullInsert.error) {
