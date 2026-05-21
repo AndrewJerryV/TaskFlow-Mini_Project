@@ -3,6 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, BarChart3, Plus, X, Edit3, Calendar, User, ArrowLeft, Save, Trash2, Download, Presentation, FileSpreadsheet, MoreVertical, Pencil } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { resolveClientSupabaseConfig } from '@/lib/browser-supabase-config';
+import { db } from '@/lib/db';
+import { apiFetch } from '@/lib/api/fetchWithSupabase';
 
 interface Page {
     id: string;
@@ -147,7 +150,7 @@ export default function PagesView({ projectId }: PagesViewProps) {
     const fetchDocuments = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/documents?projectId=${projectId}`);
+            const res = await apiFetch(`/api/documents?projectId=${projectId}`);
             if (res.ok) {
                 const data = await res.json();
                 setPages(data);
@@ -162,7 +165,11 @@ export default function PagesView({ projectId }: PagesViewProps) {
     const handlePageClick = (page: any) => {
         if (page.type === 'file') {
             // Setup download/view link
-            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+            const supabaseUrl = resolveClientSupabaseConfig()?.url;
+            if (!supabaseUrl) {
+                alert('Supabase storage is not configured on this device yet.');
+                return;
+            }
             const publicUrl = `${supabaseUrl}/storage/v1/object/public/project-files/${page.filePath}`;
             window.open(publicUrl, '_blank');
             return;
@@ -196,12 +203,8 @@ export default function PagesView({ projectId }: PagesViewProps) {
 
             // Persist to database
             try {
-                const response = await fetch(`/api/documents/${selectedPage.id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title: editTitle, content: editContent })
-                });
-                if (!response.ok) {
+                const success = await db.updateDocument(selectedPage.id, { title: editTitle, content: editContent });
+                if (!success) {
                     console.error('Failed to save page');
                 }
             } catch (error) {
@@ -220,7 +223,7 @@ export default function PagesView({ projectId }: PagesViewProps) {
 
     const deleteDocument = async (docId: string) => {
         try {
-            await fetch(`/api/documents/${docId}`, { method: 'DELETE' });
+            await db.deleteDocument(docId);
         } catch (error) {
             console.error('Delete error:', error);
         }
@@ -251,11 +254,7 @@ export default function PagesView({ projectId }: PagesViewProps) {
             setRenamingPageId(null);
             // API call to rename
             try {
-                await fetch(`/api/documents/${pageId}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title: renameValue.trim() })
-                });
+                await db.updateDocument(pageId, { title: renameValue.trim() });
             } catch (error) {
                 console.error('Rename error:', error);
             }
@@ -264,20 +263,21 @@ export default function PagesView({ projectId }: PagesViewProps) {
 
     const handleCreatePage = async () => {
         if (newPageTitle.trim()) {
-            const formData = new FormData();
-            formData.append('type', 'page');
-            formData.append('projectId', projectId);
-            formData.append('userId', currentUser?.id || '00000000-0000-0000-0000-000000000001');
-            formData.append('title', newPageTitle.trim());
-            formData.append('content', `# ${newPageTitle.trim()}\n\nStart writing your content here...`);
-
             try {
-                const res = await fetch('/api/documents', {
-                    method: 'POST',
-                    body: formData
+                const newDoc = await db.createDocument({
+                    id: crypto.randomUUID(),
+                    projectId,
+                    title: newPageTitle.trim(),
+                    type: 'page',
+                    content: `# ${newPageTitle.trim()}\n\nStart writing your content here...`,
+                    filePath: undefined,
+                    fileType: undefined,
+                    size: undefined,
+                    createdBy: currentUser?.id || '00000000-0000-0000-0000-000000000001',
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
                 });
-                if (res.ok) {
-                    const newDoc = await res.json();
+                if (newDoc) {
                     setPages([newDoc, ...pages]);
                     setNewPageTitle('');
                     setIsCreating(false);
@@ -301,7 +301,7 @@ export default function PagesView({ projectId }: PagesViewProps) {
         formData.append('file', file);
 
         try {
-            const res = await fetch('/api/documents', {
+            const res = await apiFetch('/api/documents', {
                 method: 'POST',
                 body: formData
             });

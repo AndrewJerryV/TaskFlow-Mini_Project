@@ -5,6 +5,7 @@ import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, useSensor, useSe
 import { Task, Status } from '@/types';
 import { TaskCard } from './TaskCard';
 import { createPortal } from 'react-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 type TaskBoardProps = {
     tasks: Task[];
@@ -13,7 +14,7 @@ type TaskBoardProps = {
 
 const COLUMNS: Status[] = ['To Do', 'In Progress', 'Review', 'Done'];
 
-function Column({ id, title, tasks }: { id: Status, title: string, tasks: Task[] }) {
+function Column({ id, title, tasks, currentUser }: { id: Status, title: string, tasks: Task[], currentUser: any }) {
     const { setNodeRef } = useDroppable({ id });
 
     const getColumnColor = () => {
@@ -38,7 +39,10 @@ function Column({ id, title, tasks }: { id: Status, title: string, tasks: Task[]
 
             <div className="flex-1 p-3 overflow-y-auto min-h-[100px]">
                 {tasks.map(task => (
-                    <TaskCard key={task.id} task={task} />
+                    <TaskCard
+                        key={task.id}
+                        task={task}
+                    />
                 ))}
                 {tasks.length === 0 && (
                     <div className="h-full flex items-center justify-center text-gray-300 dark:text-gray-600 text-sm italic border-2 border-dashed border-gray-100 dark:border-gray-700 rounded-lg">
@@ -51,8 +55,10 @@ function Column({ id, title, tasks }: { id: Status, title: string, tasks: Task[]
 }
 
 export function TaskBoard({ tasks, onTaskMove }: TaskBoardProps) {
+    const safeTasks = Array.isArray(tasks) ? tasks : [];
     const [activeId, setActiveId] = useState<string | null>(null);
-    const activeTask = tasks.find(t => t.id === activeId);
+    const activeTask = safeTasks.find(t => t.id === activeId);
+    const { currentUser } = useAuth();
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -69,10 +75,39 @@ export function TaskBoard({ tasks, onTaskMove }: TaskBoardProps) {
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
 
-        if (over && active.id !== over.id) {
+        if (over && active.id !== over.id && activeTask) {
             // Check if over.id is a known status
             if (COLUMNS.includes(over.id as any)) {
-                onTaskMove(active.id as string, over.id as Status);
+                const newStatus = over.id as Status;
+                const oldStatus = activeTask.status;
+
+                // Validate transition
+                const validTransitions: Record<string, string[]> = {
+                    'To Do': ['In Progress'],
+                    'In Progress': ['Review'],
+                    'Review': ['Done', 'In Progress'],
+                    'Done': ['In Progress']
+                };
+
+                const allowedNextStates = validTransitions[oldStatus] || [];
+
+                // Dependency validation
+                if (newStatus === 'In Progress' || newStatus === 'Done') {
+                    const taskDeps = activeTask.dependencies || [];
+                    const incompleteDeps = safeTasks.filter(t => taskDeps.includes(t.id) && t.status !== 'Done');
+                    
+                    if (incompleteDeps.length > 0) {
+                        alert(`Cannot move to ${newStatus}. This task is blocked by: ${incompleteDeps.map(t => t.title).join(', ')}`);
+                        setActiveId(null);
+                        return;
+                    }
+                }
+
+                if (allowedNextStates.includes(newStatus) || currentUser?.role === 'Admin' || currentUser?.role === 'Manager') {
+                    onTaskMove(active.id as string, newStatus);
+                } else {
+                    alert(`Invalid transition from ${oldStatus} to ${newStatus}`);
+                }
             }
         }
         setActiveId(null);
@@ -82,28 +117,30 @@ export function TaskBoard({ tasks, onTaskMove }: TaskBoardProps) {
         sideEffects: defaultDropAnimationSideEffects({
             styles: {
                 active: {
+                    // @ts-ignore
                     opacity: '0.5',
                 },
             },
         }),
     };
 
-    const priorityOrder: Record<string,number> ={
-        Critical:4,High:3,Medium:2,Low:1
+    const priorityOrder: Record<string, number> = {
+        Critical: 4, High: 3, Medium: 2, Low: 1
     }
 
     return (
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-            <div className="flex h-full overflow-x-auto pb-4">
+            <div className="flex h-full overflow-x-auto">
                 {COLUMNS.map(status => (
                     <Column
                         key={status}
                         id={status}
                         title={status}
-                        tasks={tasks
-                        .filter(t => t.status === status)
-                        .sort((a, b) => priorityOrder[b.priority] - priorityOrder[a.priority])
-}
+                        tasks={safeTasks
+                            .filter(t => t.status === status)
+                            .sort((a, b) => priorityOrder[b.priority] - priorityOrder[a.priority])
+                        }
+                        currentUser={currentUser}
                     />
                 ))}
             </div>

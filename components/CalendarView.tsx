@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Clock, Users, Tag, Calendar as CalendarIcon } from 'lucide-react';
 import { Task } from '@/types';
+import { CustomSelect } from './ui/CustomSelect';
 
 interface CalendarViewProps {
     projectId: string;
@@ -34,10 +35,11 @@ const eventTypeColors = {
     milestone: 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 border-green-200 dark:border-green-700',
 };
 
+const ST_OFFSET_MS = 5.5 * 60 * 60 * 1000; // IST is UTC+5.5
+
 const toLocalISOString = (date: Date): string => {
-    const offset = date.getTimezoneOffset();
-    const localDate = new Date(date.getTime() - (offset * 60 * 1000));
-    return localDate.toISOString().split('T')[0];
+    const istDate = new Date(date.getTime() + ST_OFFSET_MS);
+    return istDate.toISOString().split('T')[0];
 };
 
 export default function CalendarView({ projectId, tasks = [] }: CalendarViewProps) {
@@ -148,9 +150,9 @@ export default function CalendarView({ projectId, tasks = [] }: CalendarViewProp
     }, [selectedDate]);
 
     return (
-        <div className="flex gap-6 h-full p-6">
+        <div className="h-full overflow-y-auto flex gap-6 p-6 items-start">
             {/* Calendar Grid */}
-            <div className="flex-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
+            <div className="flex-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col overflow-visible">
                 {/* Header */}
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
                     <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
@@ -182,7 +184,8 @@ export default function CalendarView({ projectId, tasks = [] }: CalendarViewProp
                 </div>
 
                 {/* Calendar Grid */}
-                <div className="flex-1 grid grid-cols-7 auto-rows-fr">
+                <div className="h-auto">
+                    <div className="grid grid-cols-7 auto-rows-[minmax(92px,auto)]">
                     {daysInMonth.map(({ date, isCurrentMonth }, idx) => {
                         const dateStr = toLocalISOString(date);
                         const dayEvents = getEventsForDate(date);
@@ -192,7 +195,7 @@ export default function CalendarView({ projectId, tasks = [] }: CalendarViewProp
                             <div
                                 key={idx}
                                 onClick={() => setSelectedDate(dateStr)}
-                                className={`p-1 border-r border-b border-gray-100 dark:border-gray-700 cursor-pointer transition-colors overflow-hidden
+                                className={`p-1 border-r border-b border-gray-100 dark:border-gray-700 cursor-pointer transition-colors
                                     ${isToday(date) ? 'bg-blue-50 dark:bg-blue-900/30' : !isCurrentMonth ? 'bg-gray-50 dark:bg-gray-900/50' : 'hover:bg-gray-50 dark:hover:bg-gray-700/30'}
                                     ${isSelected ? 'ring-2 ring-blue-500 ring-inset' : ''}
                                 `}
@@ -220,6 +223,7 @@ export default function CalendarView({ projectId, tasks = [] }: CalendarViewProp
                             </div>
                         );
                     })}
+                    </div>
                 </div>
             </div>
 
@@ -251,16 +255,18 @@ export default function CalendarView({ projectId, tasks = [] }: CalendarViewProp
                                 className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                             />
                             <div className="flex gap-2">
-                                <select
+                                <CustomSelect
                                     value={newEvent.type}
-                                    onChange={(e) => setNewEvent({ ...newEvent, type: e.target.value as CalendarEvent['type'] })}
-                                    className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                                >
-                                    <option value="task">Task</option>
-                                    <option value="meeting">Meeting</option>
-                                    <option value="deadline">Deadline</option>
-                                    <option value="milestone">Milestone</option>
-                                </select>
+                                    onChange={(val: string) => setNewEvent({ ...newEvent, type: val as CalendarEvent['type'] })}
+                                    options={[
+                                        { value: 'task', label: 'Task' },
+                                        { value: 'meeting', label: 'Meeting' },
+                                        { value: 'deadline', label: 'Deadline' },
+                                        { value: 'milestone', label: 'Milestone' }
+                                    ]}
+                                    className="flex-1"
+                                    searchable={false}
+                                />
                                 <input
                                     type="time"
                                     value={newEvent.time}

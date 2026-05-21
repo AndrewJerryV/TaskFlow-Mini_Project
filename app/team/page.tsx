@@ -2,37 +2,65 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSearchParams } from 'next/navigation';
 import { UserStatsCard } from '@/components/UserStatsCard';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert, Plus } from 'lucide-react';
 import { UserHistoryModal } from '@/components/UserHistoryModal';
+import { AddUserDialog } from '@/components/forms/AddUserDialog';
+import { apiFetch } from '@/lib/api/fetchWithSupabase';
 import { User } from '@/types';
+import { EditSkillsDialog } from '@/components/forms/EditSkillsDialog';
+import { WellnessAlerts } from '@/components/WellnessAlerts';
 
 export default function TeamPage() {
     const { currentUser } = useAuth();
+    const searchParams = useSearchParams();
     const [teamData, setTeamData] = useState<any[]>([]);
+    const [tasks, setTasks] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
+    const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+    const [editingSkillsUser, setEditingSkillsUser] = useState<User | null>(null);
 
-    useEffect(() => {
+    const fetchTeamData = () => {
+        setLoading(true);
         if (currentUser?.role === 'Admin' || currentUser?.role === 'Manager') {
-            fetch('/api/team')
-                .then(res => res.json())
-                .then(data => {
+            Promise.all([
+                apiFetch(`/api/team?userId=${currentUser.id}`).then(res => res.json()),
+                apiFetch(`/api/tasks?userId=${currentUser.id}`).then(res => res.json())
+            ])
+                .then(([userData, taskData]) => {
                     if (currentUser) {
-                        data.sort((a: User, b: User) => {
+                        userData.sort((a: User, b: User) => {
                             if (a.id === currentUser.id) return -1;
                             if (b.id === currentUser.id) return 1;
                             return 0;
                         });
                     }
-                    setTeamData(data);
+                    setTeamData(userData);
+                    setTasks(Array.isArray(taskData) ? taskData : []);
                 })
                 .catch(console.error)
                 .finally(() => setLoading(false));
         } else {
             setLoading(false);
         }
+    };
+
+    useEffect(() => {
+        fetchTeamData();
     }, [currentUser]);
+
+    // Handle search parameter for specific user
+    useEffect(() => {
+        const userId = searchParams.get('user');
+        if (userId && teamData.length > 0) {
+            const user = teamData.find(u => u.id === userId);
+            if (user) {
+                setSelectedUser(user);
+            }
+        }
+    }, [searchParams, teamData]);
 
     if (loading) {
         return <div className="p-8 text-center text-gray-500">Loading team data...</div>;
@@ -49,13 +77,30 @@ export default function TeamPage() {
     }
 
     return (
-        <div className="p-8 max-w-6xl mx-auto">
-            <header className="mb-8">
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Team Dashboard</h1>
-                <p className="text-gray-500 dark:text-gray-400 mt-1">
-                    Monitor team workload, capacity, and wellness. Click on a member to view details.
-                </p>
+        <div className="p-8 mx-auto">
+            <header className="mb-8 flex items-start justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Team Dashboard</h1>
+                    <p className="text-gray-500 dark:text-gray-400 mt-1">
+                        Monitor team workload, capacity, and wellness. Click on a member to view details.
+                    </p>
+                </div>
+                {currentUser?.role === 'Admin' && (
+                    <button
+                        onClick={() => setIsAddUserOpen(true)}
+                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors border border-transparent"
+                    >
+                        <Plus size={18} />
+                        Add New User
+                    </button>
+                )}
             </header>
+
+            {(currentUser?.role === 'Admin' || currentUser?.role === 'Manager') && (
+                <div className="mb-8">
+                    <WellnessAlerts tasks={tasks} users={teamData} />
+                </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {teamData.map(user => (
@@ -63,6 +108,10 @@ export default function TeamPage() {
                         key={user.id}
                         user={user}
                         onClick={() => setSelectedUser(user)}
+                        onEditSkills={(e: React.MouseEvent) => {
+                            e.stopPropagation();
+                            setEditingSkillsUser(user);
+                        }}
                     />
                 ))}
             </div>
@@ -77,7 +126,35 @@ export default function TeamPage() {
                 isOpen={!!selectedUser}
                 onClose={() => setSelectedUser(null)}
                 user={selectedUser}
+                onEditSkills={() => {
+                    if (selectedUser) {
+                        setEditingSkillsUser(selectedUser);
+                        setSelectedUser(null);
+                    }
+                }}
+                onUserDeleted={() => {
+                    fetchTeamData();
+                }}
             />
+
+            <AddUserDialog
+                isOpen={isAddUserOpen}
+                onClose={() => setIsAddUserOpen(false)}
+                onSuccess={() => {
+                    fetchTeamData();
+                }}
+            />
+
+            {editingSkillsUser && (
+                <EditSkillsDialog
+                    isOpen={!!editingSkillsUser}
+                    onClose={() => setEditingSkillsUser(null)}
+                    onSuccess={() => {
+                        fetchTeamData();
+                    }}
+                    user={editingSkillsUser}
+                />
+            )}
         </div>
     );
 }

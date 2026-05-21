@@ -17,6 +17,8 @@ interface TaskFiltersProps {
     onSearchChange?: (query: string) => void;
 }
 
+import { CustomSelect, SelectOption } from './ui/CustomSelect';
+
 export function TaskFilters({
     users,
     statusFilter,
@@ -30,6 +32,34 @@ export function TaskFilters({
     onSearchChange,
 }: TaskFiltersProps) {
     const hasActiveFilters = statusFilter !== 'all' || priorityFilter !== 'all' || assigneeFilter !== 'all' || searchQuery !== '';
+
+    const statusOptions: SelectOption[] = [
+        { value: 'all', label: 'All Status' },
+        { value: 'To Do', label: 'To Do' },
+        { value: 'In Progress', label: 'In Progress' },
+        { value: 'Review', label: 'Review' },
+        { value: 'Done', label: 'Done' },
+    ];
+
+    const priorityOptions: SelectOption[] = [
+        { value: 'all', label: 'All Priority' },
+        { value: 'Low', label: 'Low' },
+        { value: 'Medium', label: 'Medium' },
+        { value: 'High', label: 'High' },
+        { value: 'Critical', label: 'Critical' },
+    ];
+
+    const assigneeOptions: SelectOption[] = [
+        { value: 'all', label: 'All Assignees' },
+        { value: 'unassigned', label: 'Unassigned' },
+        ...users.map(u => ({
+            value: u.id,
+            label: u.name,
+            avatar: u.name.charAt(0).toUpperCase(),
+            metadata: u.email,
+            avatarUrl: u.avatarUrl
+        }))
+    ];
 
     return (
         <div className="flex items-center justify-between gap-3 flex-wrap bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 mb-4 w-full">
@@ -48,49 +78,34 @@ export function TaskFilters({
             )}
 
             <div className="flex items-center gap-3 flex-wrap ml-auto">
-                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mr-1">
                     <Filter size={14} />
-                    <span className="font-medium">Filters:</span>
+                    <span className="font-medium whitespace-nowrap">Filters:</span>
                 </div>
 
-                {/* Status Filter */}
-                <select
+                <CustomSelect
+                    options={statusOptions}
                     value={statusFilter}
-                    onChange={(e) => onStatusChange(e.target.value as Status | 'all')}
-                    className="text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500"
-                >
-                    <option value="all">All Status</option>
-                    <option value="To Do">To Do</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Review">Review</option>
-                    <option value="Done">Done</option>
-                </select>
+                    onChange={(val) => onStatusChange(val as Status | 'all')}
+                    className="w-40"
+                    searchable={false}
+                />
 
-                {/* Priority Filter */}
-                <select
+                <CustomSelect
+                    options={priorityOptions}
                     value={priorityFilter}
-                    onChange={(e) => onPriorityChange(e.target.value as Priority | 'all')}
-                    className="text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500"
-                >
-                    <option value="all">All Priority</option>
-                    <option value="Low">Low</option>
-                    <option value="Medium">Medium</option>
-                    <option value="High">High</option>
-                    <option value="Critical">Critical</option>
-                </select>
+                    onChange={(val) => onPriorityChange(val as Priority | 'all')}
+                    className="w-40"
+                    searchable={false}
+                />
 
-                {/* Assignee Filter */}
-                <select
+                <CustomSelect
+                    options={assigneeOptions}
                     value={assigneeFilter}
-                    onChange={(e) => onAssigneeChange(e.target.value)}
-                    className="text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500"
-                >
-                    <option value="all">All Assignees</option>
-                    <option value="unassigned">Unassigned</option>
-                    {users.map(user => (
-                        <option key={user.id} value={user.id}>{user.name}</option>
-                    ))}
-                </select>
+                    onChange={onAssigneeChange}
+                    className="w-52"
+                    placeholder="All Assignees"
+                />
 
                 {/* Clear Filters */}
                 {hasActiveFilters && (

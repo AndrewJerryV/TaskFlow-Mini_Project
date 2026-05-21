@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 import { LayoutGrid, Plus, Settings, Users } from 'lucide-react';
 import { CreateProjectDialog } from '@/components/forms/CreateProjectDialog';
 import { useAuth } from '@/contexts/AuthContext';
+import { db } from '@/lib/db';
 
 export function Sidebar() {
     const { currentUser } = useAuth();
@@ -15,21 +16,46 @@ export function Sidebar() {
     const pathname = usePathname();
 
     useEffect(() => {
-        fetch('/api/projects')
-            .then(res => res.json())
-            .then(setProjects);
-    }, []);
+        if (!currentUser?.id) return;
+        let isActive = true;
+        const loadProjects = async () => {
+            try {
+                const data = await db.getProjects(currentUser.id);
+                if (isActive) {
+                    setProjects(Array.isArray(data) ? data : []);
+                }
+            } catch (err) {
+                console.error('Failed to load projects:', err);
+                if (isActive) {
+                    setProjects([]);
+                }
+            }
+        };
+        loadProjects();
+        return () => {
+            isActive = false;
+        };
+    }, [currentUser?.id]);
 
     return (
         <aside className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full">
-            <CreateProjectDialog isOpen={isCreateOpen} onClose={() => { setIsCreateOpen(false); fetch('/api/projects').then(res => res.json()).then(setProjects); }} />
+            <CreateProjectDialog
+                isOpen={isCreateOpen}
+                onClose={() => {
+                    setIsCreateOpen(false);
+                    if (!currentUser?.id) return;
+                    db.getProjects(currentUser.id)
+                        .then(data => setProjects(Array.isArray(data) ? data : []))
+                        .catch(err => console.error('Failed to refresh projects:', err));
+                }}
+            />
 
             <div className="p-4 flex-1 overflow-y-auto">
                 <div className="mb-6">
                     <h2 className="text-xs font-semibold uppercase text-gray-400 dark:text-gray-500 mb-3 px-2">Workspace</h2>
                     <ul className="space-y-1">
                         <li>
-                            <Link href="/" className={`flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${pathname === '/' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+                            <Link href="/dashboard" className={`flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${pathname === '/dashboard' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
                                 <LayoutGrid size={18} className="mr-3 text-gray-400 dark:text-gray-500" />
                                 Dashboards
                             </Link>
@@ -55,12 +81,14 @@ export function Sidebar() {
                 <div>
                     <div className="flex items-center justify-between px-2 mb-2 group">
                         <h2 className="text-xs font-semibold uppercase text-gray-400 dark:text-gray-500">Projects</h2>
-                        <button
-                            onClick={() => setIsCreateOpen(true)}
-                            className="text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                            <Plus size={14} />
-                        </button>
+                        {currentUser?.role === 'Admin' && (
+                            <button
+                                onClick={() => setIsCreateOpen(true)}
+                                className="text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                                <Plus size={14} />
+                            </button>
+                        )}
                     </div>
 
                     <ul className="space-y-1">

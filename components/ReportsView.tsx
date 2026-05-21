@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { apiFetch } from '@/lib/api/fetchWithSupabase';
 import { BarChart3, Users, CheckCircle, Clock, AlertTriangle, Download, Filter, X } from 'lucide-react';
 import { Task, User } from '@/types';
 import { getTimeRangeDate, isOverdue } from '@/lib/utils';
+import { CustomSelect } from './ui/CustomSelect';
 
 interface ReportsViewProps {
     projectId: string;
@@ -37,7 +39,7 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
     // Fetch tasks if not provided
     useEffect(() => {
         if (tasks.length === 0) {
-            fetch(`/api/tasks?projectId=${projectId}`)
+            apiFetch(`/api/tasks?projectId=${projectId}`)
                 .then(res => res.json())
                 .then(data => setProjectTasks(Array.isArray(data) ? data : []))
                 .catch(console.error);
@@ -46,7 +48,7 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
 
     // Fetch users for assignee filter
     useEffect(() => {
-        fetch('/api/users')
+        apiFetch('/api/users')
             .then(res => res.json())
             .then(data => setUsers(Array.isArray(data) ? data : []))
             .catch(console.error);
@@ -165,27 +167,74 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
     // Unassigned tasks count (real data)
     const unassignedTasks = filteredTasks.filter(t => !t.assigneeId).length;
 
-    // Export to CSV
-    const handleExport = () => {
-        const headers = ['Title', 'Status', 'Priority', 'Assignee', 'Due Date', 'Created At'];
-        const rows = filteredTasks.map(task => {
+    // Export to CSV (combined: task details + time tracking)
+    const handleExport = async () => {
+        // Fetch time tracking data for this project
+        let timeData: { perTask: any[]; perUser: any[]; perProject: any[] } = { perTask: [], perUser: [], perProject: [] };
+        try {
+            const res = await apiFetch(`/api/time-tracking?projectId=${projectId}`);
+            if (res.ok) {
+                timeData = await res.json();
+            }
+        } catch { /* proceed without time data */ }
+
+        // Build a lookup of time per task
+        const timeByTask = new Map<string, { totalMinutes: number; lastEntry: string }>();
+        (timeData.perTask || []).forEach((t: any) => {
+            timeByTask.set(t.taskId, { totalMinutes: t.totalMinutes, lastEntry: t.lastEntry });
+        });
+
+        // Section 1: Task Details + Time
+        const taskHeaders = ['Title', 'Status', 'Priority', 'Assignee', 'Due Date', 'Created At', 'Time Logged (min)', 'Time Logged (hrs)', 'Last Time Entry'];
+        const taskRows = filteredTasks.map(task => {
             const assignee = users.find(u => u.id === task.assigneeId);
+            const time = timeByTask.get(task.id);
             return [
                 task.title,
                 task.status,
                 task.priority,
                 assignee?.name || 'Unassigned',
                 task.dueDate ? new Date(task.dueDate).toLocaleDateString() : '',
-                task.createdAt ? new Date(task.createdAt).toLocaleDateString() : ''
+                task.createdAt ? new Date(task.createdAt).toLocaleDateString() : '',
+                time ? time.totalMinutes.toString() : '0',
+                time ? (time.totalMinutes / 60).toFixed(1) : '0',
+                time?.lastEntry ? new Date(time.lastEntry).toLocaleDateString() : '-',
             ];
         });
 
-        const csv = [headers.join(','), ...rows.map(row => row.map(cell => `"${cell}"`).join(','))].join('\n');
+        // Section 2: User Time Summary
+        const userHeaders = ['User', 'Tasks with Time', 'Total Minutes', 'Total Hours'];
+        const userRows = (timeData.perUser || []).map((u: any) => [
+            u.userName, u.taskCount?.toString() || '0', u.totalMinutes?.toString() || '0', (u.totalMinutes / 60).toFixed(1),
+        ]);
+
+        // Section 3: Project Time Summary (only if global)
+        const projHeaders = ['Project', 'Tasks', 'Total Minutes', 'Total Hours'];
+        const projRows = (timeData.perProject || []).map((p: any) => [
+            p.projectName, p.taskCount?.toString() || '0', p.totalMinutes?.toString() || '0', (p.totalMinutes / 60).toFixed(1),
+        ]);
+
+        const esc = (c: string) => `"${(c || '').replace(/"/g, '""')}"`;
+        const lines = [
+            '--- Task Report ---',
+            taskHeaders.map(esc).join(','),
+            ...taskRows.map(r => r.map(esc).join(',')),
+            '',
+            '--- User Time Summary ---',
+            userHeaders.map(esc).join(','),
+            ...userRows.map((r: string[]) => r.map(esc).join(',')),
+            '',
+            '--- Project Time Summary ---',
+            projHeaders.map(esc).join(','),
+            ...projRows.map((r: string[]) => r.map(esc).join(',')),
+        ];
+
+        const csv = lines.join('\n');
         const blob = new Blob([csv], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `report-${projectId}-${new Date().toISOString().split('T')[0]}.csv`;
+        a.download = `full-report-${projectId}-${new Date().toISOString().split('T')[0]}.csv`;
         a.click();
         URL.revokeObjectURL(url);
     };
@@ -218,22 +267,20 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
                         <BarChart3 className="text-blue-500" size={24} />
                         Project Reports
                     </h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        Analytics based on {totalTasks} task{totalTasks !== 1 ? 's' : ''} from database
-                    </p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <select
+                    <CustomSelect
                         value={timeRange}
-                        onChange={(e) => setTimeRange(e.target.value)}
-                        className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                    >
-                        <option value="all">All Time</option>
-                        <option value="week">Last 7 days</option>
-                        <option value="month">Last 30 days</option>
-                        <option value="quarter">Last 90 days</option>
-                        <option value="year">Last year</option>
-                    </select>
+                        onChange={(val: string) => setTimeRange(val)}
+                        options={[
+                            { value: 'all', label: 'All Time' },
+                            { value: 'week', label: 'Last 7 days' },
+                            { value: 'month', label: 'Last 30 days' },
+                            { value: 'quarter', label: 'Last 90 days' },
+                            { value: 'year', label: 'Last year' },
+                        ]}
+                        className="w-40"
+                    />
                     <button
                         onClick={() => setShowFilters(true)}
                         className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors relative"
@@ -308,16 +355,24 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
                         {/* Assignee Filter */}
                         <div className="mb-6">
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Assignee</label>
-                            <select
+                            <CustomSelect
                                 value={filters.assignee}
-                                onChange={(e) => setFilters(prev => ({ ...prev, assignee: e.target.value }))}
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            >
-                                <option value="">All Team Members</option>
-                                {users.map(user => (
-                                    <option key={user.id} value={user.id}>{user.name}</option>
-                                ))}
-                            </select>
+                                onChange={(val: string) => setFilters(prev => ({ ...prev, assignee: val }))}
+                                options={[
+                                    { value: '', label: 'All Team Members' },
+                                    ...users.map(user => ({
+                                        value: user.id,
+                                        label: user.name,
+                                        icon: (
+                                            <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-[10px] text-white font-bold">
+                                                {user.name.charAt(0)}
+                                            </div>
+                                        )
+                                    }))
+                                ]}
+                                placeholder="All Team Members"
+                                maxHeight="200px"
+                            />
                         </div>
 
                         {/* Actions */}
@@ -342,14 +397,14 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
             {/* Metric Cards - All Real Data */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {metrics.map((metric, idx) => (
-                    <div key={idx} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-                        <div className="flex items-center justify-between mb-3">
-                            <div className={`w-10 h-10 ${metric.color} rounded-lg flex items-center justify-center text-white`}>
-                                {metric.icon}
-                            </div>
+                    <div key={idx} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex items-center gap-4">
+                        <div className={`w-12 h-12 shrink-0 ${metric.color} rounded-lg flex items-center justify-center text-white`}>
+                            {metric.icon}
                         </div>
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white">{metric.value}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{metric.title}</p>
+                        <div>
+                            <p className="text-2xl font-bold text-gray-900 dark:text-white leading-tight">{metric.value}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">{metric.title}</p>
+                        </div>
                     </div>
                 ))}
             </div>
@@ -357,22 +412,22 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Completion Rate - Real Data */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-                    <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Completion Rate</h3>
-                    <div className="flex items-center justify-center">
-                        <div className="relative w-40 h-40">
+                    <h3 className="font-semibold text-gray-900 dark:text-white mb-6">Completion Rate</h3>
+                    <div className="flex items-center justify-center gap-12">
+                        <div className="relative w-44 h-44 shrink-0">
                             <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                                 <circle
                                     cx="50" cy="50" r="40"
                                     fill="none"
                                     stroke="currentColor"
-                                    strokeWidth="12"
+                                    strokeWidth="10"
                                     className="text-gray-100 dark:text-gray-700"
                                 />
                                 <circle
                                     cx="50" cy="50" r="40"
                                     fill="none"
                                     stroke="currentColor"
-                                    strokeWidth="12"
+                                    strokeWidth="10"
                                     strokeLinecap="round"
                                     strokeDasharray={`${completionRate * 2.51} 251`}
                                     className="text-green-500"
@@ -381,19 +436,20 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
                             <div className="absolute inset-0 flex items-center justify-center">
                                 <div className="text-center">
                                     <span className="text-3xl font-bold text-gray-900 dark:text-white">{completionRate}%</span>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">Complete</p>
+                                    <p className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-bold">Complete</p>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    <div className="mt-4 grid grid-cols-2 gap-4 text-center">
-                        <div>
-                            <p className="text-2xl font-semibold text-gray-900 dark:text-white">{completedTasks}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Tasks Done</p>
-                        </div>
-                        <div>
-                            <p className="text-2xl font-semibold text-gray-900 dark:text-white">{totalTasks - completedTasks}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Remaining</p>
+                        
+                        <div className="flex flex-col gap-4">
+                            <div className="bg-gray-50 dark:bg-gray-700/30 p-3 rounded-lg border border-gray-100 dark:border-gray-700 w-32 text-center">
+                                <p className="text-2xl font-bold text-gray-900 dark:text-white leading-none">{completedTasks}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 uppercase text-[10px] font-medium">Tasks Done</p>
+                            </div>
+                            <div className="bg-gray-50 dark:bg-gray-700/30 p-3 rounded-lg border border-gray-100 dark:border-gray-700 w-32 text-center">
+                                <p className="text-2xl font-bold text-gray-900 dark:text-white leading-none">{totalTasks - completedTasks}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 uppercase text-[10px] font-medium">Remaining</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -422,15 +478,15 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Priority Distribution - Real Data */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-                    <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Priority Breakdown</h3>
-                    <div className="space-y-3">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 flex flex-col">
+                    <h3 className="font-semibold text-gray-900 dark:text-white mb-6">Priority Breakdown</h3>
+                    <div className="space-y-4 flex-1">
                         {priorityDistribution.map((item, idx) => (
-                            <div key={idx} className="flex items-center gap-3">
-                                <div className={`w-3 h-3 rounded-full ${item.color}`} />
-                                <span className="flex-1 text-sm text-gray-600 dark:text-gray-400">{item.priority}</span>
-                                <span className="text-sm font-medium text-gray-900 dark:text-white">{item.count}</span>
-                                <span className="text-xs text-gray-400 w-12 text-right">
+                            <div key={idx} className="flex items-center gap-4">
+                                <div className={`w-3 h-3 rounded-full ${item.color} shrink-0`} />
+                                <span className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300">{item.priority}</span>
+                                <span className="text-base font-bold text-gray-900 dark:text-white">{item.count}</span>
+                                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-12 text-right">
                                     {totalTasks > 0 ? Math.round((item.count / totalTasks) * 100) : 0}%
                                 </span>
                             </div>
@@ -438,11 +494,11 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
                     </div>
 
                     {/* Mini bar chart */}
-                    <div className="mt-4 flex rounded-lg overflow-hidden h-4">
+                    <div className="mt-6 flex rounded-full overflow-hidden h-4 shadow-inner">
                         {priorityDistribution.map((item, idx) => (
                             <div
                                 key={idx}
-                                className={`${item.color} transition-all duration-500`}
+                                className={`${item.color} transition-all duration-500 border-r border-black/5 dark:border-white/5 last:border-0`}
                                 style={{ width: `${totalTasks > 0 ? (item.count / totalTasks) * 100 : 0}%` }}
                                 title={`${item.priority}: ${item.count}`}
                             />
@@ -474,7 +530,7 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
                 <h3 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                     <Users size={20} className="text-blue-500" />
-                    Team Performance (From Database)
+                    Team Performance
                 </h3>
                 <div className="overflow-x-auto">
                     <table className="w-full">

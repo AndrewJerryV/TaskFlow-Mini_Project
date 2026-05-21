@@ -10,27 +10,29 @@ export interface User {
   role: 'Admin' | 'Manager' | 'Member';
   // AI/Health Extensions
   skills: string[];
+  dob?: string;
+  skillExperience?: Record<string, number>;
   wellnessScore: number; // 0-100
   maxWorkload: number;
   burnoutRisk?: 'Low' | 'Medium' | 'High'; // Derived
   // Contact Info
   phone?: string;
   officeAddress?: string;
-  // Settings
+  age?: number;
   timezone?: string;
+  // Settings
   quietHoursStart?: string;
   quietHoursEnd?: string;
   quietHoursWeekends?: boolean;
   twoFactorEnabled?: boolean;
+  companySize?: 'Small (1-10)' | 'Medium (11-50)' | 'Large (50+)';
   // AI Settings
   burnoutSensitivity?: number;
   autoAssign?: boolean;
   skillMatchPriority?: boolean;
   aiDeadlines?: boolean;
   // Notification Settings
-  emailDigestFrequency?: string;
-  pushNotifications?: boolean;
-  soundAlerts?: boolean;
+  authProvider?: string;
 }
 
 export interface Attachment {
@@ -42,11 +44,21 @@ export interface Attachment {
 
 export interface Message {
   id: string;
-  projectId: string;
+  projectId?: string;
   userId: string;
   content: string;
   timestamp: string;
   attachment?: Attachment;
+  conversationType?: 'project' | 'dm';
+  recipientId?: string;
+  threadRootId?: string | null;
+  reactions?: MessageReaction[];
+  isPinned?: boolean;
+}
+
+export interface MessageReaction {
+  emoji: string;
+  userIds: string[];
 }
 
 export interface Comment {
@@ -55,6 +67,24 @@ export interface Comment {
   userId: string;
   content: string;
   createdAt: string; // ISO Date
+}
+
+export interface TimeLog {
+  userId: string;
+  minutes: number;
+  date: string; // ISO Date string
+}
+
+export interface TimeEntry {
+  id: string;
+  taskId: string;
+  userId: string;
+  projectId?: string;
+  startTime: string; // ISO Date
+  endTime?: string | null; // ISO Date
+  durationMinutes?: number | null;
+  note?: string;
+  createdAt: string;
 }
 
 export interface Task {
@@ -70,6 +100,8 @@ export interface Task {
   createdAt: string; // ISO Date
   updatedAt: string; // ISO Date
   tags: string[];
+  isPrivate?: boolean;
+  dependencies?: string[]; // Array of task IDs this task depends on
 }
 
 
@@ -91,7 +123,7 @@ export interface Project {
   id: string;
   name: string;
   description: string;
-  key: string; // e.g., "TF" -> TF-1
+  key: string;
   ownerId: string;
   createdAt: string;
   updatedAt: string;
@@ -107,7 +139,7 @@ export interface ActivityLog {
   timestamp: string;
 }
 
-export type FormFieldType = 'text' | 'textarea' | 'select' | 'checkbox' | 'radio' | 'date' | 'number';
+export type FormFieldType = 'text' | 'comment' | 'radiogroup' | 'checkbox' | 'dropdown' | 'rating' | 'date';
 
 export interface FormFieldOption {
   id: string;
@@ -122,6 +154,11 @@ export interface FormField {
   placeholder?: string;
   required: boolean;
   options?: FormFieldOption[]; // For select, checkbox, radio
+  choices?: string[]; // For radiogroup, checkbox, dropdown
+  rateMin?: number;
+  rateMax?: number;
+  minLabel?: string;
+  maxLabel?: string;
 }
 
 export interface Form {
@@ -144,6 +181,37 @@ export interface FormResponse {
   submittedAt: string;
 }
 
+export interface Notification {
+  id: string;
+  userId: string;
+  type: 'task_assigned' | 'task_status_changed' | 'new_message' | 'new_form' | 'general';
+  title: string;
+  message: string;
+  isRead: boolean;
+  link?: string;
+  entityId?: string;
+  projectId?: string;
+  createdAt: string;
+}
+
+export interface Deployment {
+  id: string;
+  projectId: string;
+  version: string;
+  environment: 'Development' | 'Staging' | 'Production';
+  status: 'In Progress' | 'Completed' | 'Failed';
+  releaseNotes?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DeploymentTask {
+  deploymentId: string;
+  taskId: string;
+  linkedAt: string;
+}
+
 export interface DbSchema {
   users: User[];
   projects: Project[];
@@ -152,4 +220,7 @@ export interface DbSchema {
   messages: Message[];
   forms: Form[];
   formResponses: FormResponse[];
+  notifications: Notification[];
+  deployments: Deployment[];
+  deploymentTasks: DeploymentTask[];
 }

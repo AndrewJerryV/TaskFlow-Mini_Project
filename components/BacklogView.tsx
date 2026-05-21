@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Task, Priority, Status } from '@/types';
-import { CheckSquare, Plus, Edit2, MoreVertical, Search, PlayCircle, Layers } from 'lucide-react';
+import { Task, Priority, Status, User } from '@/types';
+import { CheckSquare, Square, Plus, Edit2, MoreVertical, Search, PlayCircle, Layers, Lock } from 'lucide-react';
 import { TaskFilters } from './TaskFilters';
 import { TaskDetailModal } from './TaskDetailModal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,19 +13,24 @@ interface BacklogViewProps {
   onTaskCreate?: () => void;
   onTaskUpdate?: (task: Task) => void;
   onTaskDelete?: (taskId: string) => void;
+  projectMemberIds?: string[];
 }
 
 // Editable Task Item Component
 const TaskItem = ({
   item,
+  users,
   onUpdate,
   onClick,
-  onDelete
+  onDelete,
+  currentUserRole,
 }: {
   item: Task,
+  users?: User[],
   onUpdate?: (t: Task) => void,
   onClick?: (t: Task) => void,
   onDelete?: (taskId: string) => void,
+  currentUserRole?: string,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(item.title);
@@ -51,11 +56,11 @@ const TaskItem = ({
       onClick={handleRowClick}
     >
       <div className="flex items-center space-x-3 flex-1">
-        <input
-          type="checkbox"
-          className="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500 dark:bg-gray-700"
-          onClick={(e) => e.stopPropagation()}
-        />
+        {item.status === 'Done' ? (
+          <CheckSquare className="w-4 h-4 text-green-500 dark:text-green-400" />
+        ) : (
+          <Square className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+        )}
         <span className="text-gray-500 dark:text-gray-400 font-medium text-xs w-16 truncate font-mono" title={item.id}>{item.id.substring(0, 6)}</span>
 
         {isEditing ? (
@@ -70,17 +75,20 @@ const TaskItem = ({
             className="text-sm font-medium border border-blue-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white dark:border-blue-500"
           />
         ) : (
-          <span className="text-gray-900 dark:text-white text-sm font-medium">
+          <span className="text-gray-900 dark:text-white text-sm font-medium flex items-center gap-1.5">
+            {item.isPrivate && <span title="Private Task"><Lock size={12} className="text-amber-500" /></span>}
             {item.title}
           </span>
         )}
 
-        <button
-          onClick={(e) => { e.stopPropagation(); setIsEditing(!isEditing); }}
-          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-opacity"
-        >
-          <Edit2 size={12} />
-        </button>
+        {currentUserRole !== 'Member' && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setIsEditing(!isEditing); }}
+            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-opacity"
+          >
+            <Edit2 size={12} />
+          </button>
+        )}
       </div>
 
       <div className="flex items-center space-x-4">
@@ -92,11 +100,35 @@ const TaskItem = ({
           {item.priority}
         </span>
 
-        {item.assigneeId && (
-          <div className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center text-xs text-white uppercase">
-            {item.assigneeId.charAt(0)}
-          </div>
-        )}
+        {item.assigneeId && (() => {
+          const assignee = users?.find(u => u.id === item.assigneeId);
+          const initial = assignee?.name?.charAt(0) || item.assigneeId.charAt(0);
+          return assignee?.avatarUrl ? (
+            <img
+              src={assignee.avatarUrl}
+              alt={assignee.name || 'Assigned'}
+              title={assignee.name || 'Assigned'}
+              className="w-6 h-6 rounded-full object-cover"
+              onError={(e) => {
+                const el = e.target as HTMLImageElement;
+                el.style.display = 'none';
+                el.nextElementSibling?.classList.remove('hidden');
+              }}
+            />
+          ) : null;
+        })()}
+        {item.assigneeId && (() => {
+          const assignee = users?.find(u => u.id === item.assigneeId);
+          const initial = assignee?.name?.charAt(0) || item.assigneeId.charAt(0);
+          return (
+            <div
+              className={`w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center text-xs text-white uppercase ${assignee?.avatarUrl ? 'hidden' : ''}`}
+              title={assignee?.name || 'Assigned'}
+            >
+              {initial}
+            </div>
+          );
+        })()}
         <div className="relative">
           <button
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1"
@@ -115,18 +147,22 @@ const TaskItem = ({
               >
                 View Details
               </button>
-              <button
-                className="w-full text-left px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                onClick={() => { setIsEditing(true); setShowMenu(false); }}
-              >
-                Edit Title
-              </button>
-              <button
-                className="w-full text-left px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                onClick={() => { onDelete?.(item.id); setShowMenu(false); }}
-              >
-                Delete
-              </button>
+              {currentUserRole !== 'Member' && (
+                <>
+                  <button
+                    className="w-full text-left px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    onClick={() => { setIsEditing(true); setShowMenu(false); }}
+                  >
+                    Edit Title
+                  </button>
+                  <button
+                    className="w-full text-left px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                    onClick={() => { onDelete?.(item.id); setShowMenu(false); }}
+                  >
+                    Delete
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -135,8 +171,14 @@ const TaskItem = ({
   );
 };
 
-export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskDelete }: BacklogViewProps) {
-  const { users } = useAuth();
+export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskDelete, projectMemberIds = [] }: BacklogViewProps) {
+  const { users: allUsers, currentUser } = useAuth();
+  
+  // Filter users to only include project members
+  const users = projectMemberIds.length > 0 
+    ? allUsers.filter(u => projectMemberIds.includes(u.id))
+    : allUsers;
+
   const [isSprintOpen, setIsSprintOpen] = useState(true);
   const [isBacklogOpen, setIsBacklogOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -194,6 +236,7 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskD
         onClose={() => setIsDetailOpen(false)}
         onUpdate={handleTaskUpdate}
         onDelete={handleTaskDelete}
+        projectMemberIds={projectMemberIds}
       />
 
       {/* Filters Component with Search */}
@@ -222,21 +265,38 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskD
             <span className="ml-2 text-gray-400 dark:text-gray-500 font-normal text-xs">({sprintTasks.length} items)</span>
           </div>
           <div className="flex space-x-2 text-xs">
-            <button className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-1 rounded shadow-sm transition-all">Complete sprint</button>
+            {currentUser?.role !== 'Member' && (
+              <button
+                className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-1 rounded shadow-sm transition-all"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Move all non-done sprint tasks to backlog (set status to 'To Do')
+                  const incomplete = sprintTasks.filter(t => t.status !== 'Done');
+                  incomplete.forEach(t => {
+                    onTaskUpdate && onTaskUpdate({ ...t, status: 'To Do' });
+                  });
+                  alert('Sprint completed! All incomplete tasks have been moved to the backlog.');
+                }}
+              >
+                Complete sprint
+              </button>
+            )}
           </div>
         </div>
 
         {isSprintOpen && (
           <div className="space-y-[-1px] mt-2">
+            {currentUser?.role !== 'Member' && (
+              <button onClick={onTaskCreate} className="w-full text-left p-2 pl-3 mb-1 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300 transition-colors rounded">
+                <Plus size={14} /> Create issue
+              </button>
+            )}
             {sprintTasks.map(item => (
-              <TaskItem key={item.id} item={item} onUpdate={onTaskUpdate} onClick={handleTaskClick} onDelete={handleTaskDelete} />
+              <TaskItem key={item.id} item={item} users={users} onUpdate={onTaskUpdate} onClick={handleTaskClick} onDelete={handleTaskDelete} currentUserRole={currentUser?.role} />
             ))}
             {sprintTasks.length === 0 && (
               <p className="text-sm text-gray-400 dark:text-gray-500 italic py-4 text-center">No tasks in sprint</p>
             )}
-            <button onClick={onTaskCreate} className="w-full text-left p-2 pl-3 mt-1 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300 transition-colors rounded">
-              <Plus size={14} /> Create issue
-            </button>
           </div>
         )}
       </div>
@@ -256,15 +316,17 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskD
 
         {isBacklogOpen && (
           <div className="space-y-[-1px] mt-2">
+            {currentUser?.role !== 'Member' && (
+              <button onClick={onTaskCreate} className="w-full text-left p-2 pl-3 mb-1 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300 transition-colors rounded">
+                <Plus size={14} /> Create issue
+              </button>
+            )}
             {backlogTasks.map(item => (
-              <TaskItem key={item.id} item={item} onUpdate={onTaskUpdate} onClick={handleTaskClick} onDelete={handleTaskDelete} />
+              <TaskItem key={item.id} item={item} users={users} onUpdate={onTaskUpdate} onClick={handleTaskClick} onDelete={handleTaskDelete} currentUserRole={currentUser?.role} />
             ))}
             {backlogTasks.length === 0 && (
               <p className="text-sm text-gray-400 dark:text-gray-500 italic py-4 text-center">No tasks in backlog</p>
             )}
-            <button onClick={onTaskCreate} className="w-full text-left p-2 pl-3 mt-1 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300 transition-colors rounded">
-              <Plus size={14} /> Create issue
-            </button>
           </div>
         )}
       </div>
