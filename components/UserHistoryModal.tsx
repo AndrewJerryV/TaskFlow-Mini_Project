@@ -7,11 +7,8 @@ import { getActionDisplay } from '@/lib/utils';
 import { Calendar, CheckCircle2, Clock, History, PieChart as PieIcon, Phone, Building, Shield, HeartPulse, Pencil, Mail, Trash2, Loader2, AlertTriangle } from 'lucide-react';
 import { PieChart, TaskTimeline } from '@/components/ui/Charts';
 import { useAuth } from '@/contexts/AuthContext';
-<<<<<<< HEAD
 import { apiFetch } from '@/lib/api/fetchWithSupabase';
-=======
 import { useAlert } from '@/contexts/AlertContext';
->>>>>>> 311f979 (feat: Refactor native browser alerts to use custom AlertContext UI overlays)
 
 interface UserHistoryModalProps {
     isOpen: boolean;

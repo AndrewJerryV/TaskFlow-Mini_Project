@@ -26,27 +26,17 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body suppressHydrationWarning className={`${poppins.variable} font-sans bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors`}>
-<<<<<<< HEAD
-  <SupabaseGuard>
-    <ThemeProvider>
-      <AuthProvider>
-        <AuthenticatedLayout>
-          {children}
-        </AuthenticatedLayout>
-      </AuthProvider>
-    </ThemeProvider>
-  </SupabaseGuard>
-=======
-        <ThemeProvider>
-          <AuthProvider>
-            <AlertProvider>
-              <AuthenticatedLayout>
-                {children}
-              </AuthenticatedLayout>
-            </AlertProvider>
-          </AuthProvider>
-        </ThemeProvider>
->>>>>>> 311f979 (feat: Refactor native browser alerts to use custom AlertContext UI overlays)
+        <SupabaseGuard>
+          <ThemeProvider>
+            <AuthProvider>
+              <AlertProvider>
+                <AuthenticatedLayout>
+                  {children}
+                </AuthenticatedLayout>
+              </AlertProvider>
+            </AuthProvider>
+          </ThemeProvider>
+        </SupabaseGuard>
       </body >
     </html >
   );
