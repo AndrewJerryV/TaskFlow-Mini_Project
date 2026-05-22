@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Priority, Status, Task, User } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAlert } from '@/contexts/AlertContext';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { Sparkles } from 'lucide-react';
 import { CustomSelect, SelectOption } from '@/components/ui/CustomSelect';
@@ -31,6 +32,7 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
     const [projectTasks, setProjectTasks] = useState<Task[]>([]);
 
     const { currentUser } = useAuth();
+    const { showAlert } = useAlert();
     const isMember = currentUser?.role === 'Member';
 
     // Users list from API
@@ -97,7 +99,7 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
 
     const handleSmartAssign = async () => {
         if (!title) {
-            alert('Please enter a summary first so the AI can analyze requirements.');
+            showAlert('Please enter a summary first so the AI can analyze requirements.', 'warning');
             return;
         }
 
@@ -170,7 +172,7 @@ export function CreateTaskDialog({ isOpen, onClose, currentProjectId, onSubmit }
 
         } catch (error: any) {
             console.error(error);
-            alert(error.message || 'Failed to get AI suggestion');
+            showAlert(error.message || 'Failed to get AI suggestion', 'error');
         } finally {
             setIsAnalyzing(false);
         }

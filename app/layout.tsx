@@ -2,10 +2,11 @@ import './globals.css';
 import { Poppins } from 'next/font/google';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { AlertProvider } from '@/contexts/AlertContext';
 import { AuthenticatedLayout } from '@/components/AuthenticatedLayout';
 import { SupabaseGuard } from '@/components/SupabaseGuard';
 
-const poppins = Poppins({ 
+const poppins = Poppins({
   weight: ['400', '500', '600', '700'],
   style: ['normal', 'italic'],
   subsets: ['latin'],
@@ -28,13 +29,15 @@ export default function RootLayout({
         <SupabaseGuard>
           <ThemeProvider>
             <AuthProvider>
-              <AuthenticatedLayout>
-                {children}
-              </AuthenticatedLayout>
+              <AlertProvider>
+                <AuthenticatedLayout>
+                  {children}
+                </AuthenticatedLayout>
+              </AlertProvider>
             </AuthProvider>
           </ThemeProvider>
         </SupabaseGuard>
-      </body>
-    </html>
+      </body >
+    </html >
   );
 }

@@ -250,18 +250,18 @@ export default function TimeTrackingView({ projectId, tasks: propTasks }: TimeTr
     const maxProjectMinutes = Math.max(...data.perProject.map(p => p.totalMinutes), 1);
 
     return (
-        <div className="space-y-6 max-w-[1400px] mx-auto">
+        <div className="space-y-6 max-w-[1400px] mx-auto min-w-0">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                     <div>
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Time Tracking & Analytics</h2>
+                        <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">Time Tracking & Analytics</h2>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
                             {projectId ? 'Project-level time insights' : 'Cross-project time insights'}
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                     <button
                         onClick={() => setShowFilters(!showFilters)}
                         className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${showFilters || hasActiveFilters
@@ -296,7 +296,7 @@ export default function TimeTrackingView({ projectId, tasks: propTasks }: TimeTr
                             </button>
                         )}
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                         {!projectId && (
                             <div>
                                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Project</label>
@@ -354,7 +354,7 @@ export default function TimeTrackingView({ projectId, tasks: propTasks }: TimeTr
             )}
 
             {/* Summary Metric Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-white dark:bg-gray-800 rounded-xl p-5 ring-1 ring-gray-200 dark:ring-gray-700 shadow-sm hover:shadow-md transition-shadow">
                     <div className="flex items-center gap-3 mb-3">
                         <Clock size={18} className="text-blue-600 dark:text-blue-400" />
@@ -419,7 +419,7 @@ export default function TimeTrackingView({ projectId, tasks: propTasks }: TimeTr
             )}
 
             {/* Section Tabs */}
-            <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
+            <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1 overflow-x-auto no-scrollbar">
                 {[
                     { key: 'users' as const, label: 'By User', icon: Users },
                     { key: 'tasks' as const, label: 'By Task', icon: BarChart3 },
@@ -429,7 +429,7 @@ export default function TimeTrackingView({ projectId, tasks: propTasks }: TimeTr
                     <button
                         key={tab.key}
                         onClick={() => setActiveSection(tab.key)}
-                        className={`group relative overflow-hidden flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 ${activeSection === tab.key
+                        className={`group relative overflow-hidden shrink-0 whitespace-nowrap sm:flex-1 min-w-[120px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 ${activeSection === tab.key
                                 ? 'text-white shadow-md'
                                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-gray-700/50 hover:shadow-sm'
                             }`}
@@ -519,7 +519,7 @@ export default function TimeTrackingView({ projectId, tasks: propTasks }: TimeTr
                             </div>
                         ) : (
                             <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
+                                <table className="w-full min-w-[640px] text-sm">
                                     <thead>
                                         <tr className="bg-gray-50 dark:bg-gray-900/50">
                                             <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Task</th>

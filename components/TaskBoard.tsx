@@ -6,6 +6,7 @@ import { Task, Status } from '@/types';
 import { TaskCard } from './TaskCard';
 import { createPortal } from 'react-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAlert } from '@/contexts/AlertContext';
 
 type TaskBoardProps = {
     tasks: Task[];
@@ -28,7 +29,7 @@ function Column({ id, title, tasks, currentUser }: { id: Status, title: string, 
     };
 
     return (
-        <div ref={setNodeRef} className="flex-1 min-w-[280px] flex flex-col h-full bg-gray-50/50 dark:bg-gray-800/50 rounded-xl border border-gray-200/60 dark:border-gray-700/60 ml-3 first:ml-0">
+        <div ref={setNodeRef} className="flex-1 min-w-[260px] sm:min-w-[280px] flex flex-col h-full bg-gray-50/50 dark:bg-gray-800/50 rounded-xl border border-gray-200/60 dark:border-gray-700/60 ml-3 first:ml-0">
             <div className="p-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <div className={`w-2 h-2 rounded-full ${getColumnColor()}`} />
@@ -59,6 +60,7 @@ export function TaskBoard({ tasks, onTaskMove }: TaskBoardProps) {
     const [activeId, setActiveId] = useState<string | null>(null);
     const activeTask = safeTasks.find(t => t.id === activeId);
     const { currentUser } = useAuth();
+    const { showAlert } = useAlert();
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -97,7 +99,7 @@ export function TaskBoard({ tasks, onTaskMove }: TaskBoardProps) {
                     const incompleteDeps = safeTasks.filter(t => taskDeps.includes(t.id) && t.status !== 'Done');
                     
                     if (incompleteDeps.length > 0) {
-                        alert(`Cannot move to ${newStatus}. This task is blocked by: ${incompleteDeps.map(t => t.title).join(', ')}`);
+                        showAlert(`Cannot move to ${newStatus}. This task is blocked by: ${incompleteDeps.map(t => t.title).join(', ')}`, 'error');
                         setActiveId(null);
                         return;
                     }
@@ -106,7 +108,7 @@ export function TaskBoard({ tasks, onTaskMove }: TaskBoardProps) {
                 if (allowedNextStates.includes(newStatus) || currentUser?.role === 'Admin' || currentUser?.role === 'Manager') {
                     onTaskMove(active.id as string, newStatus);
                 } else {
-                    alert(`Invalid transition from ${oldStatus} to ${newStatus}`);
+                    showAlert(`Invalid transition from ${oldStatus} to ${newStatus}`, 'error');
                 }
             }
         }
@@ -130,7 +132,7 @@ export function TaskBoard({ tasks, onTaskMove }: TaskBoardProps) {
 
     return (
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-            <div className="flex h-full overflow-x-auto">
+            <div className="flex h-full overflow-x-auto pb-2 snap-x snap-mandatory">
                 {COLUMNS.map(status => (
                     <Column
                         key={status}

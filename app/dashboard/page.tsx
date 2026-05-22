@@ -1,11 +1,14 @@
 'use client';
 
+'use client';
+
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Project, Task } from '@/types';
 import { CreateProjectDialog } from '@/components/forms/CreateProjectDialog';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAlert } from '@/contexts/AlertContext';
 import { getUserName, getActionDisplay } from '@/lib/utils';
 import { Sparkles, ArrowRight, Trash2, MessageSquare, Edit, ChevronDown, ChevronUp, Brain } from 'lucide-react';
 import { WellnessAlerts } from '@/components/WellnessAlerts';
@@ -34,6 +37,7 @@ type ProjectWithStats = Project & {
 
 export default function Home() {
   const { currentUser, users } = useAuth();
+  const { showAlert, showConfirm } = useAlert();
   const router = useRouter();
   const [projects, setProjects] = useState<ProjectWithStats[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
@@ -102,8 +106,8 @@ export default function Home() {
   const wellnessUsers = getFilteredUsersForWellness();
 
   return (
-    <div className="p-8 mx-auto">
-      <div className="flex justify-between items-center mb-6">
+    <div className="w-full max-w-[1440px] mx-auto p-4 sm:p-6 lg:p-8">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-6">
         <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">Your Work</h1>
         {currentUser && (
           <div className="text-sm text-gray-500 dark:text-gray-400">
@@ -136,7 +140,7 @@ export default function Home() {
         {loading ? (
           <div className="text-sm text-gray-400 dark:text-gray-500">Loading projects...</div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
             {/* ... project cards ... */}
             {projects.map(project => (
               <Link key={project.id} href={`/projects/${project.id}`} className="block group">
@@ -154,17 +158,19 @@ export default function Home() {
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          if (confirm('Are you sure you want to delete this project?')) {
-                            db.deleteProject(project.id)
-                              .then((success) => {
-                                if (success) {
-                                  setProjects(prev => prev.filter(p => p.id !== project.id));
-                                } else {
-                                  alert('Failed to delete project');
-                                }
-                              })
-                              .catch(console.error);
-                          }
+                          showConfirm('Are you sure you want to delete this project?').then((confirmed) => {
+                            if (confirmed) {
+                              db.deleteProject(project.id)
+                                .then((success) => {
+                                  if (success) {
+                                    setProjects(prev => prev.filter(p => p.id !== project.id));
+                                  } else {
+                                    showAlert('Failed to delete project', 'error');
+                                  }
+                                })
+                                .catch(console.error);
+                            }
+                          });
                         }}
                         className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
                         title="Delete Project"
@@ -258,11 +264,11 @@ function ActivityFeedList({ users }: { users: any[] }) {
       {logs.slice(0, 5).map((log: any) => {
         const actionInfo = getActionDisplay(log.action);
         return (
-          <div key={log.id} className="p-4 flex items-center hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-default">
+          <div key={log.id} className="p-4 flex items-start sm:items-center hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-default">
             <div className={`w-8 h-8 mr-4 flex items-center justify-center rounded-sm ${actionInfo.bgColor}`}>
               <ActionIcon iconName={actionInfo.iconName} size={16} />
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 dark:text-white">{log.details}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 {getLocalUserName(log.userId)} • {new Date(log.timestamp).toLocaleString()}

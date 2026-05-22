@@ -6,6 +6,7 @@ import { CheckSquare, Square, Plus, Edit2, MoreVertical, Search, PlayCircle, Lay
 import { TaskFilters } from './TaskFilters';
 import { TaskDetailModal } from './TaskDetailModal';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAlert } from '@/contexts/AlertContext';
 import { getStatusColorBacklog, getPriorityColor } from '@/lib/utils';
 
 interface BacklogViewProps {
@@ -173,6 +174,7 @@ const TaskItem = ({
 
 export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskDelete, projectMemberIds = [] }: BacklogViewProps) {
   const { users: allUsers, currentUser } = useAuth();
+  const { showAlert } = useAlert();
   
   // Filter users to only include project members
   const users = projectMemberIds.length > 0 
@@ -275,7 +277,7 @@ export default function BacklogView({ tasks, onTaskCreate, onTaskUpdate, onTaskD
                   incomplete.forEach(t => {
                     onTaskUpdate && onTaskUpdate({ ...t, status: 'To Do' });
                   });
-                  alert('Sprint completed! All incomplete tasks have been moved to the backlog.');
+                  showAlert('Sprint completed! All incomplete tasks have been moved to the backlog.', 'success');
                 }}
               >
                 Complete sprint

@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Task, Status, Priority } from '@/types';
 import { TaskDetailModal } from './TaskDetailModal';
-import { Search, ChevronDown, User as UserIcon, Zap, Circle, ZoomIn, ZoomOut, Clock, Lock } from 'lucide-react';
+import { Search, ChevronDown, User as UserIcon, Zap, Circle, ZoomIn, ZoomOut, Clock, Lock, CalendarDays } from 'lucide-react';
 import { format, addMonths, subMonths, startOfMonth, eachMonthOfInterval, eachQuarterOfInterval, differenceInDays } from 'date-fns';
 import { STATUSES } from '@/lib/constants';
 import { useAuth } from '@/contexts/AuthContext';
@@ -109,7 +109,13 @@ export default function TimelineView({ tasks = [], onUpdateTask, projectMemberId
     }
   }, []);
 
-  const ROW_HEIGHT = 'h-[64px]'; 
+  const ROW_HEIGHT = 'h-[64px]';
+
+  const getTaskDateLabel = (task: Task) => {
+    const start = task.startDate ? format(new Date(task.startDate), 'MMM d, yyyy') : 'No start';
+    const end = task.dueDate ? format(new Date(task.dueDate), 'MMM d, yyyy') : 'No due date';
+    return `${start} - ${end}`;
+  };
 
   const handleTaskClick = (task: Task) => {
     setSelectedTask(task);
@@ -117,10 +123,10 @@ export default function TimelineView({ tasks = [], onUpdateTask, projectMemberId
   };
 
   return (
-    <div className="flex flex-col w-full h-full bg-slate-50/50 dark:bg-slate-900 border-t border-slate-200/80 dark:border-slate-800 overflow-hidden font-sans">
-      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 p-5 border-b border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 z-50 relative shadow-sm flex-shrink-0">
+    <div className="flex flex-col w-full h-full min-w-0 bg-slate-50/50 dark:bg-slate-900 border-t border-slate-200/80 dark:border-slate-800 overflow-hidden font-sans">
+      <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 p-3 sm:p-5 border-b border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 z-50 relative shadow-sm flex-shrink-0">
         <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-          <div className="relative flex-grow sm:flex-grow-0 group">
+          <div className="relative w-full sm:w-auto sm:flex-grow-0 group">
             <input
               type="text"
               placeholder="Search Timeline..."
@@ -131,9 +137,9 @@ export default function TimelineView({ tasks = [], onUpdateTask, projectMemberId
             <Search className="absolute w-4 h-4 text-slate-400 left-4 top-1/2 transform -translate-y-1/2 transition-colors group-hover:text-blue-500" />
           </div>
 
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <button
-              className="px-4 py-2 text-sm bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-2xl ring-1 ring-slate-200 dark:ring-slate-700 text-slate-700 dark:text-slate-300 flex items-center gap-2 transition-all shadow-sm hover:shadow-md font-medium"
+              className="w-full sm:w-auto justify-between sm:justify-start px-4 py-2 text-sm bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-2xl ring-1 ring-slate-200 dark:ring-slate-700 text-slate-700 dark:text-slate-300 flex items-center gap-2 transition-all shadow-sm hover:shadow-md font-medium"
               onClick={() => setShowStatusDropdown(!showStatusDropdown)}
             >
               <div className="flex items-center gap-2">
@@ -165,8 +171,8 @@ export default function TimelineView({ tasks = [], onUpdateTask, projectMemberId
           </div>
         </div>
 
-        <div className="flex items-center justify-between w-full lg:w-auto gap-3">
-          <div className="flex items-center space-x-1 bg-white dark:bg-slate-800 ring-1 ring-slate-200 dark:ring-slate-700 rounded-2xl p-1 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full xl:w-auto gap-3">
+          <div className="hidden md:flex items-center space-x-1 bg-white dark:bg-slate-800 ring-1 ring-slate-200 dark:ring-slate-700 rounded-2xl p-1 shadow-sm">
             <button 
               onClick={() => setZoomLevel(prev => Math.max(1.5, prev - 0.5))} 
               disabled={zoomLevel <= 1.5}
@@ -186,13 +192,13 @@ export default function TimelineView({ tasks = [], onUpdateTask, projectMemberId
             </button>
           </div>
 
-          <div className="flex bg-white dark:bg-slate-800 ring-1 ring-slate-200 dark:ring-slate-700 rounded-2xl p-1 shadow-sm">
+          <div className="flex w-full sm:w-auto bg-white dark:bg-slate-800 ring-1 ring-slate-200 dark:ring-slate-700 rounded-2xl p-1 shadow-sm overflow-x-auto no-scrollbar">
             <button 
               onClick={scrollToToday}
-              className="px-3 py-1.5 rounded-xl text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors flex items-center gap-1.5"
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors flex items-center gap-1.5 whitespace-nowrap"
             >
               <Clock size={14} className="text-emerald-500" />
-              <span className="hidden sm:inline">Jump to Today</span>
+              <span>Jump to Today</span>
             </button>
             <div className="w-[1px] bg-slate-200 dark:bg-slate-700 mx-1 my-1" />
             <button onClick={() => setViewMode('Months')} className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all duration-300 ${viewMode === 'Months' ? 'bg-gradient-to-r from-blue-500 to-emerald-500 text-white shadow-sm' : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
@@ -220,9 +226,72 @@ export default function TimelineView({ tasks = [], onUpdateTask, projectMemberId
         projectMemberIds={projectMemberIds}
       />
 
+      <div className="md:hidden flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 p-3 sm:p-4">
+        <div className="mb-3 flex items-center justify-between text-[11px] font-black text-slate-500 uppercase tracking-widest">
+          <span>Tasks</span>
+          <span className="bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full">{filteredTasks.length}</span>
+        </div>
+        <div className="space-y-3">
+          {filteredTasks.map((task) => {
+            const assignee = users?.find(u => u.id === task.assigneeId);
+            return (
+              <button
+                key={task.id}
+                type="button"
+                onClick={() => handleTaskClick(task)}
+                className="w-full text-left rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm overflow-hidden"
+              >
+                <div className="flex items-start gap-3">
+                  <span className={`mt-1 flex-shrink-0 ${task.priority === 'Critical' ? 'text-rose-500' : 'text-blue-500'}`}>
+                    {task.priority === 'Critical' ? <Zap size={16} className="fill-rose-500/20" /> : <Circle size={14} className="fill-blue-500/20" />}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {task.isPrivate && <Lock size={12} className="text-amber-500 flex-shrink-0" />}
+                      <h3 className="text-sm font-semibold text-slate-900 dark:text-white truncate">{task.title}</h3>
+                    </div>
+                    <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                      <CalendarDays size={13} className="flex-shrink-0" />
+                      <span className="truncate">{getTaskDateLabel(task)}</span>
+                    </div>
+                  </div>
+                  <span className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold text-white ${task.status === 'Done' ? 'bg-emerald-500' : task.status === 'In Progress' ? 'bg-blue-500' : task.status === 'Review' ? 'bg-cyan-500' : 'bg-slate-500'}`}>
+                    {task.status}
+                  </span>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-teal-400 flex flex-shrink-0 items-center justify-center text-[10px] text-white uppercase overflow-hidden">
+                      {assignee?.avatarUrl ? (
+                        <img
+                          src={assignee.avatarUrl}
+                          alt={assignee.name}
+                          className="w-full h-full object-cover bg-white"
+                          onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(assignee.name)}&background=random`; }}
+                        />
+                      ) : (
+                        <span className="font-bold">{assignee ? assignee.name.substring(0, 2) : <UserIcon size={12} />}</span>
+                      )}
+                    </div>
+                    <span className="text-xs font-medium text-slate-600 dark:text-slate-300 truncate">{assignee?.name || 'Unassigned'}</span>
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{task.priority}</span>
+                </div>
+              </button>
+            );
+          })}
+          {filteredTasks.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-8 text-center text-sm text-slate-400">
+              No timeline tasks found.
+            </div>
+          )}
+        </div>
+      </div>
+
       <div 
         ref={headerScrollRef}
-        className="w-full overflow-hidden flex-shrink-0 border-b border-slate-200 dark:border-slate-800 bg-slate-50/95 dark:bg-slate-900/95 z-40"
+        className="hidden md:block w-full overflow-hidden flex-shrink-0 border-b border-slate-200 dark:border-slate-800 bg-slate-50/95 dark:bg-slate-900/95 z-40"
       >
         <div className="w-max min-w-full flex h-12">
           <div className="w-[280px] sticky left-0 z-50 flex items-center px-5 h-full flex-shrink-0 bg-slate-50/95 dark:bg-slate-900/95 border-r border-slate-200 dark:border-slate-800 text-[11px] font-black text-slate-500 uppercase tracking-widest">
@@ -240,7 +309,7 @@ export default function TimelineView({ tasks = [], onUpdateTask, projectMemberId
 
       <div 
         ref={bodyScrollRef}
-        className="flex-1 overflow-auto bg-white dark:bg-slate-900 relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full"
+        className="hidden md:block flex-1 overflow-auto bg-white dark:bg-slate-900 relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full"
         onScroll={handleBodyScroll}
       >
         <div className="w-max min-w-full flex flex-col relative min-h-full">

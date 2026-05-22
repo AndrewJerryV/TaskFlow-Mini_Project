@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, BarChart3, Plus, X, Edit3, Calendar, User, ArrowLeft, Save, Trash2, Download, Presentation, FileSpreadsheet, MoreVertical, Pencil } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAlert } from '@/contexts/AlertContext';
 import { resolveClientSupabaseConfig } from '@/lib/browser-supabase-config';
 import { db } from '@/lib/db';
 import { apiFetch } from '@/lib/api/fetchWithSupabase';
@@ -141,6 +142,7 @@ export default function PagesView({ projectId }: PagesViewProps) {
     const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
     const { currentUser } = useAuth();
+    const { showAlert, showConfirm } = useAlert();
 
     // Fetch documents
     useEffect(() => {
@@ -167,7 +169,7 @@ export default function PagesView({ projectId }: PagesViewProps) {
             // Setup download/view link
             const supabaseUrl = resolveClientSupabaseConfig()?.url;
             if (!supabaseUrl) {
-                alert('Supabase storage is not configured on this device yet.');
+                showAlert('Supabase storage is not configured on this device yet.', 'warning');
                 return;
             }
             const publicUrl = `${supabaseUrl}/storage/v1/object/public/project-files/${page.filePath}`;
@@ -214,7 +216,7 @@ export default function PagesView({ projectId }: PagesViewProps) {
     };
 
     const handleDelete = async () => {
-        if (selectedPage && confirm('Are you sure you want to delete this page?')) {
+        if (selectedPage && await showConfirm('Are you sure you want to delete this page?')) {
             await deleteDocument(selectedPage.id);
             setPages(pages.filter(p => p.id !== selectedPage.id));
             setSelectedPage(null);
@@ -232,7 +234,7 @@ export default function PagesView({ projectId }: PagesViewProps) {
     const handleDeleteFromList = async (e: React.MouseEvent, pageId: string) => {
         e.stopPropagation();
         setMenuOpenId(null);
-        if (confirm('Are you sure you want to delete this document?')) {
+        if (await showConfirm('Are you sure you want to delete this document?')) {
             await deleteDocument(pageId);
             setPages(pages.filter(p => p.id !== pageId));
         }
@@ -284,7 +286,7 @@ export default function PagesView({ projectId }: PagesViewProps) {
                     // handlePageClick(newDoc); // Don't auto open to keep flow simple
                 }
             } catch (err) {
-                alert('Failed to create page');
+                showAlert('Failed to create page', 'error');
             }
         }
     };
@@ -310,11 +312,11 @@ export default function PagesView({ projectId }: PagesViewProps) {
                 setPages([newDoc, ...pages]);
             } else {
                 const err = await res.json();
-                alert(err.error || 'Upload failed');
+                showAlert(err.error || 'Upload failed', 'error');
             }
         } catch (error) {
             console.error(error);
-            alert('Upload error');
+            showAlert('Upload error', 'error');
         } finally {
             setUploading(false);
             if (fileInputRef.current) fileInputRef.current.value = '';

@@ -20,6 +20,7 @@ import { CreateTaskDialog } from '@/components/forms/CreateTaskDialog';
 import { Modal } from '@/components/ui/Modal';
 import VideoRoom from '@/components/VideoRoom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAlert } from '@/contexts/AlertContext';
 import { Video, Folder, FileText, BarChart3, Plus, UserPlus, Check, Rocket, Calendar, PieChart } from 'lucide-react';
 import { getSupabase } from '@/lib/supabase';
 import { db } from '@/lib/db';
@@ -49,6 +50,7 @@ export default function ProjectPage() {
     const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
     const [lastSyncTime, setLastSyncTime] = useState(0);
     const { users, currentUser } = useAuth();
+    const { showAlert, showConfirm, showPrompt } = useAlert();
     // ... (rest of the component state and effects remain the same until the return statement)
 
     const searchParams = useSearchParams();
@@ -252,7 +254,7 @@ export default function ProjectPage() {
             setTasks(prev => prev.map(t => t.id == taskId ? updatedTask : t));
         } catch (err: any) {
             console.error("Failed to update task", err);
-            alert(err.message || "Failed to update task");
+            showAlert(err.message || "Failed to update task", 'error');
             setTasks(oldTasks); // Revert
         }
     };
@@ -280,12 +282,12 @@ export default function ProjectPage() {
             if (updatedTask.assigneeId && !projectMembers.includes(updatedTask.assigneeId)) {
                 const addedUser = users.find(u => u.id === updatedTask.assigneeId);
                 const userName = addedUser ? addedUser.name : 'The assigned user';
-                alert(`${userName} was automatically added to the project members list!`);
+                showAlert(`${userName} was automatically added to the project members list!`, 'info');
                 fetchData(true);
             }
         } catch (err: any) {
             console.error("Failed to update task", err);
-            alert(err.message || "Failed to update task");
+            showAlert(err.message || "Failed to update task", 'error');
             if (previousTask) {
                 setTasks(prev => prev.map(t => t.id == previousTask.id ? previousTask : t));
             }
@@ -330,7 +332,7 @@ export default function ProjectPage() {
             if (taskData.assigneeId && !projectMembers.includes(taskData.assigneeId)) {
                 const addedUser = users.find(u => u.id === taskData.assigneeId);
                 const userName = addedUser ? addedUser.name : 'The assigned user';
-                alert(`${userName} was automatically added to the project members list!`);
+                showAlert(`${userName} was automatically added to the project members list!`, 'info');
                 // Trigger a sync of project members
                 fetchData(true);
             }
@@ -353,13 +355,13 @@ export default function ProjectPage() {
             }
         } catch (err: any) {
             console.error("Failed to delete task", err);
-            alert(err.message || "Failed to delete task");
+            showAlert(err.message || "Failed to delete task", 'error');
             setTasks(previousTasks); // Revert
         }
     };
 
     const handleRemoveMember = async (userIdToRemove: string) => {
-        if (!confirm('Are you sure you want to remove this member from the project?')) return;
+        if (!(await showConfirm('Are you sure you want to remove this member from the project?'))) return;
 
         try {
             const unassignedCount = await db.unassignUserTasks(id, userIdToRemove);
@@ -373,11 +375,11 @@ export default function ProjectPage() {
                 }
                 setLastSyncTime(Date.now());
             } else {
-                alert('Failed to remove member');
+                showAlert('Failed to remove member', 'error');
             }
         } catch (error) {
             console.error('Error removing member:', error);
-            alert('Failed to remove member');
+            showAlert('Failed to remove member', 'error');
         }
     };
 
@@ -402,18 +404,20 @@ export default function ProjectPage() {
     );
 
     return (
-        <div className="flex flex-col h-full overflow-hidden bg-white dark:bg-gray-900">
+        <div className="flex flex-col h-full overflow-hidden bg-white dark:bg-gray-900 min-w-0">
             {isVideoOpen && <VideoRoom projectId={id} onLeave={() => setIsVideoOpen(false)} />}
 
             {/* Header */}
-            <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-between items-center bg-white dark:bg-gray-800 z-10">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-                        <span className="w-9 h-8 flex items-center justify-center bg-blue-600 text-white rounded text-sm">{project.key}</span>
+            <div className="border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-4 flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 bg-white dark:bg-gray-800 z-10">
+                <div className="min-w-0">
+                    <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3 min-w-0">
+                        <span className="w-9 h-8 flex flex-shrink-0 items-center justify-center bg-blue-600 text-white rounded text-sm">{project.key}</span>
+                        <span className="truncate">
                         {project.name}
+                        </span>
                     </h1>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     <button
                         onClick={() => setIsVideoOpen(true)}
                         className="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-400 px-3 py-2 rounded-md text-sm font-medium transition-colors"
@@ -459,14 +463,14 @@ export default function ProjectPage() {
                         )}
                     </div>
                     <button
-                        onClick={() => {
+                        onClick={async () => {
                             if (navigator.clipboard && navigator.clipboard.writeText) {
                                 navigator.clipboard.writeText(window.location.href)
-                                    .then(() => alert('Project link copied to clipboard!'))
-                                    .catch(() => alert('Failed to copy link'));
+                                    .then(() => showAlert('Project link copied to clipboard!', 'success'))
+                                    .catch(() => showAlert('Failed to copy link', 'error'));
                             } else {
                                 // Fallback for environments without clipboard API
-                                prompt('Copy this link:', window.location.href);
+                                await showPrompt('Copy this link:', window.location.href);
                             }
                         }}
                         className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-2 rounded-md text-sm font-medium transition-colors"
@@ -477,9 +481,9 @@ export default function ProjectPage() {
             </div>
 
             {/* Tabs */}
-            <div className="border-b border-gray-200 dark:border-gray-700 px-6 bg-gray-50/50 dark:bg-gray-800/50">
-                <nav className="flex space-x-6 -mb-px">
-                    <div className="flex space-x-6 overflow-x-auto no-scrollbar">
+            <div className="border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 bg-gray-50/50 dark:bg-gray-800/50">
+                <nav className="-mb-px overflow-x-auto no-scrollbar">
+                    <div className="flex gap-4 sm:gap-6 min-w-max">
                         {NAV_ITEMS.map((item) => (
                             <button
                                 key={item}
@@ -499,7 +503,7 @@ export default function ProjectPage() {
             </div>
 
             {/* Main Content Area */}
-            <div className={`flex-1 bg-gray-50/30 dark:bg-gray-900 ${activeTab === 'Chat' || activeTab === 'Forms' || activeTab === 'Pages' || activeTab === 'Calendar' || activeTab === 'Deployments' || activeTab === 'Timeline' ? 'overflow-hidden' : 'overflow-auto p-6'}`}>
+            <div className={`flex-1 min-w-0 bg-gray-50/30 dark:bg-gray-900 ${activeTab === 'Chat' || activeTab === 'Forms' || activeTab === 'Pages' || activeTab === 'Calendar' || activeTab === 'Deployments' || activeTab === 'Timeline' ? 'overflow-hidden' : 'overflow-auto p-4 sm:p-6'}`}>
                 <CreateTaskDialog
                     isOpen={isCreateTaskOpen}
                     onClose={() => setIsCreateTaskOpen(false)}
@@ -584,10 +588,10 @@ export default function ProjectPage() {
                                     setSelectedMembers(updatedMembers);
                                     setLastSyncTime(Date.now());
                                     setIsInviteOpen(false);
-                                    setTimeout(() => alert(`Project members updated!`), 100);
+                                    setTimeout(() => showAlert(`Project members updated!`, 'success'), 100);
                                 } catch (err) {
                                     console.error("Connection error in member update:", err);
-                                    alert('Failed to update members - check console for details');
+                                    showAlert('Failed to update members - check console for details', 'error');
                                 }
                             }}
                             className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-md text-sm font-medium transition-colors shadow-sm cursor-pointer ml-auto"

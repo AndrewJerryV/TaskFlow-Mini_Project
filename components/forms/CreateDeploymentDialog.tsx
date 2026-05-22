@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Deployment, Task } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAlert } from '@/contexts/AlertContext';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 import { db } from '@/lib/db';
 import { apiFetch } from '@/lib/api/fetchWithSupabase';
@@ -25,6 +26,7 @@ export function CreateDeploymentDialog({ isOpen, onClose, currentProjectId, onDe
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const { currentUser } = useAuth();
+    const { showAlert } = useAlert();
 
     useEffect(() => {
         if (isOpen && currentProjectId && currentUser) {
@@ -82,7 +84,7 @@ export function CreateDeploymentDialog({ isOpen, onClose, currentProjectId, onDe
             setSelectedTaskIds(new Set());
         } catch (error: any) {
             console.error('Error creating deployment:', error);
-            alert(error.message || 'Failed to create deployment');
+            showAlert(error.message || 'Failed to create deployment', 'error');
         } finally {
             setIsSubmitting(false);
         }

@@ -9,7 +9,12 @@ import { CreateProjectDialog } from '@/components/forms/CreateProjectDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/db';
 
-export function Sidebar() {
+interface SidebarProps {
+    isOpen?: boolean;
+    onClose?: () => void;
+}
+
+export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     const { currentUser } = useAuth();
     const [projects, setProjects] = useState<Project[]>([]);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -38,7 +43,7 @@ export function Sidebar() {
     }, [currentUser?.id]);
 
     return (
-        <aside className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full">
+        <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full transform transition-transform duration-200 ease-out md:static md:z-auto md:translate-x-0 md:flex-shrink-0 ${isOpen ? 'translate-x-0 shadow-2xl md:shadow-none' : '-translate-x-full md:translate-x-0'}`}>
             <CreateProjectDialog
                 isOpen={isCreateOpen}
                 onClose={() => {
@@ -55,7 +60,7 @@ export function Sidebar() {
                     <h2 className="text-xs font-semibold uppercase text-gray-400 dark:text-gray-500 mb-3 px-2">Workspace</h2>
                     <ul className="space-y-1">
                         <li>
-                            <Link href="/dashboard" className={`flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${pathname === '/dashboard' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+                            <Link href="/dashboard" onClick={onClose} className={`flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${pathname === '/dashboard' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
                                 <LayoutGrid size={18} className="mr-3 text-gray-400 dark:text-gray-500" />
                                 Dashboards
                             </Link>
@@ -63,14 +68,14 @@ export function Sidebar() {
 
                         {(currentUser?.role === 'Admin' || currentUser?.role === 'Manager') && (
                             <li>
-                                <Link href="/team" className={`flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${pathname === '/team' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+                                <Link href="/team" onClick={onClose} className={`flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${pathname === '/team' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
                                     <Users size={18} className="mr-3 text-gray-400 dark:text-gray-500" />
                                     Team
                                 </Link>
                             </li>
                         )}
                         <li>
-                            <Link href="/settings" className={`flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${pathname === '/settings' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+                            <Link href="/settings" onClick={onClose} className={`flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${pathname === '/settings' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
                                 <Settings size={18} className="mr-3 text-gray-400 dark:text-gray-500" />
                                 Settings
                             </Link>
@@ -98,6 +103,7 @@ export function Sidebar() {
                                 <li key={project.id}>
                                     <Link
                                         href={`/projects/${project.id}`}
+                                        onClick={onClose}
                                         className={`flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${isActive ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
                                     >
                                         <span className={`w-7 h-6 rounded flex items-center justify-center text-[10px] font-bold text-white mr-3 ${isActive ? 'bg-blue-600' : 'bg-gray-400 dark:bg-gray-600'}`}>

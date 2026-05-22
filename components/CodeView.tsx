@@ -5,6 +5,7 @@ import { Plus, ExternalLink, Github, Trash2, Clock, FolderGit2, Copy, Check } fr
 import { Modal } from '@/components/ui/Modal';
 import { formatDate } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAlert } from '@/contexts/AlertContext';
 import { User } from '@/types';
 import { fetchGithubRepoDetailsFromClient, getClientGithubToken } from '@/lib/client-integrations';
 import { db } from '@/lib/db';
@@ -257,6 +258,7 @@ export default function CodeView({ projectId }: CodeViewProps) {
     const [loading, setLoading] = useState(true);
     
     const { currentUser } = useAuth();
+    const { showConfirm, showPrompt } = useAlert();
 
     // Load repos from the database via API
     useEffect(() => {
@@ -321,7 +323,7 @@ export default function CodeView({ projectId }: CodeViewProps) {
     };
 
     const handleDeleteRepo = async (repoId: string) => {
-        if (!confirm('Remove this repository?')) return;
+        if (!(await showConfirm('Remove this repository?'))) return;
         try {
             const success = await db.deleteRepoLink(repoId);
             if (success) {
@@ -340,7 +342,7 @@ export default function CodeView({ projectId }: CodeViewProps) {
             setCopiedId(repoId);
             setTimeout(() => setCopiedId(null), 2000);
         } catch {
-            prompt('Copy this link:', url);
+            await showPrompt('Copy this link:', url);
         }
     };
 

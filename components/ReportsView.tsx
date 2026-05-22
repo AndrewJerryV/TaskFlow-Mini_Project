@@ -259,16 +259,16 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
     const activeFilterCount = filters.status.length + filters.priority.length + (filters.assignee ? 1 : 0);
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 min-w-0">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div className="min-w-0">
                     <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                         <BarChart3 className="text-blue-500" size={24} />
                         Project Reports
                     </h2>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                     <CustomSelect
                         value={timeRange}
                         onChange={(val: string) => setTimeRange(val)}
@@ -395,9 +395,9 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
             )}
 
             {/* Metric Cards - All Real Data */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 {metrics.map((metric, idx) => (
-                    <div key={idx} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex items-center gap-4">
+                    <div key={idx} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex items-center gap-4 min-w-0">
                         <div className={`w-12 h-12 shrink-0 ${metric.color} rounded-lg flex items-center justify-center text-white`}>
                             {metric.icon}
                         </div>
@@ -411,10 +411,10 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Completion Rate - Real Data */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
                     <h3 className="font-semibold text-gray-900 dark:text-white mb-6">Completion Rate</h3>
-                    <div className="flex items-center justify-center gap-12">
-                        <div className="relative w-44 h-44 shrink-0">
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-12">
+                        <div className="relative w-36 h-36 sm:w-44 sm:h-44 shrink-0">
                             <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                                 <circle
                                     cx="50" cy="50" r="40"
@@ -441,12 +441,12 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
                             </div>
                         </div>
                         
-                        <div className="flex flex-col gap-4">
-                            <div className="bg-gray-50 dark:bg-gray-700/30 p-3 rounded-lg border border-gray-100 dark:border-gray-700 w-32 text-center">
+                        <div className="flex flex-row sm:flex-col gap-3 sm:gap-4 w-full sm:w-auto">
+                            <div className="bg-gray-50 dark:bg-gray-700/30 p-3 rounded-lg border border-gray-100 dark:border-gray-700 flex-1 sm:w-32 text-center">
                                 <p className="text-2xl font-bold text-gray-900 dark:text-white leading-none">{completedTasks}</p>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 uppercase text-[10px] font-medium">Tasks Done</p>
                             </div>
-                            <div className="bg-gray-50 dark:bg-gray-700/30 p-3 rounded-lg border border-gray-100 dark:border-gray-700 w-32 text-center">
+                            <div className="bg-gray-50 dark:bg-gray-700/30 p-3 rounded-lg border border-gray-100 dark:border-gray-700 flex-1 sm:w-32 text-center">
                                 <p className="text-2xl font-bold text-gray-900 dark:text-white leading-none">{totalTasks - completedTasks}</p>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 uppercase text-[10px] font-medium">Remaining</p>
                             </div>
@@ -455,7 +455,7 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
                 </div>
 
                 {/* Status Distribution - Real Data */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
                     <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Status Distribution</h3>
                     <div className="space-y-4">
                         {statusDistribution.map((item, idx) => (
@@ -478,7 +478,7 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Priority Distribution - Real Data */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 flex flex-col">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6 flex flex-col">
                     <h3 className="font-semibold text-gray-900 dark:text-white mb-6">Priority Breakdown</h3>
                     <div className="space-y-4 flex-1">
                         {priorityDistribution.map((item, idx) => (
@@ -507,7 +507,7 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
                 </div>
 
                 {/* Assignment Overview - Real Data */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
                     <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Assignment Overview</h3>
                     <div className="space-y-4">
                         <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
@@ -527,13 +527,13 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
             </div>
 
             {/* Team Performance - Real Data from Database */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
                 <h3 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                     <Users size={20} className="text-blue-500" />
                     Team Performance
                 </h3>
                 <div className="overflow-x-auto">
-                    <table className="w-full">
+                    <table className="w-full min-w-[640px]">
                         <thead>
                             <tr className="text-left text-sm text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
                                 <th className="pb-3 font-medium">Team Member</th>
@@ -584,7 +584,7 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
             </div>
 
             {/* Task List Preview - Real Data */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
                 <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
                     Recent Tasks ({filteredTasks.length} total)
                 </h3>
@@ -592,15 +592,15 @@ export default function ReportsView({ projectId, tasks = [] }: ReportsViewProps)
                     {filteredTasks.slice(0, 10).map((task, idx) => {
                         const assignee = users.find(u => u.id === task.assigneeId);
                         return (
-                            <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                                <div className="flex items-center gap-3">
+                            <div key={idx} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                                <div className="flex items-center gap-3 min-w-0">
                                     <div className={`w-2 h-2 rounded-full ${task.priority === 'Critical' ? 'bg-red-500' :
                                         task.priority === 'High' ? 'bg-orange-500' :
                                             task.priority === 'Medium' ? 'bg-yellow-500' : 'bg-green-500'
                                         }`} />
-                                    <span className="text-sm text-gray-900 dark:text-white">{task.title}</span>
+                                    <span className="text-sm text-gray-900 dark:text-white truncate">{task.title}</span>
                                 </div>
-                                <div className="flex items-center gap-3">
+                                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                                     <span className={`text-xs px-2 py-1 rounded ${task.status === 'Done' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
                                         task.status === 'In Progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
                                             'bg-gray-100 text-gray-700 dark:bg-gray-600 dark:text-gray-300'
