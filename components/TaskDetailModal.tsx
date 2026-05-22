@@ -5,6 +5,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Task, Comment, Priority, Status, Deployment } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTimer } from '@/contexts/TimerContext';
+import { useAlert } from '@/contexts/AlertContext';
 import { Trash2, Calendar, User as UserIcon, MessageSquare, Clock, Sparkles, ArrowRight, Edit, Play, Square, Rocket, Lock } from 'lucide-react';
 import { CustomSelect, SelectOption } from './ui/CustomSelect';
 import { PRIORITY_COLORS, STATUS_COLORS } from '@/lib/constants';
@@ -45,6 +46,7 @@ interface TaskDetailModalProps {
 export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete, projectMemberIds = [] }: TaskDetailModalProps) {
     const { currentUser, users } = useAuth();
     const { activeTimer, startTimer, stopTimer, elapsedMinutes } = useTimer();
+    const { showAlert } = useAlert();
     const [isEditing, setIsEditing] = useState(false);
     const [editedTask, setEditedTask] = useState<Task | null>(null);
     const [comments, setComments] = useState<Comment[]>([]);
@@ -189,7 +191,7 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onDelete, pro
                     editedTask.dependencies?.includes(t.id) && t.status !== 'Done'
                 );
                 if (incompleteDeps.length > 0) {
-                    alert(`Cannot update to ${editedTask.status}. This task is blocked by: ${incompleteDeps.map(t => t.title).join(', ')}`);
+                    showAlert(`Cannot update to ${editedTask.status}. This task is blocked by: ${incompleteDeps.map(t => t.title).join(', ')}`, 'error');
                     return;
                 }
             }

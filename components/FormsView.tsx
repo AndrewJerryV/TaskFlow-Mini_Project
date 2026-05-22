@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAlert } from '@/contexts/AlertContext';
 import { Form, FormField, FormFieldType, FormResponse, User } from '@/types';
 import { Plus, FileText, Trash2, Edit3, BarChart3, ClipboardList, ChevronLeft, Send, CheckCircle2, Copy, X, Calendar, Users, AlertCircle, Inbox } from 'lucide-react';
 import { CustomSelect } from './ui/CustomSelect';
@@ -20,6 +21,7 @@ const FIELD_TYPES: Record<FormFieldType, string> = {
 
 export default function FormsView({ projectId }: FormsViewProps) {
     const { currentUser } = useAuth();
+    const { showAlert, showConfirm } = useAlert();
     const [forms, setForms] = useState<Form[]>([]);
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -202,7 +204,7 @@ export default function FormsView({ projectId }: FormsViewProps) {
     };
 
     const deleteForm = async (id: string) => {
-        if (!confirm('Delete this form and all its responses?')) return;
+        if (!(await showConfirm('Delete this form and all its responses?'))) return;
         try {
             const success = await db.deleteForm(id);
             if (success) { setForms(prev => prev.filter(f => f.id !== id)); showToast('Form deleted'); }

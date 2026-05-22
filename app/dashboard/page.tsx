@@ -1,11 +1,14 @@
 'use client';
 
+'use client';
+
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Project, Task } from '@/types';
 import { CreateProjectDialog } from '@/components/forms/CreateProjectDialog';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAlert } from '@/contexts/AlertContext';
 import { getUserName, getActionDisplay } from '@/lib/utils';
 import { Sparkles, ArrowRight, Trash2, MessageSquare, Edit, ChevronDown, ChevronUp, Brain } from 'lucide-react';
 import { WellnessAlerts } from '@/components/WellnessAlerts';
@@ -34,6 +37,7 @@ type ProjectWithStats = Project & {
 
 export default function Home() {
   const { currentUser, users } = useAuth();
+  const { showAlert, showConfirm } = useAlert();
   const router = useRouter();
   const [projects, setProjects] = useState<ProjectWithStats[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
@@ -154,17 +158,19 @@ export default function Home() {
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          if (confirm('Are you sure you want to delete this project?')) {
-                            db.deleteProject(project.id)
-                              .then((success) => {
-                                if (success) {
-                                  setProjects(prev => prev.filter(p => p.id !== project.id));
-                                } else {
-                                  alert('Failed to delete project');
-                                }
-                              })
-                              .catch(console.error);
-                          }
+                          showConfirm('Are you sure you want to delete this project?').then((confirmed) => {
+                            if (confirmed) {
+                              db.deleteProject(project.id)
+                                .then((success) => {
+                                  if (success) {
+                                    setProjects(prev => prev.filter(p => p.id !== project.id));
+                                  } else {
+                                    showAlert('Failed to delete project', 'error');
+                                  }
+                                })
+                                .catch(console.error);
+                            }
+                          });
                         }}
                         className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
                         title="Delete Project"

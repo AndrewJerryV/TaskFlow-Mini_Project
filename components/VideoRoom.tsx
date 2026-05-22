@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAlert } from '@/contexts/AlertContext';
 import { Video, ExternalLink, X, Copy, Check, Users, Settings, Save, Trash2 } from 'lucide-react';
 import { db } from '@/lib/db';
 import { apiFetch } from '@/lib/api/fetchWithSupabase';
@@ -13,6 +14,7 @@ interface VideoRoomProps {
 
 export default function VideoRoom({ projectId, onLeave }: VideoRoomProps) {
     const { currentUser } = useAuth();
+    const { showPrompt } = useAlert();
     const canManageMeeting = currentUser?.role === 'Admin' || currentUser?.role === 'Manager';
     const [copied, setCopied] = useState(false);
     const [meetingUrl, setMeetingUrl] = useState<string | null>(null);
@@ -92,7 +94,7 @@ export default function VideoRoom({ projectId, onLeave }: VideoRoomProps) {
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch {
-            prompt('Copy this meeting link:', meetingUrl);
+            await showPrompt('Copy this meeting link:', meetingUrl);
         }
     };
 

@@ -29,6 +29,7 @@ import {
 import EmojiPicker from 'emoji-picker-react';
 import { MiniCalendar } from '@/components/ui/MiniCalendar';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAlert } from '@/contexts/AlertContext';
 import { formatFileSize } from '@/lib/utils';
 import { getSupabase } from '@/lib/supabase';
 import { db } from '@/lib/db';
@@ -47,6 +48,7 @@ const QUICK_REACTIONS = ['\u{1F44D}', '\u2764\uFE0F', '\u{1F602}', '\u{1F62E}', 
 
 export default function ChatView({ projectId, projectMemberIds }: ChatViewProps) {
     const { currentUser, users } = useAuth();
+    const { showConfirm } = useAlert();
     const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
     const [messages, setMessages] = useState<Message[]>([]);
     const [activeConversationId, setActiveConversationId] = useState<string>('project-room');
@@ -514,7 +516,7 @@ export default function ChatView({ projectId, projectMemberIds }: ChatViewProps)
     };
 
     const handleDeleteMessage = async (messageId: string) => {
-        if (!confirm('Are you sure you want to delete this message?')) return;
+        if (!(await showConfirm('Are you sure you want to delete this message?'))) return;
         try {
             const success = await db.deleteMessage(messageId);
             if (success) {

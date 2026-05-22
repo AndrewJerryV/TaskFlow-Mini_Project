@@ -7,7 +7,11 @@ import { getActionDisplay } from '@/lib/utils';
 import { Calendar, CheckCircle2, Clock, History, PieChart as PieIcon, Phone, Building, Shield, HeartPulse, Pencil, Mail, Trash2, Loader2, AlertTriangle } from 'lucide-react';
 import { PieChart, TaskTimeline } from '@/components/ui/Charts';
 import { useAuth } from '@/contexts/AuthContext';
+<<<<<<< HEAD
 import { apiFetch } from '@/lib/api/fetchWithSupabase';
+=======
+import { useAlert } from '@/contexts/AlertContext';
+>>>>>>> 311f979 (feat: Refactor native browser alerts to use custom AlertContext UI overlays)
 
 interface UserHistoryModalProps {
     isOpen: boolean;
@@ -31,6 +35,7 @@ export function UserHistoryModal({ isOpen, onClose, user, onEditSkills, onUserDe
     const [deleteError, setDeleteError] = useState<string | null>(null);
 
     const { currentUser } = useAuth();
+    const { showAlert } = useAlert();
     const isAdmin = currentUser?.role === 'Admin';
     const canViewHealth = currentUser?.role === 'Admin' || currentUser?.role === 'Manager';
 
@@ -47,11 +52,15 @@ export function UserHistoryModal({ isOpen, onClose, user, onEditSkills, onUserDe
             const data = await res.json();
             if (data.success) {
                 setShowDeleteConfirm(true);
+                showAlert('Verification code sent to your email', 'info');
             } else {
-                setDeleteError(data.error || 'Failed to send OTP');
+                const errorMsg = data.error || 'Failed to send OTP';
+                setDeleteError(errorMsg);
+                showAlert(errorMsg, 'error');
             }
         } catch (err) {
             setDeleteError('Network error while sending OTP');
+            showAlert('Network error while sending OTP', 'error');
         } finally {
             setIsSendingOtp(false);
         }
@@ -72,13 +81,17 @@ export function UserHistoryModal({ isOpen, onClose, user, onEditSkills, onUserDe
             });
             const data = await res.json();
             if (data.success) {
+                showAlert('User deleted successfully', 'success');
                 onUserDeleted?.();
                 onClose();
             } else {
-                setDeleteError(data.error || 'Invalid OTP');
+                const errorMsg = data.error || 'Invalid OTP';
+                setDeleteError(errorMsg);
+                showAlert(errorMsg, 'error');
             }
         } catch (err) {
             setDeleteError('Network error during deletion');
+            showAlert('Network error during deletion', 'error');
         } finally {
             setIsDeleting(false);
         }

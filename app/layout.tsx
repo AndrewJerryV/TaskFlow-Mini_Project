@@ -2,10 +2,11 @@ import './globals.css';
 import { Poppins } from 'next/font/google';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { AlertProvider } from '@/contexts/AlertContext';
 import { AuthenticatedLayout } from '@/components/AuthenticatedLayout';
 import { SupabaseGuard } from '@/components/SupabaseGuard';
 
-const poppins = Poppins({ 
+const poppins = Poppins({
   weight: ['400', '500', '600', '700'],
   style: ['normal', 'italic'],
   subsets: ['latin'],
@@ -25,16 +26,28 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body suppressHydrationWarning className={`${poppins.variable} font-sans bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors`}>
-        <SupabaseGuard>
-          <ThemeProvider>
-            <AuthProvider>
+<<<<<<< HEAD
+  <SupabaseGuard>
+    <ThemeProvider>
+      <AuthProvider>
+        <AuthenticatedLayout>
+          {children}
+        </AuthenticatedLayout>
+      </AuthProvider>
+    </ThemeProvider>
+  </SupabaseGuard>
+=======
+        <ThemeProvider>
+          <AuthProvider>
+            <AlertProvider>
               <AuthenticatedLayout>
                 {children}
               </AuthenticatedLayout>
-            </AuthProvider>
-          </ThemeProvider>
-        </SupabaseGuard>
-      </body>
-    </html>
+            </AlertProvider>
+          </AuthProvider>
+        </ThemeProvider>
+>>>>>>> 311f979 (feat: Refactor native browser alerts to use custom AlertContext UI overlays)
+      </body >
+    </html >
   );
 }
